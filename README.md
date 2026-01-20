@@ -1,73 +1,119 @@
-# Welcome to your Lovable project
+# Secure Exam Flow 
 
-## Project info
+A frontend-based **secure online examination flow** built with modern web technologies to demonstrate how online exam systems manage controlled navigation, exam rules, and submission logic.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+This project emphasizes **exam integrity, structured flow, and a distraction-free user experience**, making it suitable for academic demonstrations and portfolio showcases.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Features
 
-**Use Lovable**
+- 🔐 **Secure Exam Flow**
+  - Enforces start → attempt → submit sequence
+  - Prevents skipping mandatory exam steps
+  - Controlled navigation during the exam
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- ⏱️ **Exam Experience**
+  - Timed exam logic
+  - Smooth transitions between questions
+  - Submission confirmation handling
 
-Changes made via Lovable will be committed automatically to this repo.
+- 🎯 **Focused UI**
+  - Minimal and distraction-free interface
+  - Responsive across different screen sizes
 
-**Use your preferred IDE**
+- ⚡ **High Performance**
+  - Fast development and builds using Vite
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 👥 User Roles
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 1️⃣ Teacher (Paper Setter)
+**Goal:** Upload exam papers securely
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+**Permissions**
+- Upload papers for assigned subjects
+- Upload multiple sets (A, B, C)
+- Edit/replace before deadline
+- View status (Pending / Approved / Rejected)
+- View HOD feedback
 
-# Step 3: Install the necessary dependencies.
-npm i
+**Restrictions**
+- ❌ Cannot view other teachers’ papers  
+- ❌ Cannot download after deadline  
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+### 2️⃣ HOD (Head of Department)
+**Goal:** Select the final paper (bias-free)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+**Permissions**
+- View all papers for their department
+- Anonymous comparison (no teacher names)
+- Select **one** paper per subject
+- Reject papers with remarks
+- Lock and forward final paper to Exam Cell
 
-**Use GitHub Codespaces**
+⭐ Papers are shown as **Paper 1, Paper 2, Paper 3**
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+### 3️⃣ Examination Cell
+**Goal:** Conduct exams securely
 
-This project is built with:
+**Permissions**
+- Access only HOD-approved papers
+- Time-based paper unlock
+- Download & print with watermark
+- Track usage and archive papers
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 🔁 Core Workflow
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+1. **Teacher uploads** encrypted PDF → deadline enforced  
+2. **HOD reviews** anonymously → selects one paper  
+3. **Exam Cell receives** approved paper → locked until exam time  
+4. **Post-exam:** papers archived, downloads disabled, logs saved  
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🖥️ Dashboards
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### 📘 Teacher
+- Subject list & upload status
+- Deadline timer
+- PDF validation
+- Feedback & resubmission
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 📕 HOD
+- Department-wise papers
+- Anonymous comparison
+- Preview, select & lock
+- Rejection remarks
+
+### 📙 Examination Cell
+- Exam calendar
+- Approved papers inbox
+- Secure access & print
+- Exam archive
+
+
+## 🛠️ Tech Stack
+
+- **Frontend Framework:** React  
+- **Language:** JavaScript  
+- **Build Tool:** Vite  
+- **Styling:** CSS  
+- **Deployment:** Vercel  
+
+---
+
+
+## 🧑‍💻 Getting Started
+
+### 1️⃣ Clone the repository
+git clone https://github.com/nimrawani04/secure-exam-flow.git
