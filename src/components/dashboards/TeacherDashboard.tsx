@@ -65,7 +65,7 @@ upcomingDeadline.setDate(upcomingDeadline.getDate() + 2);
 upcomingDeadline.setHours(23, 59, 59);
 
 export function TeacherDashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [papers] = useState<ExamPaper[]>(mockPapers);
 
   const stats = {
@@ -75,12 +75,14 @@ export function TeacherDashboard() {
     rejected: papers.filter(p => p.status === 'rejected').length,
   };
 
+  const firstName = profile?.full_name?.split(' ')[0] || 'Teacher';
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.name.split(' ')[0]}</h1>
+          <h1 className="text-3xl font-bold">Welcome back, {firstName}</h1>
           <p className="text-muted-foreground mt-1">
             Manage your exam papers and track submission status
           </p>

@@ -14,16 +14,324 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: unknown
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          user_id?: string
+        }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      exam_papers: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          deadline: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          feedback: string | null
+          file_path: string | null
+          id: string
+          is_selected: boolean | null
+          set_name: string
+          status: Database["public"]["Enums"]["paper_status"]
+          subject_id: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          deadline: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          feedback?: string | null
+          file_path?: string | null
+          id?: string
+          is_selected?: boolean | null
+          set_name: string
+          status?: Database["public"]["Enums"]["paper_status"]
+          subject_id: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          deadline?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          feedback?: string | null
+          file_path?: string | null
+          id?: string
+          is_selected?: boolean | null
+          set_name?: string
+          status?: Database["public"]["Enums"]["paper_status"]
+          subject_id?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_papers_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          created_by: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          scheduled_date: string
+          selected_paper_id: string | null
+          status: Database["public"]["Enums"]["exam_status"]
+          subject_id: string
+          unlock_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          scheduled_date: string
+          selected_paper_id?: string | null
+          status?: Database["public"]["Enums"]["exam_status"]
+          subject_id: string
+          unlock_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          scheduled_date?: string
+          selected_paper_id?: string | null
+          status?: Database["public"]["Enums"]["exam_status"]
+          subject_id?: string
+          unlock_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_selected_paper_id_fkey"
+            columns: ["selected_paper_id"]
+            isOneToOne: false
+            referencedRelation: "exam_papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          email: string
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          email: string
+          full_name: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          code: string
+          created_at: string
+          department_id: string
+          id: string
+          name: string
+          semester: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          department_id: string
+          id?: string
+          name: string
+          semester: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          department_id?: string
+          id?: string
+          name?: string
+          semester?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subjects_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_subjects: {
+        Row: {
+          created_at: string
+          id: string
+          subject_id: string
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subject_id: string
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subject_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_department: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "teacher" | "hod" | "exam_cell"
+      exam_status: "scheduled" | "in_progress" | "completed" | "archived"
+      exam_type: "mid_term" | "end_term" | "practical" | "internal"
+      paper_status:
+        | "draft"
+        | "submitted"
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "locked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +458,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["teacher", "hod", "exam_cell"],
+      exam_status: ["scheduled", "in_progress", "completed", "archived"],
+      exam_type: ["mid_term", "end_term", "practical", "internal"],
+      paper_status: [
+        "draft",
+        "submitted",
+        "pending_review",
+        "approved",
+        "rejected",
+        "locked",
+      ],
+    },
   },
 } as const
