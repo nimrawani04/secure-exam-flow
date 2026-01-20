@@ -89,7 +89,7 @@ export default function Landing() {
                 <Shield className="w-7 h-7" />
               </div>
               <div>
-                <h1 className="font-bold text-xl">ExamSecure</h1>
+                <h1 className="font-bold text-xl">CUK ExamSecure</h1>
                 <p className="text-xs opacity-70">Paper Management System</p>
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function Landing() {
             </div>
             
             <h2 className="text-5xl md:text-6xl font-bold mb-6 animate-slide-up">
-              Secure Exam Paper
+              CUK Secure Exam Paper
               <br />
               <span className="text-accent">Management System</span>
             </h2>
@@ -134,13 +134,8 @@ export default function Landing() {
 
             {/* Trust Indicators */}
             <div className="mt-16 pt-8 border-t border-primary-foreground/10">
-              <p className="text-sm text-primary-foreground/50 mb-4">Trusted by leading institutions</p>
-              <div className="flex items-center justify-center gap-8 opacity-60">
-                <span className="text-lg font-semibold">IIT Delhi</span>
-                <span className="text-lg font-semibold">NIT Warangal</span>
-                <span className="text-lg font-semibold">BITS Pilani</span>
-                <span className="text-lg font-semibold">VIT University</span>
-              </div>
+              <p className="text-sm text-primary-foreground/50 mb-4">CENTRAL UNIVERSITY OF KASHMIR</p>
+              
             </div>
           </div>
         </div>
