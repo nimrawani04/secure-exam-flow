@@ -274,11 +274,11 @@ export default function Landing() {
                 <Shield className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="font-bold">ExamSecure</h1>
-                <p className="text-xs opacity-70">Secure Paper Management</p>
+                <h1 className="font-bold">CUK ExamSecure</h1>
+                <p className="text-xs opacity-70"> Paper Management System</p>
               </div>
             </div>
-            <p className="text-sm opacity-70">© 2024 ExamSecure. NAAC Compliant.</p>
+            <p className="text-sm opacity-70">© 2026 CUK ExamSecure.</p>
           </div>
         </div>
       </footer>
