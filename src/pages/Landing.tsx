@@ -127,9 +127,7 @@ export default function Landing() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Button variant="heroOutline" size="xl">
-                Watch Demo
-              </Button>
+              
             </div>
 
             {/* Trust Indicators */}
@@ -279,6 +277,17 @@ export default function Landing() {
               </div>
             </div>
             <p className="text-sm opacity-70">© 2026 CUK ExamSecure.</p>
+            <p>
+  Created by 
+  <a href="https://m4milaad.github.io/" target="_blank" rel="noopener noreferrer">
+    Milad Ajaz Bhat
+  </a> 
+  &amp; 
+  <a href="https://nimrawani.vercel.app/" target="_blank" rel="noopener noreferrer">
+    Nimra Wani
+  </a>
+</p>
+
           </div>
         </div>
       </footer>
