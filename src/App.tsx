@@ -8,6 +8,8 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import UploadPaper from "./pages/UploadPaper";
+import Submissions from "./pages/Submissions";
+import Review from "./pages/Review";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,10 +27,10 @@ const App = () => (
             <Route path="/login" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/upload" element={<UploadPaper />} />
+            <Route path="/submissions" element={<Submissions />} />
+            <Route path="/review" element={<Review />} />
             {/* Placeholder routes */}
-            <Route path="/submissions" element={<Dashboard />} />
             <Route path="/subjects" element={<Dashboard />} />
-            <Route path="/review" element={<Dashboard />} />
             <Route path="/department" element={<Dashboard />} />
             <Route path="/approved" element={<Dashboard />} />
             <Route path="/calendar" element={<Dashboard />} />
