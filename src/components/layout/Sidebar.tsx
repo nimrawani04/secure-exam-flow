@@ -39,14 +39,14 @@ const roleNavItems = {
 
 export function Sidebar() {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { profile, signOut } = useAuth();
 
-  if (!user) return null;
+  if (!profile?.role) return null;
 
-  const navItems = roleNavItems[user.role] || [];
+  const navItems = roleNavItems[profile.role] || [];
 
   const getRoleBadge = () => {
-    switch (user.role) {
+    switch (profile.role) {
       case 'teacher':
         return 'Teacher';
       case 'hod':
@@ -56,6 +56,14 @@ export function Sidebar() {
       default:
         return '';
     }
+  };
+
+  const getInitials = () => {
+    return profile.full_name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
   };
 
   return (
@@ -77,10 +85,10 @@ export function Sidebar() {
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-semibold">
-            {user.name.split(' ').map(n => n[0]).join('')}
+            {getInitials()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{user.name}</p>
+            <p className="font-medium text-sm truncate">{profile.full_name}</p>
             <p className="text-xs text-sidebar-foreground/60">{getRoleBadge()}</p>
           </div>
         </div>
@@ -120,7 +128,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 px-4 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
-          onClick={logout}
+          onClick={signOut}
         >
           <LogOut className="w-5 h-5" />
           Logout

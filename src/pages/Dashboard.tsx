@@ -5,10 +5,10 @@ import { HODDashboard } from '@/components/dashboards/HODDashboard';
 import { ExamCellDashboard } from '@/components/dashboards/ExamCellDashboard';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   const renderDashboard = () => {
-    switch (user?.role) {
+    switch (profile?.role) {
       case 'teacher':
         return <TeacherDashboard />;
       case 'hod':
@@ -16,7 +16,7 @@ export default function Dashboard() {
       case 'exam_cell':
         return <ExamCellDashboard />;
       default:
-        return <div>Unknown role</div>;
+        return <div>Loading dashboard...</div>;
     }
   };
 

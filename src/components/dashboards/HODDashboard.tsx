@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { PaperCard } from '@/components/dashboard/PaperCard';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,10 @@ import {
   Lock,
   AlertTriangle,
 } from 'lucide-react';
+
+interface Department {
+  name: string;
+}
 
 // Mock data - papers shown anonymously
 const mockPapersForReview: ExamPaper[] = [
@@ -65,10 +70,28 @@ const subjectsNeedingReview = [
 ];
 
 export function HODDashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>('s1');
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const [papers] = useState<ExamPaper[]>(mockPapersForReview);
+  const [departmentName, setDepartmentName] = useState<string>('your department');
+
+  useEffect(() => {
+    const fetchDepartment = async () => {
+      if (profile?.department_id) {
+        const { data } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', profile.department_id)
+          .single();
+        
+        if (data) {
+          setDepartmentName(data.name);
+        }
+      }
+    };
+    fetchDepartment();
+  }, [profile?.department_id]);
 
   const handleSelectPaper = (paperId: string) => {
     setSelectedPaperId(selectedPaperId === paperId ? null : paperId);
@@ -80,7 +103,7 @@ export function HODDashboard() {
       <div>
         <h1 className="text-3xl font-bold">HOD Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Review and select exam papers for {user?.department}
+          Review and select exam papers for {departmentName}
         </p>
       </div>
 
