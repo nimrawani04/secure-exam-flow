@@ -94,7 +94,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Link to="/login">
+              <Link to="/auth">
                 <Button variant="heroOutline" size="lg">
                   Login
                 </Button>
@@ -121,7 +121,7 @@ export default function Landing() {
             </p>
 
             <div className="flex items-center justify-center gap-4 animate-slide-up">
-              <Link to="/login">
+              <Link to="/auth">
                 <Button variant="hero" size="xl" className="gap-2">
                   Get Started
                   <ArrowRight className="w-5 h-5" />
@@ -261,7 +261,7 @@ export default function Landing() {
           <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
             Join leading universities in eliminating paper leaks and ensuring exam integrity.
           </p>
-          <Link to="/login">
+          <Link to="/auth">
             <Button variant="hero" size="xl" className="gap-2">
               Start Now
               <ArrowRight className="w-5 h-5" />
