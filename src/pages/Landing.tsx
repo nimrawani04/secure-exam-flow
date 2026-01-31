@@ -281,8 +281,8 @@ export default function Landing() {
   Created by 
   <a href="https://m4milaad.github.io/" target="_blank" rel="noopener noreferrer">
     Milad Ajaz Bhat
-  </a> 
-  &amp; 
+  </a>
+  &nbsp;&amp;&nbsp;
   <a href="https://nimrawani.vercel.app/" target="_blank" rel="noopener noreferrer">
     Nimra Wani
   </a>
