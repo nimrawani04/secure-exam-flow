@@ -1,4 +1,4 @@
-export type UserRole = 'teacher' | 'hod' | 'exam_cell';
+export type UserRole = 'teacher' | 'hod' | 'exam_cell' | 'admin';
 
 export type PaperStatus = 'draft' | 'submitted' | 'pending_review' | 'approved' | 'rejected' | 'locked';
 
