@@ -133,6 +133,60 @@ export type Database = {
           },
         ]
       }
+      exam_sessions: {
+        Row: {
+          academic_year: string
+          access_end: string
+          access_start: string
+          created_at: string | null
+          created_by: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          is_active: boolean | null
+          is_locked: boolean | null
+          name: string
+          review_end: string
+          review_start: string
+          submission_end: string
+          submission_start: string
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year: string
+          access_end: string
+          access_start: string
+          created_at?: string | null
+          created_by: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          is_active?: boolean | null
+          is_locked?: boolean | null
+          name: string
+          review_end: string
+          review_start: string
+          submission_end: string
+          submission_start: string
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year?: string
+          access_end?: string
+          access_start?: string
+          created_at?: string | null
+          created_by?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          is_active?: boolean | null
+          is_locked?: boolean | null
+          name?: string
+          review_end?: string
+          review_start?: string
+          submission_end?: string
+          submission_start?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       exams: {
         Row: {
           created_at: string
@@ -186,6 +240,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          target_departments: string[] | null
+          target_roles: Database["public"]["Enums"]["app_role"][]
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          target_departments?: string[] | null
+          target_roles: Database["public"]["Enums"]["app_role"][]
+          title: string
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          target_departments?: string[] | null
+          target_roles?: Database["public"]["Enums"]["app_role"][]
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -257,6 +353,33 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       teacher_subjects: {
         Row: {
           created_at: string
@@ -322,7 +445,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "teacher" | "hod" | "exam_cell"
+      app_role: "teacher" | "hod" | "exam_cell" | "admin"
       exam_status: "scheduled" | "in_progress" | "completed" | "archived"
       exam_type: "mid_term" | "end_term" | "practical" | "internal"
       paper_status:
@@ -459,7 +582,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["teacher", "hod", "exam_cell"],
+      app_role: ["teacher", "hod", "exam_cell", "admin"],
       exam_status: ["scheduled", "in_progress", "completed", "archived"],
       exam_type: ["mid_term", "end_term", "practical", "internal"],
       paper_status: [
