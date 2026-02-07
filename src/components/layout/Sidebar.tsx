@@ -13,6 +13,9 @@ import {
   FileCheck,
   Archive,
   ClipboardList,
+  Building,
+  Activity,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -35,6 +38,13 @@ const roleNavItems = {
     { icon: FileText, label: 'Papers Inbox', path: '/inbox' },
     { icon: Archive, label: 'Archive', path: '/archive' },
   ],
+  admin: [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Users, label: 'User Management', path: '/admin/users' },
+    { icon: Building, label: 'Departments', path: '/admin/departments' },
+    { icon: Activity, label: 'Audit Logs', path: '/admin/audit' },
+    { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
+  ],
 };
 
 export function Sidebar() {
@@ -53,6 +63,8 @@ export function Sidebar() {
         return 'Head of Department';
       case 'exam_cell':
         return 'Examination Cell';
+      case 'admin':
+        return 'Administrator';
       default:
         return '';
     }
