@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Landing() {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-hidden">
       <section className="relative min-h-screen bg-slate-900 text-white">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/cuk.png')" }}
         />
-        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-black/45" />
 
         <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left panel */}
@@ -29,9 +33,9 @@ export default function Landing() {
 
           {/* Right panel */}
           <div className="flex items-center justify-center p-8 md:p-12">
-            <div className="w-full max-w-md rounded-xl border border-white/15 bg-black/40 p-8 backdrop-blur">
+            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-10 backdrop-blur">
               <div className="flex flex-col items-center text-center">
-                <div className="mb-4 h-20 w-20 rounded-full bg-white/10 p-2">
+                <div className="mb-5 h-24 w-24 rounded-full bg-white/10 p-2">
                   <img
                     src="/cuk-favicon.png"
                     alt="CUK Logo"
@@ -46,17 +50,20 @@ export default function Landing() {
                   <br />
                   Management System
                 </h2>
+                <p className="mt-3 text-sm text-white/80">
+                  Official Examination Management Platform
+                </p>
               </div>
 
-              <div className="mt-8 space-y-4">
+              <div className="mt-8 space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
                     Login
                   </label>
                   <input
                     type="text"
-                    placeholder="User Name"
-                    className="h-11 w-full rounded-md border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/40 focus:outline-none"
+                    placeholder="Username / Email"
+                    className="h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
                   />
                 </div>
 
@@ -64,11 +71,26 @@ export default function Landing() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    placeholder="Credentials"
-                    className="h-11 w-full rounded-md border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/40 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Password"
+                      className="h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 pr-10 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <Link to="/auth" className="text-xs text-white/70 hover:text-white">
+                      Forgot Password?
+                    </Link>
+                  </div>
                 </div>
 
                 <label className="flex items-center gap-2 text-sm text-white/80">
@@ -79,14 +101,14 @@ export default function Landing() {
                   Keep me signed in
                 </label>
 
-                <Link to="/auth">
-                  <Button className="w-full" size="lg">
+                <Link to="/auth" className="mt-2 block">
+                  <Button className="w-full bg-white text-slate-900 hover:bg-white/90" size="lg">
                     Sign In
                   </Button>
                 </Link>
 
                 <p className="text-center text-xs text-white/70">
-                  Secure | Auditable | Role-Based Access
+                  End-to-end encrypted • Activity logged • Role-based access
                 </p>
 
                 <p className="text-center text-sm text-white/80">
