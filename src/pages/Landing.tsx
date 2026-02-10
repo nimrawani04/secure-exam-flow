@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 
 interface Department {
   id: string;
@@ -28,6 +29,7 @@ export default function Landing() {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -142,7 +144,7 @@ export default function Landing() {
                   Management System
                 </h2>
                 <p className="mt-2 text-[10px] sm:text-xs text-white/80">
-                  End-to-end encrypted • Activity logged • Role-based access
+                  End-to-end encrypted | Activity logged | Role-based access
                 </p>
               </div>
 
@@ -205,9 +207,13 @@ export default function Landing() {
                   </div>
                   {!isSignUp && (
                     <div className="text-right">
-                      <Link to="/auth" className="text-xs text-white/70 hover:text-white">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-xs text-white/70 hover:text-white"
+                      >
                         Forgot Password?
-                      </Link>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -288,6 +294,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      <ForgotPasswordDialog open={showForgotPassword} onOpenChange={setShowForgotPassword} />
     </div>
   );
 }

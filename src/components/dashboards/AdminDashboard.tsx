@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAdminStats } from '@/hooks/useAdminStats';
-import { useAdminUsers, useUpdateUserRole, useUpdateUserDepartment, AdminUser } from '@/hooks/useAdminUsers';
+import { useAdminUsers, AdminUser } from '@/hooks/useAdminUsers';
+import { useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useAdminUserActions';
 import { useAdminDepartments, useCreateDepartment, useDeleteDepartment } from '@/hooks/useAdminDepartments';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,6 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -72,15 +75,25 @@ export function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useAdminStats();
   const { data: users, isLoading: usersLoading } = useAdminUsers();
   const { data: departments, isLoading: deptsLoading } = useAdminDepartments();
-  const updateRole = useUpdateUserRole();
-  const updateDepartment = useUpdateUserDepartment();
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
   const createDepartment = useCreateDepartment();
   const deleteDepartment = useDeleteDepartment();
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const location = useLocation();
 
   const [userSearch, setUserSearch] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptCode, setNewDeptCode] = useState('');
+  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'audit' | 'overview'>('users');
+
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<AppRole>('teacher');
+  const [newUserDepartment, setNewUserDepartment] = useState<string>('');
 
   const filteredUsers = users?.filter(
     (u) =>
@@ -88,26 +101,17 @@ export function AdminDashboard() {
       u.email.toLowerCase().includes(userSearch.toLowerCase())
   );
 
-  const handleRoleChange = async (userId: string, role: string) => {
-    try {
-      await updateRole.mutateAsync({ userId, role: role as AppRole });
-      toast({ title: 'Role updated', description: 'User role has been changed successfully.' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update role.', variant: 'destructive' });
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/departments')) {
+      setActiveTab('departments');
+    } else if (location.pathname.startsWith('/admin/audit')) {
+      setActiveTab('audit');
+    } else if (location.pathname.startsWith('/admin/security')) {
+      setActiveTab('overview');
+    } else {
+      setActiveTab('users');
     }
-  };
-
-  const handleDepartmentChange = async (userId: string, departmentId: string) => {
-    try {
-      await updateDepartment.mutateAsync({
-        userId,
-        departmentId: departmentId === 'none' ? null : departmentId,
-      });
-      toast({ title: 'Department updated', description: 'User department has been changed.' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update department.', variant: 'destructive' });
-    }
-  };
+  }, [location.pathname]);
 
   const handleCreateDepartment = async () => {
     if (!newDeptName.trim() || !newDeptCode.trim()) return;
@@ -127,6 +131,34 @@ export function AdminDashboard() {
       toast({ title: 'Department deleted', description: `${name} has been removed.` });
     } catch {
       toast({ title: 'Error', description: 'Cannot delete department with linked users or subjects.', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
+      toast({ title: 'Error', description: 'Name, email, and password are required.', variant: 'destructive' });
+      return;
+    }
+    if (newUserRole !== 'exam_cell' && !newUserDepartment) {
+      toast({ title: 'Error', description: 'Please select a department.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createUser.mutateAsync({
+        fullName: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: newUserPassword,
+        role: newUserRole,
+        departmentId: newUserRole !== 'exam_cell' ? newUserDepartment : undefined,
+      });
+      toast({ title: 'User created', description: `${newUserName} has been added.` });
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('teacher');
+      setNewUserDepartment('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Failed to create user.', variant: 'destructive' });
     }
   };
 
@@ -157,7 +189,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="space-y-6">
         <TabsList className="bg-card border flex flex-wrap gap-2">
           <TabsTrigger value="users" className="gap-2">
             <Users className="w-4 h-4" />
@@ -180,16 +212,100 @@ export function AdminDashboard() {
         {/* Users Tab */}
         <TabsContent value="users">
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <h2 className="text-xl font-semibold">User Management</h2>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or email..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="hero" className="gap-2 w-full sm:w-auto">
+                      <Plus className="w-4 h-4" />
+                      Add User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New User</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input
+                          placeholder="Dr. John Smith"
+                          value={newUserName}
+                          onChange={(e) => setNewUserName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          placeholder="user@university.edu"
+                          value={newUserEmail}
+                          onChange={(e) => setNewUserEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Temporary Password</Label>
+                        <Input
+                          type="password"
+                          placeholder="Set a temporary password"
+                          value={newUserPassword}
+                          onChange={(e) => setNewUserPassword(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Select value={newUserRole} onValueChange={(value) => setNewUserRole(value as AppRole)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="teacher">Teacher</SelectItem>
+                            <SelectItem value="hod">Head of Dept</SelectItem>
+                            <SelectItem value="exam_cell">Exam Cell</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {newUserRole !== 'exam_cell' && (
+                        <div className="space-y-2">
+                          <Label>Department</Label>
+                          <Select value={newUserDepartment} onValueChange={setNewUserDepartment}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments?.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                  {dept.name} ({dept.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <DialogClose asChild>
+                        <Button onClick={handleCreateUser} disabled={createUser.isPending}>
+                          {createUser.isPending ? 'Creating...' : 'Create User'}
+                        </Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 
@@ -199,7 +315,7 @@ export function AdminDashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px]">
+                <table className="w-full min-w-[840px]">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Name</th>
@@ -207,6 +323,7 @@ export function AdminDashboard() {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Role</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Department</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Joined</th>
+                      <th className="text-right py-3 px-4 font-medium text-muted-foreground text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -215,8 +332,9 @@ export function AdminDashboard() {
                         key={user.id}
                         user={user}
                         departments={departments || []}
-                        onRoleChange={handleRoleChange}
-                        onDepartmentChange={handleDepartmentChange}
+                        onUpdate={updateUser.mutateAsync}
+                        onDelete={deleteUser.mutateAsync}
+                        isSelf={profile?.id === user.id}
                       />
                     ))}
                     {filteredUsers?.length === 0 && (
@@ -459,51 +577,161 @@ export function AdminDashboard() {
 function UserRow({
   user,
   departments,
-  onRoleChange,
-  onDepartmentChange,
+  onUpdate,
+  onDelete,
+  isSelf,
 }: {
   user: AdminUser;
   departments: { id: string; name: string }[];
-  onRoleChange: (userId: string, role: string) => void;
-  onDepartmentChange: (userId: string, departmentId: string) => void;
+  onUpdate: (input: { userId: string; email: string; fullName: string; role: AppRole; departmentId?: string | null }) => Promise<unknown>;
+  onDelete: (userId: string) => Promise<unknown>;
+  isSelf?: boolean;
 }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.full_name);
+  const [email, setEmail] = useState(user.email);
+  const [role, setRole] = useState<AppRole>((user.role as AppRole) || 'teacher');
+  const [departmentId, setDepartmentId] = useState<string>(user.department_id || '');
+
+  useEffect(() => {
+    if (open) {
+      setFullName(user.full_name);
+      setEmail(user.email);
+      setRole((user.role as AppRole) || 'teacher');
+      setDepartmentId(user.department_id || '');
+    }
+  }, [open, user]);
+
+  const handleSave = async () => {
+    try {
+      const updatedDepartment = role === 'exam_cell' ? null : departmentId || null;
+      await onUpdate({
+        userId: user.id,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        role,
+        departmentId: updatedDepartment,
+      });
+      toast({ title: 'User updated', description: 'Changes saved successfully.' });
+      setOpen(false);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Failed to update user.', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await onDelete(user.id);
+      toast({ title: 'User deleted', description: 'The account has been removed.' });
+      setConfirmOpen(false);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Failed to delete user.', variant: 'destructive' });
+    }
+  };
+
   return (
     <tr className="border-b hover:bg-secondary/50 transition-colors">
       <td className="py-3 px-4 font-medium text-sm">{user.full_name}</td>
       <td className="py-3 px-4 text-sm text-muted-foreground">{user.email}</td>
-      <td className="py-3 px-4">
-        <Select defaultValue={user.role || ''} onValueChange={(v) => onRoleChange(user.id, v)}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue placeholder="No role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="teacher">Teacher</SelectItem>
-            <SelectItem value="hod">Head of Dept</SelectItem>
-            <SelectItem value="exam_cell">Exam Cell</SelectItem>
-            <SelectItem value="admin">Admin</SelectItem>
-          </SelectContent>
-        </Select>
+      <td className="py-3 px-4 text-sm">
+        <Badge variant={user.role ? roleBadgeVariant[user.role] : 'secondary'}>
+          {roleLabels[user.role || 'teacher'] || 'Unknown'}
+        </Badge>
       </td>
-      <td className="py-3 px-4">
-        <Select
-          defaultValue={user.department_id || 'none'}
-          onValueChange={(v) => onDepartmentChange(user.id, v)}
-        >
-          <SelectTrigger className="w-[160px] h-8 text-xs">
-            <SelectValue placeholder="No department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">No department</SelectItem>
-            {departments.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                {d.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <td className="py-3 px-4 text-sm text-muted-foreground">
+        {user.department_name || '—'}
       </td>
       <td className="py-3 px-4 text-sm text-muted-foreground">
         {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
+      </td>
+      <td className="py-3 px-4 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                Edit
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit User</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="hod">Head of Dept</SelectItem>
+                      <SelectItem value="exam_cell">Exam Cell</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {role !== 'exam_cell' && (
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select value={departmentId} onValueChange={setDepartmentId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleSave}>Save changes</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={isSelf}>
+                Delete
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete user?</DialogTitle>
+              </DialogHeader>
+              <p className="text-muted-foreground">
+                This will disable and remove the user from the portal. This action cannot be undone.
+              </p>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Delete User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </td>
     </tr>
   );

@@ -11,7 +11,7 @@ const getInitialTheme = (): ThemeMode => {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ className, compact = false }: { className?: string; compact?: boolean }) {
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
 
   useEffect(() => {
@@ -34,13 +34,13 @@ export function ThemeToggle({ className }: { className?: string }) {
     >
       {theme === 'dark' ? (
         <>
-          <Sun className="w-4 h-4 mr-2" />
-          Light Mode
+          <Sun className={compact ? 'w-4 h-4' : 'w-4 h-4 mr-2'} />
+          {!compact && 'Light Mode'}
         </>
       ) : (
         <>
-          <Moon className="w-4 h-4 mr-2" />
-          Dark Mode
+          <Moon className={compact ? 'w-4 h-4' : 'w-4 h-4 mr-2'} />
+          {!compact && 'Dark Mode'}
         </>
       )}
     </Button>

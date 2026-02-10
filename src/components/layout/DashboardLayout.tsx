@@ -1,11 +1,13 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -13,6 +15,18 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('sidebar-collapsed');
+    if (stored === 'true') {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(isCollapsed));
+  }, [isCollapsed]);
 
   if (isLoading) {
     return (
@@ -50,8 +64,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      <Sidebar className="hidden lg:flex" />
-      <main className="min-h-screen lg:ml-64">
+      <Sidebar
+        className="hidden lg:flex"
+        collapsed={isCollapsed}
+        onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
+      />
+      <main className={cn('min-h-screen', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
         <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>

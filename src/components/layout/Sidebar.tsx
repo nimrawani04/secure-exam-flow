@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const roleNavItems = {
   teacher: [
@@ -51,9 +52,13 @@ const roleNavItems = {
 export function Sidebar({
   className,
   isMobile = false,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   className?: string;
   isMobile?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
@@ -89,33 +94,39 @@ export function Sidebar({
     <aside
       className={cn(
         'bg-sidebar text-sidebar-foreground flex flex-col',
-        isMobile ? 'w-full h-full' : 'fixed left-0 top-0 h-screen w-64',
+        isMobile
+          ? 'w-full h-full'
+          : cn('fixed left-0 top-0 h-screen transition-all duration-200', collapsed ? 'w-20' : 'w-64'),
         className
       )}
     >
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
+        <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
           <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center">
             <Shield className="w-6 h-6" />
           </div>
-          <div>
-            <h1 className="font-bold text-lg">ExamSecure</h1>
-            <p className="text-xs text-sidebar-foreground/60">Paper Management</p>
-          </div>
+          {!collapsed && (
+            <div>
+              <h1 className="font-bold text-lg">ExamSecure</h1>
+              <p className="text-xs text-sidebar-foreground/60">Paper Management</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* User Info */}
       <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
+        <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
           <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-semibold">
             {getInitials()}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{profile.full_name}</p>
-            <p className="text-xs text-sidebar-foreground/60">{getRoleBadge()}</p>
-          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{profile.full_name}</p>
+              <p className="text-xs text-sidebar-foreground/60">{getRoleBadge()}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -123,42 +134,120 @@ export function Sidebar({
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
-          return (
+          const link = (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
+                collapsed && !isMobile ? 'justify-center px-0' : '',
                 isActive
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
             >
               <item.icon className="w-5 h-5" />
-              {item.label}
+              {!collapsed && <span>{item.label}</span>}
             </Link>
           );
+
+          if (collapsed && !isMobile) {
+            return (
+              <Tooltip key={item.path}>
+                <TooltipTrigger asChild>{link}</TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return link;
         })}
       </nav>
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border space-y-2">
-        <ThemeToggle className="w-full justify-start" />
-        <Link
-          to="/settings"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
-        >
-          <Settings className="w-5 h-5" />
-          Settings
-        </Link>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 px-4 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
-          onClick={signOut}
-        >
-          <LogOut className="w-5 h-5" />
-          Logout
-        </Button>
+        {collapsed && !isMobile ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ThemeToggle className="w-full justify-center" compact />
+            </TooltipTrigger>
+            <TooltipContent side="right">Toggle theme</TooltipContent>
+          </Tooltip>
+        ) : (
+          <ThemeToggle className="w-full justify-start" />
+        )}
+
+        {collapsed && !isMobile ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                to="/settings"
+                className="flex items-center justify-center px-0 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">Settings</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link
+            to="/settings"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+          >
+            <Settings className="w-5 h-5" />
+            <span>Settings</span>
+          </Link>
+        )}
+
+        {collapsed && !isMobile ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-center px-0 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
+                onClick={signOut}
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Logout</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 px-4 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
+            onClick={signOut}
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
+          </Button>
+        )}
+
+        {!isMobile && (
+          collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-center"
+                  onClick={onToggleCollapse}
+                  aria-label="Expand sidebar"
+                >
+                  <span className="text-lg">›</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3"
+              onClick={onToggleCollapse}
+            >
+              Collapse sidebar
+            </Button>
+          )
+        )}
       </div>
     </aside>
   );
