@@ -84,16 +84,17 @@ export default function Landing() {
           {/* Navigation */}
           <nav className="flex items-center justify-between mb-20">
             <div className="flex items-center gap-3">
-              {/* LOGO IMAGE (Shield replaced) */}
-              <div className="w-12 h-12 rounded-xl gradient-accent p-[2px] shadow-glow">
-                <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
-                  <img
-                    src="/cuk-favicon.png"
-                    alt="CUK Logo"
-                    className="w-8 h-8 object-contain"
-                  />
-                </div>
-              </div>
+             {/* LOGO IMAGE */}
+<div className="w-12 h-12 rounded-xl gradient-accent p-1 shadow-glow">
+  <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
+    <img
+      src="/cuk-favicon.png"
+      alt="CUK Logo"
+      className="w-11 h-11 object-contain"
+    />
+  </div>
+</div>
+
 
               <div>
                 <h1 className="font-bold text-xl">CUK ExamSecure</h1>
