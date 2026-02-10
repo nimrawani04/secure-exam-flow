@@ -117,24 +117,28 @@ export default function Landing() {
   <img
     src="/cuk-favicon.png"
     alt="Central University of Kashmir Logo"
-    className="w-48 h-48 md:w-56 md:h-56 object-contain drop-shadow-2xl"
+    className="w-40 h-40 md:w-48 md:h-48 object-contain drop-shadow-2xl"
   />
 </div>
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent-foreground/90 text-sm font-medium mb-8 animate-fade-in">
               <Lock className="w-4 h-4" />
-              Secure • Transparent • Compliant
+              Secure • Transparent • Institution-Ready
+
             </div>
 
             <h2 className="text-5xl md:text-6xl font-bold mb-6 animate-slide-up">
-              CUK Secure Exam Paper
+              CUK Secure Examination
               <br />
-              <span className="text-accent">Management System</span>
+             <span className="text-accent/90">Management System</span>
+
             </h2>
 
             <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto animate-fade-in">
-              Eliminate paper leaks, enforce proper approvals, and create a complete digital audit trail.
-              Built for universities that take exam security seriously.
+              A centralized and secure platform for managing university examination papers.
+Ensures confidentiality, controlled access, and a complete digital audit trail
+across all stages of the examination lifecycle.
+
             </p>
 
             <div className="flex items-center justify-center gap-4 animate-slide-up">
