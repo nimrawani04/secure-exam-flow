@@ -19,15 +19,12 @@ export default function Landing() {
           {/* Left panel */}
           <div className="flex items-end p-10 md:p-16">
             <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70 mb-3">
+              <p className="text-sm uppercase tracking-[0.35em] text-white/70 mb-4">
                 Central University of Kashmir
               </p>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight">
-                Central University of Kashmir
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight uppercase">
+                Examination Management Platform
               </h1>
-              <p className="mt-3 text-lg text-white/80">
-                Official Examination Management Platform
-              </p>
             </div>
           </div>
 
@@ -35,23 +32,18 @@ export default function Landing() {
           <div className="flex items-center justify-center p-8 md:p-12">
             <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-10 backdrop-blur">
               <div className="flex flex-col items-center text-center">
-                <div className="mb-5 h-24 w-24 rounded-full bg-white/10 p-2">
-                  <img
-                    src="/cuk-favicon.png"
-                    alt="CUK Logo"
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-                <p className="text-xs uppercase tracking-[0.3em] text-white/70">
-                  Central University of Kashmir
-                </p>
-                <h2 className="mt-3 text-2xl md:text-3xl font-semibold">
-                  CUK Secure Examination Paper
+                <img
+                  src="/cuk-favicon.png"
+                  alt="CUK Logo"
+                  className="mb-4 h-32 w-32 object-contain md:h-36 md:w-36"
+                />
+                <h2 className="mt-1 text-xl md:text-2xl font-semibold uppercase">
+                  Secure Examination Paper
                   <br />
                   Management System
                 </h2>
-                <p className="mt-3 text-sm text-white/80">
-                  Official Examination Management Platform
+                <p className="mt-3 text-xs text-white/80">
+                  End-to-end encrypted • Activity logged • Role-based access
                 </p>
               </div>
 
@@ -106,10 +98,6 @@ export default function Landing() {
                     Sign In
                   </Button>
                 </Link>
-
-                <p className="text-center text-xs text-white/70">
-                  End-to-end encrypted • Activity logged • Role-based access
-                </p>
 
                 <p className="text-center text-sm text-white/80">
                   Don&apos;t have an account?{' '}
