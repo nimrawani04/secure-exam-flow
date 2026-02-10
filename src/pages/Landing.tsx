@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
-  Shield,
   Lock,
   Eye,
   FileCheck,
@@ -85,14 +84,23 @@ export default function Landing() {
           {/* Navigation */}
           <nav className="flex items-center justify-between mb-20">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center shadow-glow">
-                <Shield className="w-7 h-7" />
+              {/* LOGO IMAGE (replaced Shield) */}
+              <div className="w-12 h-12 rounded-xl gradient-accent p-[2px] shadow-glow">
+                <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/cuk-favicon.png"
+                    alt="CUK Logo"
+                    className="w-8 h-8 object-contain"
+                  />
+                </div>
               </div>
+
               <div>
                 <h1 className="font-bold text-xl">CUK ExamSecure</h1>
                 <p className="text-xs opacity-70">Paper Management System</p>
               </div>
             </div>
+
             <div className="flex items-center gap-4">
               <Link to="/auth">
                 <Button variant="heroOutline" size="lg">
@@ -127,139 +135,14 @@ export default function Landing() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              
             </div>
 
-            {/* Trust Indicators */}
             <div className="mt-16 pt-8 border-t border-primary-foreground/10">
-              <p className="text-sm text-primary-foreground/50 mb-4">CENTRAL UNIVERSITY OF KASHMIR</p>
-              
+              <p className="text-sm text-primary-foreground/50 mb-4">
+                CENTRAL UNIVERSITY OF KASHMIR
+              </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 bg-background">
-        <div className="container">
-          <div className="text-center mb-16">
-            <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4">Features</h3>
-            <h2 className="text-4xl font-bold mb-4">Security at Every Step</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              From paper upload to exam day, every step is secured, logged, and compliant with accreditation requirements.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className="group p-6 rounded-2xl border bg-card shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center mb-4 group-hover:shadow-glow transition-shadow">
-                  <feature.icon className="w-6 h-6 text-accent-foreground" />
-                </div>
-                <h4 className="font-semibold text-lg mb-2">{feature.title}</h4>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Workflow Section */}
-      <section className="py-24 bg-secondary/30">
-        <div className="container">
-          <div className="text-center mb-16">
-            <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4">How It Works</h3>
-            <h2 className="text-4xl font-bold mb-4">Streamlined Paper Lifecycle</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              A clear, auditable process from paper creation to exam day.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8">
-            {workflow.map((item, index) => (
-              <div key={item.step} className="relative">
-                {index < workflow.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-1/2 w-full h-0.5 bg-border" />
-                )}
-                <div className="relative bg-card rounded-2xl p-6 shadow-card text-center">
-                  <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center mx-auto mb-4 relative z-10">
-                    <item.icon className="w-6 h-6 text-accent-foreground" />
-                  </div>
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-                    {item.step}
-                  </div>
-                  <h4 className="font-semibold text-lg mb-2">{item.title}</h4>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Roles Section */}
-      <section className="py-24 bg-background">
-        <div className="container">
-          <div className="text-center mb-16">
-            <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4">User Roles</h3>
-            <h2 className="text-4xl font-bold mb-4">Designed for Every Stakeholder</h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                role: 'Teacher',
-                description: 'Upload and manage exam papers with deadline tracking',
-                features: ['Upload question papers', 'Multiple paper sets (A, B, C)', 'Real-time status updates', 'Deadline countdown'],
-                color: 'accent',
-              },
-              {
-                role: 'Head of Department',
-                description: 'Anonymous review and selection of best papers',
-                features: ['Anonymous paper comparison', 'Bias-free selection', 'Rejection with feedback', 'Department oversight'],
-                color: 'success',
-              },
-              {
-                role: 'Examination Cell',
-                description: 'Secure access and exam day management',
-                features: ['Time-locked access', 'Secure PDF download', 'Exam calendar', 'Paper archival'],
-                color: 'warning',
-              },
-            ].map((item) => (
-              <div key={item.role} className="rounded-2xl border bg-card p-8 shadow-card hover:shadow-card-hover transition-all duration-300">
-                <h4 className="font-bold text-2xl mb-2">{item.role}</h4>
-                <p className="text-muted-foreground mb-6">{item.description}</p>
-                <ul className="space-y-3">
-                  {item.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-sm">
-                      <CheckCircle className="w-5 h-5 text-accent flex-shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 gradient-hero text-primary-foreground">
-        <div className="container text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Secure Your Exams?</h2>
-          <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-            Join leading universities in eliminating paper leaks and ensuring exam integrity.
-          </p>
-          <Link to="/auth">
-            <Button variant="hero" size="xl" className="gap-2">
-              Start Now
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-          </Link>
         </div>
       </section>
 
@@ -268,26 +151,45 @@ export default function Landing() {
         <div className="container">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center">
-                <Shield className="w-6 h-6" />
+              {/* FOOTER LOGO IMAGE */}
+              <div className="w-10 h-10 rounded-lg gradient-accent p-[2px]">
+                <div className="w-full h-full bg-white rounded-lg flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/cuk-favicon.png"
+                    alt="CUK Logo"
+                    className="w-6 h-6 object-contain"
+                  />
+                </div>
               </div>
+
               <div>
                 <h1 className="font-bold">CUK ExamSecure</h1>
-                <p className="text-xs opacity-70"> Paper Management System</p>
+                <p className="text-xs opacity-70">Paper Management System</p>
               </div>
             </div>
-            <p className="text-sm opacity-70">© 2026 CUK ExamSecure.</p>
-            <p>
-  Created by 
-  <a href="https://m4milaad.github.io/" target="_blank" rel="noopener noreferrer">
-    Milad Ajaz Bhat
-  </a> 
-  &amp; 
-  <a href="https://nimrawani.vercel.app/" target="_blank" rel="noopener noreferrer">
-    Nimra Wani
-  </a>
-</p>
 
+            <p className="text-sm opacity-70">© 2026 CUK ExamSecure.</p>
+
+            <p className="text-sm">
+              Created by{' '}
+              <a
+                href="https://m4milaad.github.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Milad Ajaz Bhat
+              </a>{' '}
+              &amp;{' '}
+              <a
+                href="https://nimrawani.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Nimra Wani
+              </a>
+            </p>
           </div>
         </div>
       </footer>
