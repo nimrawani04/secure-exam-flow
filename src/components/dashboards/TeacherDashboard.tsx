@@ -80,15 +80,15 @@ export function TeacherDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {firstName}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {firstName}</h1>
           <p className="text-muted-foreground mt-1">
             Manage your exam papers and track submission status
           </p>
         </div>
         <Link to="/upload">
-          <Button variant="hero" size="lg" className="gap-2">
+          <Button variant="hero" size="lg" className="gap-2 w-full sm:w-auto">
             <Plus className="w-5 h-5" />
             Upload Paper
           </Button>
@@ -127,7 +127,7 @@ export function TeacherDashboard() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Papers List */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold">Recent Submissions</h2>
             <Link to="/submissions" className="text-sm text-accent hover:underline">
               View all
@@ -176,7 +176,7 @@ export function TeacherDashboard() {
 
           {/* Tips */}
           <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
-            <h4 className="font-semibold text-accent mb-2">💡 Pro Tip</h4>
+            <h4 className="font-semibold text-accent mb-2">Pro Tip</h4>
             <p className="text-sm text-muted-foreground">
               Upload multiple paper sets (A, B, C) to give HOD more options for selection. 
               Only PDFs are accepted to ensure document integrity.

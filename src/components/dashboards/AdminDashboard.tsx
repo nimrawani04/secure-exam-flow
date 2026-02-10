@@ -142,7 +142,7 @@ export function AdminDashboard() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           System configuration, user management & security monitoring
         </p>
@@ -158,7 +158,7 @@ export function AdminDashboard() {
 
       {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="bg-card border">
+        <TabsList className="bg-card border flex flex-wrap gap-2">
           <TabsTrigger value="users" className="gap-2">
             <Users className="w-4 h-4" />
             Users
@@ -180,9 +180,9 @@ export function AdminDashboard() {
         {/* Users Tab */}
         <TabsContent value="users">
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">User Management</h2>
-              <div className="relative w-72">
+              <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name or email..."
@@ -199,7 +199,7 @@ export function AdminDashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[720px]">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Name</th>
@@ -236,11 +236,11 @@ export function AdminDashboard() {
         {/* Departments Tab */}
         <TabsContent value="departments">
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Department Management</h2>
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="hero" className="gap-2">
+                  <Button variant="hero" className="gap-2 w-full sm:w-auto">
                     <Plus className="w-4 h-4" />
                     Add Department
                   </Button>
@@ -341,7 +341,7 @@ export function AdminDashboard() {
         {/* Audit Logs Tab */}
         <TabsContent value="audit">
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Recent Audit Logs</h2>
               <Badge variant="outline" className="gap-1.5">
                 <Clock className="w-3 h-3" />

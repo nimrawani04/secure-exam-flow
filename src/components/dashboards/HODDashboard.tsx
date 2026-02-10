@@ -101,7 +101,7 @@ export function HODDashboard() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">HOD Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">HOD Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Review and select exam papers for {departmentName}
         </p>
@@ -138,7 +138,7 @@ export function HODDashboard() {
       </div>
 
       {/* Anonymous Review Notice */}
-      <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 flex items-start gap-4">
+      <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 flex flex-col sm:flex-row items-start gap-4">
         <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center flex-shrink-0">
           <Eye className="w-5 h-5 text-accent-foreground" />
         </div>
@@ -181,7 +181,7 @@ export function HODDashboard() {
 
         {/* Papers Comparison */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold">
               Compare Papers: Data Structures
             </h2>
@@ -189,7 +189,7 @@ export function HODDashboard() {
               <Button
                 variant="success"
                 disabled={!selectedPaperId}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 <CheckCircle className="w-4 h-4" />
                 Approve & Lock Selected
@@ -215,7 +215,7 @@ export function HODDashboard() {
 
           {/* Selection Confirmation */}
           {selectedPaperId && (
-            <div className="p-4 rounded-xl bg-success/10 border border-success/20 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-success/10 border border-success/20 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-success" />
                 <span className="font-medium">

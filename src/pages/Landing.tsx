@@ -7,47 +7,47 @@ export default function Landing() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="min-h-screen overflow-hidden">
-      <section className="relative min-h-screen bg-slate-900 text-white">
+    <div className="h-screen overflow-hidden">
+      <section className="relative h-screen bg-slate-900 text-white">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/cuk.png')" }}
         />
         <div className="absolute inset-0 bg-black/45" />
 
-        <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left panel */}
-          <div className="flex items-end p-10 md:p-16">
+          <div className="flex items-end justify-start p-6 sm:p-8 lg:p-16">
             <div className="max-w-2xl">
-              <p className="text-sm uppercase tracking-[0.35em] text-white/70 mb-4">
+              <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/70 mb-3">
                 Central University of Kashmir
               </p>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight uppercase">
+              <h1 className="text-lg sm:text-2xl lg:text-4xl font-semibold leading-tight uppercase">
                 Examination Management Platform
               </h1>
             </div>
           </div>
 
           {/* Right panel */}
-          <div className="flex items-center justify-center p-8 md:p-12">
-            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-10 backdrop-blur">
+          <div className="flex items-center justify-center p-6 sm:p-8 lg:p-12">
+            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-6 sm:p-8 lg:p-10 backdrop-blur">
               <div className="flex flex-col items-center text-center">
                 <img
                   src="/cuk-favicon.png"
                   alt="CUK Logo"
-                  className="mb-4 h-32 w-32 object-contain md:h-36 md:w-36"
+                  className="mb-3 h-24 w-24 object-contain sm:h-28 sm:w-28 lg:h-36 lg:w-36"
                 />
-                <h2 className="mt-1 text-xl md:text-2xl font-semibold uppercase">
+                <h2 className="mt-1 text-lg sm:text-xl lg:text-2xl font-semibold uppercase">
                   Secure Examination Paper
                   <br />
                   Management System
                 </h2>
-                <p className="mt-3 text-xs text-white/80">
-                  End-to-end encrypted â€¢ Activity logged â€¢ Role-based access
+                <p className="mt-2 text-[10px] sm:text-xs text-white/80">
+                  End-to-end encrypted • Activity logged • Role-based access
                 </p>
               </div>
 
-              <div className="mt-8 space-y-5">
+              <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
                     Login
@@ -55,7 +55,7 @@ export default function Landing() {
                   <input
                     type="text"
                     placeholder="Username / Email"
-                    className="h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
+                    className="h-10 sm:h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
                   />
                 </div>
 
@@ -67,7 +67,7 @@ export default function Landing() {
                     <input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Password"
-                      className="h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 pr-10 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
+                      className="h-10 sm:h-11 w-full rounded-md border border-white/30 bg-white/15 px-3 pr-10 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
                     />
                     <button
                       type="button"

@@ -47,7 +47,13 @@ const roleNavItems = {
   ],
 };
 
-export function Sidebar() {
+export function Sidebar({
+  className,
+  isMobile = false,
+}: {
+  className?: string;
+  isMobile?: boolean;
+}) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
 
@@ -79,7 +85,13 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col">
+    <aside
+      className={cn(
+        'bg-sidebar text-sidebar-foreground flex flex-col',
+        isMobile ? 'w-full h-full' : 'fixed left-0 top-0 h-screen w-64',
+        className
+      )}
+    >
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
