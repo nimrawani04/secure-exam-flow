@@ -12,6 +12,7 @@ import Submissions from "./pages/Submissions";
 import Review from "./pages/Review";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import Department from "./pages/Department";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +33,7 @@ const App = () => (
             <Route path="/review" element={<Review />} />
             {/* Placeholder routes */}
             <Route path="/subjects" element={<Dashboard />} />
-            <Route path="/department" element={<Dashboard />} />
+            <Route path="/department" element={<Department />} />
             <Route path="/approved" element={<Dashboard />} />
             <Route path="/calendar" element={<Dashboard />} />
             <Route path="/inbox" element={<Dashboard />} />

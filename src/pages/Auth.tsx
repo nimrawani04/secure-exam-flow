@@ -184,7 +184,7 @@ export default function Auth() {
           </div>
         </div>
 
-        <p className="text-sm opacity-50">© 2024 ExamSecure. All rights reserved.</p>
+        <p className="text-sm opacity-50">© 2026 ExamSecure. All rights reserved.</p>
       </div>
 
       {/* Right Panel */}
@@ -252,7 +252,7 @@ export default function Auth() {
                     <Input
                       id="fullName"
                       type="text"
-                      placeholder="Dr. John Smith"
+                      placeholder="Full Name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
