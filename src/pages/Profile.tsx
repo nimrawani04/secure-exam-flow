@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { DEFAULT_ACCENT_HEX, getContrastText, setAccentFromHex } from '@/lib/theme';
+import { DEFAULT_ACCENT_HEX, getContrastText, setAccentFromHex, getAccentStorageKey } from '@/lib/theme';
 import { Lock } from 'lucide-react';
 
 const presetColors = [
@@ -29,7 +29,10 @@ export default function Profile() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
-  const [accentHex, setAccentHex] = useState(() => localStorage.getItem('accent-color') || DEFAULT_ACCENT_HEX);
+  const accentStorageKey = getAccentStorageKey(profile?.id);
+  const [accentHex, setAccentHex] = useState(
+    () => localStorage.getItem(accentStorageKey) || DEFAULT_ACCENT_HEX
+  );
 
   const previewTextColor = useMemo(() => getContrastText(accentHex), [accentHex]);
 
@@ -73,7 +76,7 @@ export default function Profile() {
   };
 
   const handleThemeChange = (hex: string) => {
-    const ok = setAccentFromHex(hex);
+    const ok = setAccentFromHex(hex, profile?.id);
     if (ok) {
       setAccentHex(hex);
     } else {

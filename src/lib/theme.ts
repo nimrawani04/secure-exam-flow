@@ -56,7 +56,10 @@ export const hexToHslString = (hex: string) => {
   return `${h} ${s}% ${l}%`;
 };
 
-export const setAccentFromHex = (hex: string) => {
+export const getAccentStorageKey = (userId?: string | null) =>
+  userId ? `accent-color:${userId}` : 'accent-color';
+
+export const setAccentFromHex = (hex: string, userId?: string | null) => {
   const hsl = hexToHslString(hex);
   if (!hsl) return false;
   const root = document.documentElement;
@@ -67,7 +70,7 @@ export const setAccentFromHex = (hex: string) => {
   root.style.setProperty('--dashboard-bg', `${h} ${s} 98%`);
   root.style.setProperty('--dashboard-bg-dark', `${h} ${s} 12%`);
 
-  localStorage.setItem('accent-color', hex);
+  localStorage.setItem(getAccentStorageKey(userId), hex);
   return true;
 };
 
@@ -75,6 +78,13 @@ export const applyStoredAccent = () => {
   if (typeof window === 'undefined') return;
   const stored = localStorage.getItem('accent-color') || DEFAULT_ACCENT_HEX;
   setAccentFromHex(stored);
+};
+
+export const applyStoredAccentForUser = (userId?: string | null) => {
+  if (typeof window === 'undefined') return;
+  const key = getAccentStorageKey(userId);
+  const stored = localStorage.getItem(key) || DEFAULT_ACCENT_HEX;
+  setAccentFromHex(stored, userId);
 };
 
 export const getContrastText = (hex: string) => {

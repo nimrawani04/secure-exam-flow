@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { applyStoredAccentForUser } from '@/lib/theme';
 
 export type AppRole = 'teacher' | 'hod' | 'exam_cell' | 'admin';
 
@@ -110,6 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (profile?.id) {
+      applyStoredAccentForUser(profile.id);
+    }
+  }, [profile?.id]);
 
   const signUp = async (
     email: string,
