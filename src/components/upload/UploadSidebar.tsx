@@ -1,5 +1,5 @@
 import { DeadlineTimer } from '@/components/dashboard/DeadlineTimer';
-import { Shield, Lock, Clock } from 'lucide-react';
+import { Lock, Clock } from 'lucide-react';
 
 interface UploadSidebarProps {
   deadline: Date;
@@ -14,7 +14,7 @@ export function UploadSidebar({ deadline }: UploadSidebarProps) {
       {/* Security Info */}
       <div className="bg-card rounded-xl border p-4 space-y-4">
         <h3 className="font-semibold flex items-center gap-2">
-          <Shield className="w-5 h-5 text-accent" />
+          <img src="/cuk-favicon.png" alt="CUK Logo" className="w-5 h-5 object-contain" />
           Security Features
         </h3>
         <ul className="space-y-3 text-sm">
@@ -23,7 +23,11 @@ export function UploadSidebar({ deadline }: UploadSidebarProps) {
             <span>Secure storage with access control</span>
           </li>
           <li className="flex items-start gap-2">
-            <Shield className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+            <img
+              src="/cuk-favicon.png"
+              alt="CUK Logo"
+              className="w-4 h-4 object-contain flex-shrink-0 mt-0.5"
+            />
             <span>No direct file URL access</span>
           </li>
           <li className="flex items-start gap-2">

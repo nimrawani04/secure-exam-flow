@@ -10,7 +10,7 @@ import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthInd
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { Shield, User, GraduationCap, Building, Loader2 } from 'lucide-react';
+import { User, GraduationCap, Building, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -148,8 +148,8 @@ export default function Auth() {
       <div className="hidden lg:flex lg:w-1/2 gradient-hero text-primary-foreground p-12 flex-col justify-between">
         <div>
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center shadow-glow">
-              <Shield className="w-7 h-7" />
+            <div className="flex items-center justify-center">
+              <img src="/cuk-favicon.png" alt="CUK Logo" className="w-12 h-12 object-contain" />
             </div>
             <div>
               <h1 className="font-bold text-xl">ExamSecure</h1>
@@ -192,8 +192,8 @@ export default function Auth() {
         <div className="w-full max-w-md space-y-6">
           <div className="lg:hidden flex justify-center mb-8">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center">
-                <Shield className="w-7 h-7 text-accent-foreground" />
+              <div className="flex items-center justify-center">
+                <img src="/cuk-favicon.png" alt="CUK Logo" className="w-12 h-12 object-contain" />
               </div>
               <div>
                 <h1 className="font-bold text-xl">ExamSecure</h1>

@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -7,15 +7,16 @@ import {
   FileText,
   Users,
   Calendar,
-  Settings,
   LogOut,
-  Shield,
   FileCheck,
   Archive,
   ClipboardList,
   Building,
   Activity,
   ShieldCheck,
+  User,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -61,6 +62,7 @@ export function Sidebar({
   onToggleCollapse?: () => void;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { profile, signOut } = useAuth();
 
   if (!profile?.role) return null;
@@ -101,10 +103,29 @@ export function Sidebar({
       )}
     >
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="p-6 border-b border-sidebar-border relative">
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={cn(
+                  'absolute -right-3 top-6 z-10 h-7 w-7 rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm transition',
+                  'hover:bg-sidebar-accent'
+                )}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {collapsed ? <ChevronRight className="h-4 w-4 mx-auto" /> : <ChevronLeft className="h-4 w-4 mx-auto" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+          </Tooltip>
+        )}
+
         <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
-          <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center">
-            <Shield className="w-6 h-6" />
+          <div className="flex items-center justify-center">
+            <img src="/cuk-favicon.png" alt="CUK Logo" className="w-10 h-10 object-contain" />
           </div>
           {!collapsed && (
             <div>
@@ -181,21 +202,21 @@ export function Sidebar({
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                to="/settings"
+                to="/profile"
                 className="flex items-center justify-center px-0 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
               >
-                <Settings className="w-5 h-5" />
+                <User className="w-5 h-5" />
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
+            <TooltipContent side="right">Profile</TooltipContent>
           </Tooltip>
         ) : (
           <Link
-            to="/settings"
+            to="/profile"
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
           >
-            <Settings className="w-5 h-5" />
-            <span>Settings</span>
+            <User className="w-5 h-5" />
+            <span>Profile</span>
           </Link>
         )}
 
@@ -205,7 +226,10 @@ export function Sidebar({
               <Button
                 variant="ghost"
                 className="w-full justify-center px-0 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
-                onClick={signOut}
+                onClick={async () => {
+                  await signOut();
+                  navigate('/');
+                }}
               >
                 <LogOut className="w-5 h-5" />
               </Button>
@@ -216,37 +240,14 @@ export function Sidebar({
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 px-4 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
-            onClick={signOut}
+            onClick={async () => {
+              await signOut();
+              navigate('/');
+            }}
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>
           </Button>
-        )}
-
-        {!isMobile && (
-          collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-center"
-                  onClick={onToggleCollapse}
-                  aria-label="Expand sidebar"
-                >
-                  <span className="text-lg">›</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Expand sidebar</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={onToggleCollapse}
-            >
-              Collapse sidebar
-            </Button>
-          )
         )}
       </div>
     </aside>

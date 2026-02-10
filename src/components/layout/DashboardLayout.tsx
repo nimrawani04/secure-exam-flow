@@ -31,9 +31,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-accent" />
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+        <div className="w-full max-w-lg px-6 animate-fade-in">
+          <div className="rounded-2xl border bg-card p-8 shadow-card">
+            <div className="flex items-center gap-3 mb-6">
+              <Loader2 className="w-6 h-6 animate-spin text-accent" />
+              <p className="text-sm text-muted-foreground">Preparing your dashboard…</p>
+            </div>
+            <div className="space-y-4 animate-pulse">
+              <div className="h-4 w-2/3 rounded bg-muted" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-16 rounded-lg bg-muted" />
+                <div className="h-16 rounded-lg bg-muted" />
+                <div className="h-16 rounded-lg bg-muted" />
+                <div className="h-16 rounded-lg bg-muted" />
+              </div>
+              <div className="h-24 rounded-lg bg-muted" />
+            </div>
+          </div>
         </div>
       </div>
     );

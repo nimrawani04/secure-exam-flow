@@ -22,7 +22,6 @@ import {
   Eye,
   RefreshCw,
   Loader2,
-  Shield,
   Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -78,7 +77,7 @@ function ReviewCard({ paper, onApprove, onReject, onSelect, isProcessing }: Revi
             
             {/* Anonymous submission label */}
             <div className="flex items-center gap-2 mt-1">
-              <Shield className="h-4 w-4 text-accent" />
+              <img src="/cuk-favicon.png" alt="CUK Logo" className="h-4 w-4 object-contain" />
               <span className="text-sm font-medium text-accent">{paper.anonymousId}</span>
             </div>
             
@@ -243,7 +242,11 @@ export default function Review() {
 
         {/* Anonymous Review Notice */}
         <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 flex items-start gap-3">
-          <Shield className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+          <img
+            src="/cuk-favicon.png"
+            alt="CUK Logo"
+            className="h-5 w-5 object-contain flex-shrink-0 mt-0.5"
+          />
           <div>
             <p className="font-medium text-accent">Anonymous Review Mode</p>
             <p className="text-sm text-muted-foreground mt-1">
