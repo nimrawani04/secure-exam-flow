@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const roleNavItems = {
   teacher: [
@@ -142,6 +143,7 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border space-y-2">
+        <ThemeToggle className="w-full justify-start" />
         <Link
           to="/settings"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"

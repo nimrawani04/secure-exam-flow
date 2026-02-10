@@ -15,18 +15,18 @@ interface StatsCardProps {
 
 const variantStyles = {
   default: 'bg-card',
-  accent: 'bg-accent/10 border-accent/20',
-  success: 'bg-success/10 border-success/20',
-  warning: 'bg-warning/10 border-warning/20',
-  destructive: 'bg-destructive/10 border-destructive/20',
+  accent: 'bg-card border-accent/20',
+  success: 'bg-card border-success/20',
+  warning: 'bg-card border-warning/20',
+  destructive: 'bg-card border-destructive/20',
 };
 
 const iconStyles = {
-  default: 'bg-secondary text-secondary-foreground',
-  accent: 'bg-accent text-accent-foreground',
-  success: 'bg-success text-success-foreground',
-  warning: 'bg-warning text-warning-foreground',
-  destructive: 'bg-destructive text-destructive-foreground',
+  default: 'bg-secondary text-foreground',
+  accent: 'bg-accent/15 text-accent',
+  success: 'bg-success/15 text-success',
+  warning: 'bg-warning/15 text-warning',
+  destructive: 'bg-destructive/15 text-destructive',
 };
 
 export function StatsCard({ title, value, subtitle, icon: Icon, trend, variant = 'default' }: StatsCardProps) {

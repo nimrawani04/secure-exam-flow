@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -33,6 +34,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="lg:hidden sticky top-0 z-40 border-b bg-background">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="font-semibold">ExamSecure</div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="h-9" />
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Open menu">
@@ -43,6 +46,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Sidebar isMobile />
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       </div>
 
