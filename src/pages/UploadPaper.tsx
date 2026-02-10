@@ -76,7 +76,7 @@ export default function UploadPaper() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Upload Exam Paper</h1>
           <p className="text-muted-foreground mt-1">
@@ -84,9 +84,9 @@ export default function UploadPaper() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid xl:grid-cols-[2.2fr_1fr] gap-8">
           {/* Main Form */}
-          <div className="lg:col-span-2">
+          <div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <PaperDetailsForm
                 subjects={subjects}

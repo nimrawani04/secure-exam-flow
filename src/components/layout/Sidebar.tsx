@@ -19,7 +19,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const roleNavItems = {
@@ -187,17 +186,6 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border space-y-2">
-        {collapsed && !isMobile ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <ThemeToggle className="w-full justify-center" compact />
-            </TooltipTrigger>
-            <TooltipContent side="right">Toggle theme</TooltipContent>
-          </Tooltip>
-        ) : (
-          <ThemeToggle className="w-full justify-start" />
-        )}
-
         {collapsed && !isMobile ? (
           <Tooltip>
             <TooltipTrigger asChild>

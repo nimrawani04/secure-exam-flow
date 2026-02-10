@@ -131,7 +131,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[hsl(var(--dashboard-bg))] dark:bg-[hsl(var(--dashboard-bg-dark))]">
       <div className="lg:hidden sticky top-0 z-40 border-b bg-background">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="font-semibold">ExamSecure</div>

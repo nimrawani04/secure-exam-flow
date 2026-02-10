@@ -47,6 +47,10 @@
     --input: 214 20% 88%;
     --ring: 175 70% 40%;
 
+    /* Dashboard background tint */
+    --dashboard-bg: 175 20% 98%;
+    --dashboard-bg-dark: 175 20% 10%;
+
     --radius: 0.625rem;
 
     /* Custom gradients */
