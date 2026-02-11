@@ -155,6 +155,8 @@ export function AdminDashboard() {
       setActiveTab('departments');
     } else if (location.pathname.startsWith('/admin/audit')) {
       setActiveTab('audit');
+    } else if (location.pathname.startsWith('/admin/broadcasts')) {
+      setActiveTab('broadcast');
     } else if (location.pathname.startsWith('/admin/security')) {
       setActiveTab('overview');
     } else {

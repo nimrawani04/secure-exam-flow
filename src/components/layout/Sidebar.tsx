@@ -15,6 +15,7 @@ import {
   Activity,
   ShieldCheck,
   User,
+  Bell,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ const roleNavItems = {
     { icon: Users, label: 'User Management', path: '/admin/users' },
     { icon: Building, label: 'Departments', path: '/admin/departments' },
     { icon: Activity, label: 'Audit Logs', path: '/admin/audit' },
+    { icon: Bell, label: 'Broadcasts', path: '/admin/broadcasts' },
     { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
   ],
 };

@@ -39,6 +39,7 @@ const routeTitles: Record<string, { section: string; page: string }> = {
   '/admin/users': { section: 'Admin', page: 'User Management' },
   '/admin/departments': { section: 'Admin', page: 'Departments' },
   '/admin/audit': { section: 'Admin', page: 'Audit Logs' },
+  '/admin/broadcasts': { section: 'Admin', page: 'Broadcasts' },
   '/admin/security': { section: 'Admin', page: 'Security' },
   '/profile': { section: 'Account', page: 'Profile' },
 };
