@@ -116,4 +116,4 @@ This project emphasizes **exam integrity, structured flow, and a distraction-fre
 ## 🧑‍💻 Getting Started
 
 ### 1️⃣ Clone the repository
-git clone https://github.com/nimrawani04/secure-exam-flow.git
+```git clone https://github.com/nimrawani04/secure-exam-flow.git```
