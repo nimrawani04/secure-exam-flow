@@ -37,7 +37,7 @@ export default function Settings() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Department</p>
-              <p className="font-medium">{profile?.department_id || '—'}</p>
+              <p className="font-medium">{profile?.department_name || profile?.department_id || '—'}</p>
             </div>
           </div>
         </div>
@@ -55,3 +55,4 @@ export default function Settings() {
     </DashboardLayout>
   );
 }
+

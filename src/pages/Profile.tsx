@@ -167,7 +167,7 @@ export default function Profile() {
             </div>
             <div className="space-y-2">
               <Label>Department</Label>
-              <Input value={profile?.department_id || ''} disabled className="h-11" />
+              <Input value={profile?.department_name || profile?.department_id || ''} disabled className="h-11" />
             </div>
           </div>
 

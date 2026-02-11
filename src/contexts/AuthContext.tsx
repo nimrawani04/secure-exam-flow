@@ -10,6 +10,7 @@ export interface UserProfile {
   full_name: string;
   email: string;
   department_id: string | null;
+  department_name?: string | null;
   role: AppRole | null;
 }
 
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, email, department_id, departments(name)')
         .eq('id', userId)
         .single();
 
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           full_name: profileData.full_name,
           email: profileData.email,
           department_id: profileData.department_id,
+          department_name: (profileData as any)?.departments?.name ?? null,
           role: (roleData?.role as AppRole) || null,
         };
       }

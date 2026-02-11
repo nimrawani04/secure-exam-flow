@@ -13,10 +13,13 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useNotifications } from '@/hooks/useNotifications';
+import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -49,6 +52,13 @@ const shortcuts = [
   { keys: '?', label: 'Open shortcuts', path: '' },
 ];
 
+const notificationTypeConfig: Record<string, { label: string; variant: 'secondary' | 'warning' | 'destructive' | 'success' }> = {
+  info: { label: 'Info', variant: 'secondary' },
+  warning: { label: 'Warning', variant: 'warning' },
+  critical: { label: 'Critical', variant: 'destructive' },
+  success: { label: 'Success', variant: 'success' },
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading, profile } = useAuth();
   const location = useLocation();
@@ -56,6 +66,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const lastKey = useRef<{ key: string; time: number } | null>(null);
+  const { data: notifications, isLoading: notificationsLoading } = useNotifications({
+    userId: profile?.id,
+    role: profile?.role ?? null,
+    departmentId: profile?.department_id ?? null,
+    limit: 6,
+  });
+  const notificationCount = notifications?.length || 0;
 
   const title = useMemo(() => {
     return routeTitles[location.pathname] || { section: 'Dashboard', page: 'Overview' };
@@ -195,14 +212,52 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Notifications">
+                  <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
                     <Bell className="h-4 w-4" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                        {notificationCount > 9 ? '9+' : notificationCount}
+                      </span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuItem className="text-sm text-muted-foreground">
-                    No new notifications
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-80 max-h-[320px] overflow-auto">
+                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {notificationsLoading ? (
+                    <DropdownMenuItem className="text-sm text-muted-foreground">
+                      Loading notifications...
+                    </DropdownMenuItem>
+                  ) : notificationCount > 0 ? (
+                    notifications?.map((notification) => {
+                      const config = notificationTypeConfig[notification.type || 'info'] || notificationTypeConfig.info;
+                      const messagePreview =
+                        notification.message.length > 140
+                          ? `${notification.message.slice(0, 140)}...`
+                          : notification.message;
+
+                      return (
+                        <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 whitespace-normal">
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <span className="text-sm font-medium">{notification.title}</span>
+                            <Badge variant={config.variant} className="text-[10px] uppercase">
+                              {config.label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{messagePreview}</p>
+                          <span className="text-[11px] text-muted-foreground">
+                            {notification.created_at
+                              ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                              : 'Just now'}
+                          </span>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem className="text-sm text-muted-foreground">
+                      No new notifications
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
