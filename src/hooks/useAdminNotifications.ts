@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+type NotificationInsert = Database['public']['Tables']['notifications']['Insert'];
 
 interface CreateNotificationInput {
   createdBy: string;
@@ -43,6 +44,21 @@ export function useCreateNotification() {
         user_id: userId ?? null,
       });
 
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+}
+
+export function useCreateBulkNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: NotificationInsert[]) => {
+      const { error } = await supabase.from('notifications').insert(input);
       if (error) throw error;
     },
     onSuccess: () => {

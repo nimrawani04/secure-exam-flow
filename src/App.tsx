@@ -41,8 +41,11 @@ const App = () => {
               {/* Placeholder routes */}
               <Route path="/subjects" element={<Dashboard />} />
               <Route path="/department" element={<Department />} />
+              <Route path="/hod/alerts" element={<Dashboard />} />
               <Route path="/approved" element={<Dashboard />} />
               <Route path="/calendar" element={<Dashboard />} />
+              <Route path="/exam-cell/sessions" element={<Dashboard />} />
+              <Route path="/exam-cell/alerts" element={<Dashboard />} />
               <Route path="/inbox" element={<Dashboard />} />
               <Route path="/archive" element={<Dashboard />} />
               <Route path="/admin/users" element={<Dashboard />} />
