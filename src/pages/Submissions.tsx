@@ -60,9 +60,9 @@ function PaperRow({ paper }: { paper: TeacherPaper }) {
               <span className="px-2 py-0.5 bg-secondary rounded-md text-sm">
                 {examTypeLabels[paper.examType]}
               </span>
-              <span className="text-sm text-muted-foreground">•</span>
+              <span className="text-sm text-muted-foreground">|</span>
               <span className="text-sm text-muted-foreground">Set {paper.setName}</span>
-              <span className="text-sm text-muted-foreground">•</span>
+              <span className="text-sm text-muted-foreground">|</span>
               <span className="text-sm text-muted-foreground">v{paper.version}</span>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -129,20 +129,20 @@ export default function Submissions() {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold">My Submissions</h1>
             <p className="text-muted-foreground mt-1">
               Track your paper submissions and review status
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={refetch} className="gap-1.5">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Button variant="outline" size="sm" onClick={refetch} className="w-full gap-1.5 sm:w-auto">
               <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
-            <Link to="/upload">
-              <Button variant="hero" className="gap-2">
+            <Link to="/upload" className="w-full sm:w-auto">
+              <Button variant="hero" className="w-full gap-2 sm:w-auto">
                 <Upload className="h-4 w-4" />
                 Upload Paper
               </Button>
@@ -172,7 +172,7 @@ export default function Submissions() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:w-auto sm:justify-center">
             <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>

@@ -154,10 +154,77 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-[hsl(var(--dashboard-bg))] dark:bg-[hsl(var(--dashboard-bg-dark))]">
       <div className="lg:hidden sticky top-0 z-40 border-b bg-background">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="font-semibold">ExamSecure</div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">
+              {profile?.full_name || 'Account'}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="truncate">{title.section}</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="truncate font-medium text-foreground">{title.page}</span>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle className="h-9" compact />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
+                  <Bell className="h-4 w-4" />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-[320px] overflow-auto">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notificationsLoading ? (
+                  <DropdownMenuItem className="text-sm text-muted-foreground">
+                    Loading notifications...
+                  </DropdownMenuItem>
+                ) : notificationCount > 0 ? (
+                  notifications?.map((notification) => {
+                    const config = notificationTypeConfig[notification.type || 'info'] || notificationTypeConfig.info;
+                    const messagePreview =
+                      notification.message.length > 140
+                        ? `${notification.message.slice(0, 140)}...`
+                        : notification.message;
+
+                    return (
+                      <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 whitespace-normal">
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-sm font-medium">{notification.title}</span>
+                          <Badge variant={config.variant} className="text-[10px] uppercase">
+                            {config.label}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{messagePreview}</p>
+                        <span className="text-[11px] text-muted-foreground">
+                          {notification.created_at
+                            ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                            : 'Just now'}
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })
+                ) : (
+                  <DropdownMenuItem className="text-sm text-muted-foreground">
+                    No new notifications
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ThemeToggle className="h-9 w-9" compact />
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              aria-label="Open profile"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground"
+            >
+              {profile?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
+            </button>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="Open menu">
@@ -178,7 +245,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
       />
       <main className={cn('min-h-screen', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
-        <div className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+        <div className="hidden lg:block sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -189,10 +256,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <p className="text-xs text-muted-foreground">Stay updated with important announcements</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="gap-2">
+                  <Button variant="outline" className="hidden gap-2 md:inline-flex">
                     <Command className="h-4 w-4" />
                     Shortcuts
                   </Button>
@@ -265,8 +332,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <ThemeToggle className="h-9" compact />
-              <Button variant="outline" className="gap-2" onClick={() => navigate('/profile')}>
+              <ThemeToggle className="hidden h-9 sm:inline-flex" compact />
+              <Button variant="outline" size="sm" className="gap-2 px-2 sm:px-3" onClick={() => navigate('/profile')}>
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
                   {profile?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
                 </span>

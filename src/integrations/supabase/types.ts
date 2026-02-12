@@ -140,6 +140,7 @@ export type Database = {
           access_start: string
           created_at: string | null
           created_by: string
+          exam_date: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id: string
           is_active: boolean | null
@@ -157,6 +158,7 @@ export type Database = {
           access_start: string
           created_at?: string | null
           created_by: string
+          exam_date?: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id?: string
           is_active?: boolean | null
@@ -174,6 +176,7 @@ export type Database = {
           access_start?: string
           created_at?: string | null
           created_by?: string
+          exam_date?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           is_active?: boolean | null

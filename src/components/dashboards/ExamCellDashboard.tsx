@@ -28,7 +28,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminDepartments } from '@/hooks/useAdminDepartments';
 import { useAdminNotifications, useCreateNotification } from '@/hooks/useAdminNotifications';
-import { ExamSession, ExamSessionUpdate, useCreateExamSession, useDeleteExamSession, useExamSessions, useUpdateExamSession } from '@/hooks/useAdminExamSessions';
+import {
+  ExamSession,
+  ExamSessionMutationResult,
+  ExamSessionUpdate,
+  useCreateExamSession,
+  useDeleteExamSession,
+  useExamSessions,
+  useUpdateExamSession,
+} from '@/hooks/useAdminExamSessions';
 import type { Database } from '@/integrations/supabase/types';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -146,6 +154,13 @@ const formatWindow = (start?: string | null, end?: string | null) => {
   return `${format(startDate, 'MMM d, yyyy h:mm a')} -> ${format(endDate, 'MMM d, yyyy h:mm a')}`;
 };
 
+const formatSingleDate = (value?: string | null) => {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Invalid date';
+  return format(date, 'MMM d, yyyy h:mm a');
+};
+
 const getTimelineIssue = (input: {
   submissionStart: string;
   submissionEnd: string;
@@ -212,6 +227,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [reviewEnd, setReviewEnd] = useState('');
   const [accessStart, setAccessStart] = useState('');
   const [accessEnd, setAccessEnd] = useState('');
+  const [examDate, setExamDate] = useState('');
   const [sessionIsActive, setSessionIsActive] = useState(true);
   const [sessionIsLocked, setSessionIsLocked] = useState(false);
 
@@ -248,6 +264,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     setReviewEnd('');
     setAccessStart('');
     setAccessEnd('');
+    setExamDate('');
     setSessionIsActive(true);
     setSessionIsLocked(false);
   };
@@ -281,14 +298,15 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     const reviewEndIso = fromLocalInputValue(reviewEnd);
     const accessStartIso = fromLocalInputValue(accessStart);
     const accessEndIso = fromLocalInputValue(accessEnd);
+    const examDateIso = fromLocalInputValue(examDate);
 
-    if (!submissionStartIso || !submissionEndIso || !reviewStartIso || !reviewEndIso || !accessStartIso || !accessEndIso) {
-      toast({ title: 'Error', description: 'Please enter valid date/time values.', variant: 'destructive' });
+    if (!submissionStartIso || !submissionEndIso || !reviewStartIso || !reviewEndIso || !accessStartIso || !accessEndIso || !examDateIso) {
+      toast({ title: 'Error', description: 'Please enter valid date/time values, including the exam date.', variant: 'destructive' });
       return;
     }
 
     try {
-      await createSession.mutateAsync({
+      const result = await createSession.mutateAsync({
         created_by: profile.id,
         name: sessionName.trim(),
         academic_year: sessionAcademicYear.trim(),
@@ -299,9 +317,17 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         review_end: reviewEndIso,
         access_start: accessStartIso,
         access_end: accessEndIso,
+        exam_date: examDateIso,
         is_active: sessionIsActive,
         is_locked: sessionIsLocked,
       });
+      if (result?.fallback) {
+        toast({
+          title: 'Saved without exam date',
+          description: 'Your database is missing the exam_date column. Run the migration to store this field.',
+          variant: 'destructive',
+        });
+      }
       toast({ title: 'Session created', description: `${sessionName.trim()} has been scheduled.` });
       resetSessionForm();
       setSessionDialogOpen(false);
@@ -444,6 +470,11 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   <Input type="datetime-local" value={accessStart} onChange={(e) => setAccessStart(e.target.value)} />
                   <Input type="datetime-local" value={accessEnd} onChange={(e) => setAccessEnd(e.target.value)} />
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Exam Date</Label>
+                <Input type="datetime-local" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -647,9 +678,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="text-xl font-semibold">Exam Calendar</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm">Previous</Button>
+              <Button variant="outline" size="sm" className="min-w-[96px]">Previous</Button>
               <span className="font-medium px-4">March 2024</span>
-              <Button variant="outline" size="sm">Next</Button>
+              <Button variant="outline" size="sm" className="min-w-[96px]">Next</Button>
             </div>
           </div>
 
@@ -750,11 +781,11 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   </div>
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1 gap-1.5">
+                    <Button variant="outline" size="default" className="flex-1 h-10 gap-1.5">
                       <Eye className="w-4 h-4" />
                       Preview
                     </Button>
-                    <Button variant="hero" size="sm" className="flex-1 gap-1.5" disabled>
+                    <Button variant="hero" size="default" className="flex-1 h-10 gap-1.5" disabled>
                       <Download className="w-4 h-4" />
                       Download
                     </Button>
@@ -921,7 +952,7 @@ function SessionCard({
   onDelete,
 }: {
   session: ExamSession;
-  onUpdate: (input: { id: string; updates: ExamSessionUpdate }) => Promise<unknown>;
+  onUpdate: (input: { id: string; updates: ExamSessionUpdate }) => Promise<ExamSessionMutationResult>;
   onDelete: (id: string) => Promise<unknown>;
 }) {
   const { toast } = useToast();
@@ -936,6 +967,7 @@ function SessionCard({
   const [localReviewEnd, setLocalReviewEnd] = useState(toLocalInputValue(session.review_end));
   const [localAccessStart, setLocalAccessStart] = useState(toLocalInputValue(session.access_start));
   const [localAccessEnd, setLocalAccessEnd] = useState(toLocalInputValue(session.access_end));
+  const [localExamDate, setLocalExamDate] = useState(toLocalInputValue(session.exam_date));
   const [isActive, setIsActive] = useState(Boolean(session.is_active));
   const [isLocked, setIsLocked] = useState(Boolean(session.is_locked));
 
@@ -950,6 +982,7 @@ function SessionCard({
       setLocalReviewEnd(toLocalInputValue(session.review_end));
       setLocalAccessStart(toLocalInputValue(session.access_start));
       setLocalAccessEnd(toLocalInputValue(session.access_end));
+      setLocalExamDate(toLocalInputValue(session.exam_date));
       setIsActive(Boolean(session.is_active));
       setIsLocked(Boolean(session.is_locked));
     }
@@ -981,14 +1014,15 @@ function SessionCard({
     const reviewEndIso = fromLocalInputValue(localReviewEnd);
     const accessStartIso = fromLocalInputValue(localAccessStart);
     const accessEndIso = fromLocalInputValue(localAccessEnd);
+    const examDateIso = fromLocalInputValue(localExamDate);
 
-    if (!submissionStartIso || !submissionEndIso || !reviewStartIso || !reviewEndIso || !accessStartIso || !accessEndIso) {
-      toast({ title: 'Error', description: 'Please enter valid date/time values.', variant: 'destructive' });
+    if (!submissionStartIso || !submissionEndIso || !reviewStartIso || !reviewEndIso || !accessStartIso || !accessEndIso || !examDateIso) {
+      toast({ title: 'Error', description: 'Please enter valid date/time values, including the exam date.', variant: 'destructive' });
       return;
     }
 
     try {
-      await onUpdate({
+      const result = await onUpdate({
         id: session.id,
         updates: {
           name: name.trim(),
@@ -1000,10 +1034,18 @@ function SessionCard({
           review_end: reviewEndIso,
           access_start: accessStartIso,
           access_end: accessEndIso,
+          exam_date: examDateIso,
           is_active: isActive,
           is_locked: isLocked,
         },
       });
+      if (result?.fallback) {
+        toast({
+          title: 'Saved without exam date',
+          description: 'Your database is missing the exam_date column. Run the migration to store this field.',
+          variant: 'destructive',
+        });
+      }
       toast({ title: 'Session updated', description: 'Timeline changes have been saved.' });
       setOpen(false);
     } catch (error: any) {
@@ -1105,6 +1147,11 @@ function SessionCard({
                   </div>
                 </div>
 
+                <div className="space-y-3">
+                  <Label>Exam Date</Label>
+                  <Input type="datetime-local" value={localExamDate} onChange={(e) => setLocalExamDate(e.target.value)} />
+                </div>
+
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between rounded-xl border bg-secondary/30 px-4 py-3">
                     <div>
@@ -1157,7 +1204,7 @@ function SessionCard({
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 text-sm">
+      <div className="grid md:grid-cols-4 gap-4 text-sm">
         <div className="rounded-xl border bg-background/60 p-4 space-y-1">
           <p className="text-xs text-muted-foreground">Submission Window</p>
           <p className="font-medium">{formatWindow(session.submission_start, session.submission_end)}</p>
@@ -1169,6 +1216,10 @@ function SessionCard({
         <div className="rounded-xl border bg-background/60 p-4 space-y-1">
           <p className="text-xs text-muted-foreground">Access Window</p>
           <p className="font-medium">{formatWindow(session.access_start, session.access_end)}</p>
+        </div>
+        <div className="rounded-xl border bg-background/60 p-4 space-y-1">
+          <p className="text-xs text-muted-foreground">Exam Date</p>
+          <p className="font-medium">{formatSingleDate(session.exam_date)}</p>
         </div>
       </div>
     </div>
