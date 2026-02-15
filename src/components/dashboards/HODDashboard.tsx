@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/dashboard/StatsCard';
-import { PaperCard } from '@/components/dashboard/PaperCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ExamPaper } from '@/types';
@@ -14,6 +13,7 @@ import {
   Eye,
   Lock,
   AlertTriangle,
+  FileText,
 } from 'lucide-react';
 
 interface Department {
@@ -75,6 +75,9 @@ export function HODDashboard() {
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const [papers] = useState<ExamPaper[]>(mockPapersForReview);
   const [departmentName, setDepartmentName] = useState<string>('your department');
+  const [sortBy, setSortBy] = useState<'deadline' | 'subject' | 'status'>('deadline');
+  const [filterBy, setFilterBy] = useState<'all' | 'pending' | 'selected'>('all');
+  const isLoadingPapers = false;
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -97,8 +100,39 @@ export function HODDashboard() {
     setSelectedPaperId(selectedPaperId === paperId ? null : paperId);
   };
 
+  const formatExamType = (examType: ExamPaper['examType']) => {
+    if (examType === 'mid_term') return 'Mid Term';
+    if (examType === 'final_term') return 'Final Term';
+    return examType.replace('_', ' ');
+  };
+
+  const isNearDeadline = (date: Date) => {
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays <= 3;
+  };
+
+  const visiblePapers = papers
+    .filter((paper) => (selectedSubject ? paper.subjectId === selectedSubject : true))
+    .filter((paper) => {
+      if (filterBy === 'pending') return paper.status === 'pending_review';
+      if (filterBy === 'selected') return paper.id === selectedPaperId;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'subject') return a.subjectName.localeCompare(b.subjectName);
+      if (sortBy === 'status') return a.status.localeCompare(b.status);
+      return a.deadline.getTime() - b.deadline.getTime();
+    });
+
+  const handleRowClick = (paperId: string) => {
+    handleSelectPaper(paperId);
+    console.log('Navigate to review page for paper', paperId);
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">HOD Dashboard</h1>
@@ -138,8 +172,8 @@ export function HODDashboard() {
       </div>
 
       {/* Anonymous Review Notice */}
-      <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 flex flex-col sm:flex-row items-start gap-4">
-        <div className="w-10 h-10 rounded-lg gradient-accent flex items-center justify-center flex-shrink-0">
+      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col sm:flex-row items-start gap-3">
+        <div className="w-9 h-9 rounded-md gradient-accent flex items-center justify-center flex-shrink-0">
           <Eye className="w-5 h-5 text-accent-foreground" />
         </div>
         <div>
@@ -152,92 +186,209 @@ export function HODDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="grid lg:grid-cols-4 gap-8">
+      <div className="space-y-8">
         {/* Subjects List */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-lg font-semibold">Subjects to Review</h2>
-          <div className="space-y-2">
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Subjects to Review</h2>
+              <p className="text-sm text-muted-foreground">
+                {subjectsNeedingReview.length} subjects require selection
+              </p>
+            </div>
+            <Badge variant="secondary">{subjectsNeedingReview.length} Total</Badge>
+          </div>
+          <div className="border rounded-lg divide-y bg-card">
             {subjectsNeedingReview.map((subject) => (
               <button
                 key={subject.id}
                 onClick={() => setSelectedSubject(subject.id)}
-                className={`w-full p-4 rounded-xl border text-left transition-all duration-200 ${
+                className={`w-full px-4 py-3 text-left transition-all duration-150 ${
                   selectedSubject === subject.id
-                    ? 'border-accent bg-accent/10 shadow-glow'
-                    : 'border-border bg-card hover:border-accent/50'
+                    ? 'bg-accent/10 border-l-4 border-accent'
+                    : 'hover:bg-muted/40'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{subject.name}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium">{subject.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Due {subject.deadline.toLocaleDateString()}
+                    </div>
+                  </div>
                   <Badge variant="pending">{subject.papersCount}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Due: {subject.deadline.toLocaleDateString()}
-                </p>
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Papers Comparison */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Pending Papers */}
+        <section className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold">
-              Compare Papers: Data Structures
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold">Pending Papers</h2>
+              <p className="text-sm text-muted-foreground">
+                Nearest deadlines first. Select a row to review.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Sort</span>
+                <select
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="deadline">Nearest deadline</option>
+                  <option value="subject">Subject</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Filter</span>
+                <select
+                  value={filterBy}
+                  onChange={(event) => setFilterBy(event.target.value as typeof filterBy)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="pending">Pending only</option>
+                  <option value="selected">Selected</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {isLoadingPapers ? (
+            <div className="border rounded-lg divide-y bg-card">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={`skeleton-${index}`} className="px-4 py-3 animate-pulse">
+                  <div className="grid grid-cols-[40px_1.6fr_1fr_auto_auto] gap-4 items-center">
+                    <div className="h-10 w-10 rounded-md bg-muted" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-40 rounded bg-muted" />
+                      <div className="h-2 w-56 rounded bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 w-24 rounded bg-muted" />
+                      <div className="h-2 w-20 rounded bg-muted" />
+                    </div>
+                    <div className="h-6 w-20 rounded bg-muted" />
+                    <div className="h-8 w-20 rounded bg-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : visiblePapers.length === 0 ? (
+            <div className="border rounded-lg bg-card px-6 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <FileCheck className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <h3 className="text-base font-semibold">No pending papers</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                You are all caught up. New submissions will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="border rounded-lg divide-y bg-card">
+              {visiblePapers.map((paper, index) => (
+                <div
+                  key={paper.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleRowClick(paper.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleRowClick(paper.id);
+                    }
+                  }}
+                  className={`group cursor-pointer px-4 py-3 transition-all duration-150 ${
+                    selectedPaperId === paper.id ? 'bg-accent/10' : 'hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="grid grid-cols-[40px_1.6fr_1fr_auto_auto] gap-4 items-center">
+                    <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-semibold text-base">{paper.subjectName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Paper {index + 1} • {formatExamType(paper.examType)} • {paper.department}
+                      </div>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <div
+                        className={`font-medium ${
+                          isNearDeadline(paper.deadline) ? 'text-warning' : 'text-foreground'
+                        }`}
+                      >
+                        Due {paper.deadline.toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Submission deadline</div>
+                    </div>
+                    <Badge variant="pending" className="justify-self-end">
+                      Pending Review
+                    </Badge>
+                    <div className="justify-self-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRowClick(paper.id);
+                        }}
+                      >
+                        <FileCheck className="h-4 w-4" />
+                        Review
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Selection Confirmation */}
+        {selectedPaperId && (
+          <div className="p-3 rounded-lg bg-success/10 border border-success/20 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-success" />
+              <span className="font-medium">
+                Paper {papers.findIndex((paper) => paper.id === selectedPaperId) + 1} ready to approve
+              </span>
+            </div>
             <div className="flex items-center gap-3">
               <Button
                 variant="success"
-                disabled={!selectedPaperId}
                 className="gap-2 w-full sm:w-auto"
               >
                 <CheckCircle className="w-4 h-4" />
-                Approve & Lock Selected
+                Approve & Lock
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSelectedPaperId(null)}
+              >
+                Clear
               </Button>
             </div>
           </div>
+        )}
 
-          {/* Papers Grid */}
-          <div className="grid md:grid-cols-3 gap-4">
-            {papers.map((paper, index) => (
-              <PaperCard
-                key={paper.id}
-                paper={paper}
-                isAnonymous
-                anonymousLabel={`Paper ${index + 1}`}
-                showActions
-                onView={() => console.log('View paper', paper.id)}
-                onSelect={() => handleSelectPaper(paper.id)}
-                isSelected={selectedPaperId === paper.id}
-              />
-            ))}
-          </div>
-
-          {/* Selection Confirmation */}
-          {selectedPaperId && (
-            <div className="p-4 rounded-xl bg-success/10 border border-success/20 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-success" />
-                <span className="font-medium">
-                  Paper {papers.findIndex(p => p.id === selectedPaperId) + 1} selected for approval
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Click "Approve & Lock" to finalize selection
-              </p>
-            </div>
-          )}
-
-          {/* Warning */}
-          <div className="p-4 rounded-xl bg-warning/10 border border-warning/20 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-semibold text-warning">Important</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Once a paper is approved and locked, it cannot be changed. 
-                The paper will be forwarded to Examination Cell and other submissions will be automatically rejected.
-              </p>
-            </div>
+        {/* Warning */}
+        <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-warning">Important</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              Once a paper is approved and locked, it cannot be changed.
+              The paper will be forwarded to Examination Cell and other submissions will be automatically rejected.
+            </p>
           </div>
         </div>
       </div>

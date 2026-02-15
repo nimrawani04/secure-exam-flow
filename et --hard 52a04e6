@@ -1,0 +1,65 @@
+[33m6b4182f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fixed bugs
+[33m52a04e6[m fixed bugs
+[33m6a65ac8[m fixed preview for hod, fixed the approval and rejection status, the teacher cannot see if their paper was selected or rejected but will get to know if the status is pending or not
+[33me38a855[m Now clicking the upload area should open the file chooser.
+[33ma5c7ed9[m fixed bugs
+[33m3f6e075[m The dashboard now uses real Supabase data for the logged‑in teacher and shows a clean empty state for new accounts. Mock data is removed.
+[33me68e981[m fixed bugs
+[33m7694461[m added subjects to the respective department for hod to assign to teachers
+[33me139720[m created a real Approved Papers page that lists selected/locked papers.
+[33m2a4b4fa[m  The Review tabs now spread across the full width on larger screens (4-column layout), while staying scrollable on small screens for hod section
+[33m75e030d[m fixed assigned subjects to display subjects assigned to the teacher
+[33mbc9e8cf[m Updated the custom color UI to use a full-width bar picker, then the hex field, then Apply. The small circular picker is removed.
+[33ma96c810[m  On larger screens the tabs now spread across the full width in a clean 4‑column layout, while small screens keep horizontal scroll.
+[33m3eeee35[m Now when a user picks a profile color, the sidebar highlights and accents update automatically.
+[33mf26d490[m Simplified the top header actions on small screens and removed the duplicate theme toggle. Shortcuts button is hidden on mobile, and the action row can wrap. Mobile header now shows Account Name > Selected Tag plus icons: bell, light/dark toggle, profile circle (no box), and menu. Desktop header remains for lg+ only. Made Submissions and Review headers stack on mobile, buttons full width on small screens, and tabs horizontally scrollable Submissions header buttons now stack and fill on small screens; upload button no longer gets cut off. Normalized Exam Calendar Security Features on Upload page uses proper icons (no logo-as-bullet) and guidelines render with real list bullets.
+[33mdab0fbb[m Fixed the Exam Cell view scoping so each sidebar click renders only its own section (no overlap). The HOD broadcast feature added ,it supports department-wide and subject-based teacher targeting and is wired to /hod/alerts.
+[33m1c44e51[m added the Admin Broadcasts item to the sidebar and wired the route so it opens the Broadcasts tab.
+[33m9cd0c78[m Update README.md
+[33m5580e60[m Added a Broadcasts tab in the admin dashboard with role/department targeting, alert type, recipient count, and recent broadcast history. Wired a notifications feed into the top-right bell dropdown so recipients can see broadcasts. Introduced hooks for creating broadcasts and fetching targeted notifications.
+[33m521bf2a[m Remove accidental file
+[33mc5999bd[m Restore working reset password flow from eb860f8
+[33m619af78[m Accent color is stored using a user‑specific key: accent-color:{userId}
+[33mc2c8a4c[m That accent now drives a subtle background tint for the whole dashboard.
+[33m3e7b95d[m Implemented the new dashboard top bar
+[33m7308faf[m Logout now redirects to the landing page and Replaced the Shield icon with the CUK logo
+[33m82d18c0[m add admin user management and collapsible sidebar
+[33mefa1844[m The sign‑up card is now scrollable as a whole, so all fields are reachable, and the left text stays fully visible.
+[33m9ebb19a[m dded a reusable theme toggle that switches dark class on <html> and persists in localStorage
+[33m26f84d9[m add mobile nav and improve responsive layout
+[33mc6d9fef[m fixed bugs
+[33m5253534[m made the layout cleaner
+[33m38614a1[m changed homepage
+[33m81486e3[m minor fixes
+[33md520af7[m fixed dimensions
+[33m1fd8549[m added logo
+[33me507333[m added logo
+[33m0d9a687[m added logo
+[33mba21f69[m Add admin dashboard features
+[33m84954a4[m Changes
+[33m0c28219[m Add password visibility toggle
+[33mf9b4cd7[m Changes
+[33meb860f8[m Add password reset UI flow
+[33m1fbb66d[m Changes
+[33m537fe75[m chore: refresh contribution graph
+[33m3e65f48[m Update Landing page footer
+[33m0c32244[m Update branding in Landing page
+[33m1d98230[m Updated the homepage
+[33m7af8aa4[m Revise HTML head section for exam system
+[33m04cf178[m Implement Hod review and submissions history
+[33m5e84ffa[m Add paper upload to storage
+[33ma025c98[m Changes
+[33m4a0cfec[m Redirect login links to auth
+[33ma1d40f3[m Changes
+[33mc3a9ada[m Added the cuk favicon
+[33me63661e[m Changes
+[33m305b13f[m Add files via upload
+[33m53a5c72[m Set title and meta tags for CUK Secure Exam System
+[33m5a49eec[m Revise README for Secure Exam Flow project
+[33mabc127e[m Set up complete backend schema
+[33m864978e[m Enable Lovable Cloud backend
+[33m6e08b26[m Changes
+[33m9611fd5[m Improve exam paper UI components
+[33maa587c3[m Changes
+[33m4728e8e[m template: new_style_vite_react_shadcn_ts_testing_2026-01-08
+[33md9e7ed7[m Changes
