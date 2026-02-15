@@ -147,33 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error };
       }
 
-      if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          full_name: fullName,
-          email: email,
-          department_id: departmentId || null,
-        });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          return { error: new Error('Failed to create profile') };
-        }
-
-        // Create user role
-        const { error: roleError } = await supabase.from('user_roles').insert({
-          user_id: data.user.id,
-          role: role,
-        });
-
-        if (roleError) {
-          console.error('Error creating role:', roleError);
-          return { error: new Error('Failed to assign role') };
-        }
-
-        // Fetch the complete profile
-        const completeProfile = await fetchProfile(data.user.id);
+      if (data.session?.user) {
+        const completeProfile = await fetchProfile(data.session.user.id);
         setProfile(completeProfile);
       }
 
