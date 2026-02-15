@@ -200,23 +200,24 @@ export default function Profile() {
                 aria-label={`Set color ${color}`}
               />
             ))}
-            <label className="h-9 w-9 rounded-full border border-white/10 shadow-sm overflow-hidden cursor-pointer">
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+            <label className="block w-full">
+              <span className="sr-only">Pick a custom color</span>
               <input
                 type="color"
                 value={accentHex}
                 onChange={(e) => handleThemeChange(e.target.value)}
-                className="h-10 w-10 border-0 p-0 cursor-pointer"
+                className="h-11 w-full cursor-pointer rounded-lg border border-input bg-transparent p-1"
                 aria-label="Pick a custom color"
               />
             </label>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <Input
               value={accentHex}
               onChange={(e) => setAccentHex(e.target.value)}
               placeholder="#17a38b"
-              className="h-11"
+              className="h-11 w-full sm:w-40 font-mono"
             />
             <Button variant="outline" onClick={() => handleThemeChange(accentHex)}>
               Apply
