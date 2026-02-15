@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Upload, FileText, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ interface FileUploadZoneProps {
 export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const validateFile = (selectedFile: File): boolean => {
     if (selectedFile.type !== 'application/pdf') {
@@ -66,8 +67,14 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={() => {
+          if (!file) {
+            fileInputRef.current?.click();
+          }
+        }}
         className={cn(
           'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200',
+          !file && 'cursor-pointer',
           isDragging && 'border-accent bg-accent/5',
           file && !error && 'border-success bg-success/5',
           error && 'border-destructive bg-destructive/5'
@@ -108,10 +115,11 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
               or click to browse files
             </p>
             <Input
+              ref={fileInputRef}
               type="file"
               accept=".pdf,application/pdf"
               onChange={handleFileChange}
-              className="absolute inset-0 opacity-0 cursor-pointer"
+              className="absolute inset-0 opacity-0 cursor-pointer z-10"
             />
           </>
         )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,8 +11,10 @@ import { UploadSidebar } from '@/components/upload/UploadSidebar';
 import { UploadSuccess } from '@/components/upload/UploadSuccess';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
 
 type ExamType = Database['public']['Enums']['exam_type'];
+type ExamSession = Database['public']['Tables']['exam_sessions']['Row'];
 
 // Default deadline: 5 days from now
 const getDefaultDeadline = () => {
@@ -26,19 +28,83 @@ export default function UploadPaper() {
   const { subjects, isLoading: isLoadingSubjects } = useTeacherSubjects();
   const { uploadPaper, isUploading, uploadProgress } = useUploadPaper();
 
+  const [selectedSemester, setSelectedSemester] = useState<number | ''>('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedExamType, setSelectedExamType] = useState<ExamType | ''>('');
-  const [selectedSet, setSelectedSet] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [sessions, setSessions] = useState<ExamSession[]>([]);
 
-  const deadline = getDefaultDeadline();
-  const isFormValid = file && selectedSubject && selectedExamType && selectedSet;
+  const defaultDeadline = useMemo(() => getDefaultDeadline(), []);
+
+  const semesters = useMemo(() => {
+    const unique = new Set(subjects.map((subject) => subject.semester));
+    return Array.from(unique).sort((a, b) => a - b);
+  }, [subjects]);
+
+  useEffect(() => {
+    if (!selectedSemester && semesters.length > 0) {
+      setSelectedSemester(semesters[0]);
+    }
+  }, [selectedSemester, semesters]);
+
+  const filteredSubjects = useMemo(() => {
+    if (!selectedSemester) return [];
+    return subjects
+      .filter((subject) => subject.semester === selectedSemester)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [subjects, selectedSemester]);
+
+  useEffect(() => {
+    if (selectedSubject && !filteredSubjects.some((subject) => subject.id === selectedSubject)) {
+      setSelectedSubject('');
+    }
+  }, [filteredSubjects, selectedSubject]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchSessions() {
+      const { data, error } = await supabase
+        .from('exam_sessions')
+        .select('id, name, exam_type, submission_start, submission_end, is_active, exam_date')
+        .order('submission_end', { ascending: true });
+
+      if (!error && data && isMounted) {
+        setSessions(data);
+      }
+    }
+
+    fetchSessions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const deadline = useMemo(() => {
+    if (!selectedExamType) {
+      return defaultDeadline;
+    }
+
+    const now = Date.now();
+    const matching = sessions.filter(
+      (session) => session.exam_type === selectedExamType && (session.is_active ?? true)
+    );
+    const upcoming = matching
+      .map((session) => ({ session, end: new Date(session.submission_end) }))
+      .filter((item) => !Number.isNaN(item.end.getTime()) && item.end.getTime() > now)
+      .sort((a, b) => a.end.getTime() - b.end.getTime())[0];
+
+    return upcoming ? upcoming.end : defaultDeadline;
+  }, [selectedExamType, sessions, defaultDeadline]);
+
+  const isFormValid = file && selectedSubject && selectedExamType;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!file || !selectedSubject || !selectedExamType || !selectedSet) {
+    if (!file || !selectedSubject || !selectedExamType) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -46,7 +112,7 @@ export default function UploadPaper() {
     const result = await uploadPaper({
       subjectId: selectedSubject,
       examType: selectedExamType,
-      setName: selectedSet,
+      setName: 'A',
       deadline,
       file,
     });
@@ -61,7 +127,6 @@ export default function UploadPaper() {
   const resetForm = () => {
     setSelectedSubject('');
     setSelectedExamType('');
-    setSelectedSet('');
     setFile(null);
     setUploadSuccess(false);
   };
@@ -84,19 +149,20 @@ export default function UploadPaper() {
           </p>
         </div>
 
-        <div className="grid xl:grid-cols-[2.2fr_1fr] gap-8">
-          {/* Main Form */}
-          <div>
-            <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid xl:grid-cols-[2.2fr_1fr] gap-8">
+        {/* Main Form */}
+        <div>
+          <form onSubmit={handleSubmit} className="space-y-6">
               <PaperDetailsForm
-                subjects={subjects}
+                subjects={filteredSubjects}
+                semesters={semesters}
+                selectedSemester={selectedSemester}
+                setSelectedSemester={setSelectedSemester}
                 isLoadingSubjects={isLoadingSubjects}
                 selectedSubject={selectedSubject}
                 setSelectedSubject={setSelectedSubject}
                 selectedExamType={selectedExamType}
                 setSelectedExamType={setSelectedExamType}
-                selectedSet={selectedSet}
-                setSelectedSet={setSelectedSet}
               />
 
               <FileUploadZone file={file} setFile={setFile} />

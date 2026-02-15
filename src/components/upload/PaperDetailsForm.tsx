@@ -19,32 +19,57 @@ const examTypes: { id: ExamType; name: string }[] = [
   { id: 'internal', name: 'Internal Assessment' },
 ];
 
-const paperSets = ['A', 'B', 'C'];
-
 interface PaperDetailsFormProps {
   subjects: TeacherSubject[];
+  semesters: number[];
+  selectedSemester: number | '';
+  setSelectedSemester: (value: number | '') => void;
   isLoadingSubjects: boolean;
   selectedSubject: string;
   setSelectedSubject: (value: string) => void;
   selectedExamType: ExamType | '';
   setSelectedExamType: (value: ExamType | '') => void;
-  selectedSet: string;
-  setSelectedSet: (value: string) => void;
 }
 
 export function PaperDetailsForm({
   subjects,
+  semesters,
+  selectedSemester,
+  setSelectedSemester,
   isLoadingSubjects,
   selectedSubject,
   setSelectedSubject,
   selectedExamType,
   setSelectedExamType,
-  selectedSet,
-  setSelectedSet,
 }: PaperDetailsFormProps) {
   return (
     <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
       <h2 className="text-lg font-semibold">Paper Details</h2>
+
+      <div className="space-y-2">
+        <Label htmlFor="semester">Semester *</Label>
+        <Select
+          value={selectedSemester ? String(selectedSemester) : ''}
+          onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
+        >
+          <SelectTrigger id="semester" className="h-12">
+            <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
+          </SelectTrigger>
+          <SelectContent>
+            {semesters.length === 0 && !isLoadingSubjects ? (
+              <SelectItem value="none" disabled>
+                No semesters available
+              </SelectItem>
+            ) : (
+              semesters.map((semester) => (
+                <SelectItem key={semester} value={String(semester)}>
+                  Semester {semester}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -58,7 +83,7 @@ export function PaperDetailsForm({
             <SelectContent>
               {subjects.length === 0 && !isLoadingSubjects ? (
                 <SelectItem value="none" disabled>
-                  No subjects assigned
+                  No subjects for this semester
                 </SelectItem>
               ) : (
                 subjects.map((subject) => (
@@ -71,7 +96,7 @@ export function PaperDetailsForm({
           </Select>
           {subjects.length === 0 && !isLoadingSubjects && (
             <p className="text-sm text-destructive">
-              No subjects assigned to you. Contact your HOD.
+              No subjects assigned in this semester. Contact your HOD.
             </p>
           )}
         </div>
@@ -96,29 +121,9 @@ export function PaperDetailsForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Paper Set *</Label>
-        <div className="flex gap-3">
-          {paperSets.map((set) => (
-            <button
-              key={set}
-              type="button"
-              onClick={() => setSelectedSet(set)}
-              className={cn(
-                'w-16 h-12 rounded-lg border-2 font-semibold transition-all duration-200',
-                selectedSet === set
-                  ? 'border-accent bg-accent/10 text-accent shadow-glow'
-                  : 'border-border hover:border-accent/50'
-              )}
-            >
-              Set {set}
-            </button>
-          ))}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          You can upload multiple paper sets for the same subject
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Upload one paper per subject and exam type. Need variants? You can upload again later.
+      </p>
     </div>
   );
 }
