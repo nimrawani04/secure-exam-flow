@@ -14,6 +14,7 @@ import Review from "./pages/Review";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Department from "./pages/Department";
+import Subjects from "./pages/Subjects";
 import { applyStoredAccent } from "./lib/theme";
 
 const queryClient = new QueryClient();
@@ -39,7 +40,7 @@ const App = () => {
               <Route path="/submissions" element={<Submissions />} />
               <Route path="/review" element={<Review />} />
               {/* Placeholder routes */}
-              <Route path="/subjects" element={<Dashboard />} />
+              <Route path="/subjects" element={<Subjects />} />
               <Route path="/department" element={<Department />} />
               <Route path="/hod/alerts" element={<Dashboard />} />
               <Route path="/approved" element={<Dashboard />} />
