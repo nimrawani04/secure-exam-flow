@@ -1,15 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+type NotificationUpdate = Database['public']['Tables']['notifications']['Update'];
 
 interface UseNotificationsInput {
   userId?: string | null;
   role?: AppRole | null;
   departmentId?: string | null;
   limit?: number;
+  includeRead?: boolean;
 }
 
 export function useNotifications({
@@ -17,9 +19,10 @@ export function useNotifications({
   role,
   departmentId,
   limit = 6,
+  includeRead = false,
 }: UseNotificationsInput) {
   return useQuery({
-    queryKey: ['notifications', userId, role, departmentId, limit],
+    queryKey: ['notifications', userId, role, departmentId, limit, includeRead],
     enabled: !!role,
     queryFn: async (): Promise<NotificationRow[]> => {
       const { data, error } = await supabase
@@ -33,6 +36,9 @@ export function useNotifications({
 
       const now = Date.now();
       return (data || []).filter((notification) => {
+        if (!includeRead && notification.is_read) {
+          return false;
+        }
         if (notification.user_id && notification.user_id !== userId) {
           return false;
         }
@@ -49,4 +55,34 @@ export function useNotifications({
       });
     },
   });
+}
+
+interface UpdateNotificationReadInput {
+  id: string;
+  isRead: boolean;
+}
+
+export function useNotificationActions() {
+  const queryClient = useQueryClient();
+
+  const updateReadState = useMutation({
+    mutationFn: async ({ id, isRead }: UpdateNotificationReadInput) => {
+      const payload: NotificationUpdate = { is_read: isRead };
+      const { error } = await supabase
+        .from('notifications')
+        .update(payload)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+
+  return {
+    updateReadState: updateReadState.mutateAsync,
+    isUpdating: updateReadState.isPending,
+  };
 }

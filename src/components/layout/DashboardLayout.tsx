@@ -17,8 +17,16 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useNotifications } from '@/hooks/useNotifications';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useNotificationActions, useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardLayoutProps {
@@ -69,14 +77,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [showRead, setShowRead] = useState(false);
   const lastKey = useRef<{ key: string; time: number } | null>(null);
   const { data: notifications, isLoading: notificationsLoading } = useNotifications({
     userId: profile?.id,
     role: profile?.role ?? null,
     departmentId: profile?.department_id ?? null,
     limit: 6,
+    includeRead: showRead,
   });
-  const notificationCount = notifications?.length || 0;
+  const { updateReadState } = useNotificationActions();
+  const notificationCount = notifications?.filter((notification) => !notification.is_read).length || 0;
 
   const title = useMemo(() => {
     return routeTitles[location.pathname] || { section: 'Dashboard', page: 'Overview' };
@@ -121,6 +132,85 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [navigate]);
+
+  const handleReadToggle = async (id: string, isRead: boolean) => {
+    await updateReadState({ id, isRead });
+  };
+
+  const renderNotificationsContent = () => (
+    <DropdownMenuContent align="end" className="w-80 max-h-[360px] overflow-auto">
+      <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuCheckboxItem
+        checked={showRead}
+        onCheckedChange={(checked) => setShowRead(Boolean(checked))}
+      >
+        Show read
+      </DropdownMenuCheckboxItem>
+      <DropdownMenuSeparator />
+      {notificationsLoading ? (
+        <DropdownMenuItem className="text-sm text-muted-foreground">
+          Loading notifications...
+        </DropdownMenuItem>
+      ) : notifications && notifications.length > 0 ? (
+        notifications.map((notification) => {
+          const config = notificationTypeConfig[notification.type || 'info'] || notificationTypeConfig.info;
+          const messagePreview =
+            notification.message.length > 140
+              ? `${notification.message.slice(0, 140)}...`
+              : notification.message;
+          const isRead = Boolean(notification.is_read);
+
+          return (
+            <DropdownMenuItem
+              key={notification.id}
+              onSelect={(event) => {
+                event.preventDefault();
+                if (!isRead) {
+                  handleReadToggle(notification.id, true);
+                }
+              }}
+              className={cn(
+                "flex flex-col items-start gap-1 whitespace-normal",
+                isRead && "opacity-60"
+              )}
+            >
+              <div className="flex w-full items-center justify-between gap-2">
+                <span className="text-sm font-medium">{notification.title}</span>
+                <Badge variant={config.variant} className="text-[10px] uppercase">
+                  {config.label}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">{messagePreview}</p>
+              <div className="flex w-full items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {notification.created_at
+                    ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                    : 'Just now'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[11px]"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleReadToggle(notification.id, !isRead);
+                  }}
+                >
+                  {isRead ? 'Mark unread' : 'Mark read'}
+                </Button>
+              </div>
+            </DropdownMenuItem>
+          );
+        })
+      ) : (
+        <DropdownMenuItem className="text-sm text-muted-foreground">
+          {showRead ? 'No notifications' : 'No new notifications'}
+        </DropdownMenuItem>
+      )}
+    </DropdownMenuContent>
+  );
 
   if (isLoading) {
     return (
@@ -177,44 +267,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 max-h-[320px] overflow-auto">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {notificationsLoading ? (
-                  <DropdownMenuItem className="text-sm text-muted-foreground">
-                    Loading notifications...
-                  </DropdownMenuItem>
-                ) : notificationCount > 0 ? (
-                  notifications?.map((notification) => {
-                    const config = notificationTypeConfig[notification.type || 'info'] || notificationTypeConfig.info;
-                    const messagePreview =
-                      notification.message.length > 140
-                        ? `${notification.message.slice(0, 140)}...`
-                        : notification.message;
-
-                    return (
-                      <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 whitespace-normal">
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <span className="text-sm font-medium">{notification.title}</span>
-                          <Badge variant={config.variant} className="text-[10px] uppercase">
-                            {config.label}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{messagePreview}</p>
-                        <span className="text-[11px] text-muted-foreground">
-                          {notification.created_at
-                            ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
-                            : 'Just now'}
-                        </span>
-                      </DropdownMenuItem>
-                    );
-                  })
-                ) : (
-                  <DropdownMenuItem className="text-sm text-muted-foreground">
-                    No new notifications
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
+              {renderNotificationsContent()}
             </DropdownMenu>
             <ThemeToggle className="h-9 w-9" compact />
             <button
@@ -292,44 +345,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 max-h-[320px] overflow-auto">
-                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {notificationsLoading ? (
-                    <DropdownMenuItem className="text-sm text-muted-foreground">
-                      Loading notifications...
-                    </DropdownMenuItem>
-                  ) : notificationCount > 0 ? (
-                    notifications?.map((notification) => {
-                      const config = notificationTypeConfig[notification.type || 'info'] || notificationTypeConfig.info;
-                      const messagePreview =
-                        notification.message.length > 140
-                          ? `${notification.message.slice(0, 140)}...`
-                          : notification.message;
-
-                      return (
-                        <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 whitespace-normal">
-                          <div className="flex w-full items-center justify-between gap-2">
-                            <span className="text-sm font-medium">{notification.title}</span>
-                            <Badge variant={config.variant} className="text-[10px] uppercase">
-                              {config.label}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{messagePreview}</p>
-                          <span className="text-[11px] text-muted-foreground">
-                            {notification.created_at
-                              ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
-                              : 'Just now'}
-                          </span>
-                        </DropdownMenuItem>
-                      );
-                    })
-                  ) : (
-                    <DropdownMenuItem className="text-sm text-muted-foreground">
-                      No new notifications
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
+                {renderNotificationsContent()}
               </DropdownMenu>
 
               <ThemeToggle className="hidden h-9 sm:inline-flex" compact />
