@@ -11,9 +11,11 @@ export interface TeacherPaper {
   subjectId: string;
   subjectName: string;
   subjectCode: string;
+  department: string;
   examType: ExamType;
   setName: string;
   status: PaperStatus;
+  uploadedBy: string;
   deadline: Date;
   uploadedAt: Date;
   version: number;
@@ -46,13 +48,15 @@ export function useTeacherPapers() {
           status,
           deadline,
           uploaded_at,
+          uploaded_by,
           version,
           feedback,
           approved_at,
           subjects (
             id,
             name,
-            code
+            code,
+            department
           )
         `)
         .eq('uploaded_by', user.id)
@@ -69,9 +73,11 @@ export function useTeacherPapers() {
         subjectId: p.subject_id,
         subjectName: (p.subjects as any)?.name || 'Unknown Subject',
         subjectCode: (p.subjects as any)?.code || '',
+        department: (p.subjects as any)?.department || 'Unknown Department',
         examType: p.exam_type,
         setName: p.set_name,
         status: p.status,
+        uploadedBy: p.uploaded_by,
         deadline: new Date(p.deadline),
         uploadedAt: new Date(p.uploaded_at),
         version: p.version,

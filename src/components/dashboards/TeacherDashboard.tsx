@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { PaperCard } from '@/components/dashboard/PaperCard';
 import { DeadlineTimer } from '@/components/dashboard/DeadlineTimer';
 import { Button } from '@/components/ui/button';
-import { ExamPaper } from '@/types';
+import { useTeacherPapers } from '@/hooks/useTeacherPapers';
+import type { ExamPaper } from '@/types';
 import {
   FileText,
   Upload,
@@ -15,58 +15,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// Mock data
-const mockPapers: ExamPaper[] = [
-  {
-    id: '1',
-    subjectId: 's1',
-    subjectName: 'Data Structures',
-    examType: 'mid_term',
-    setName: 'A',
-    status: 'approved',
-    uploadedBy: '1',
-    uploadedAt: new Date('2024-03-10'),
-    deadline: new Date('2024-03-20'),
-    department: 'Computer Science',
-    version: 2,
-    approvedAt: new Date('2024-03-15'),
-  },
-  {
-    id: '2',
-    subjectId: 's2',
-    subjectName: 'Algorithms',
-    examType: 'end_term',
-    setName: 'A',
-    status: 'pending_review',
-    uploadedBy: '1',
-    uploadedAt: new Date('2024-03-12'),
-    deadline: new Date('2024-03-25'),
-    department: 'Computer Science',
-    version: 1,
-  },
-  {
-    id: '3',
-    subjectId: 's3',
-    subjectName: 'Database Systems',
-    examType: 'mid_term',
-    setName: 'B',
-    status: 'rejected',
-    uploadedBy: '1',
-    uploadedAt: new Date('2024-03-08'),
-    deadline: new Date('2024-03-22'),
-    department: 'Computer Science',
-    version: 1,
-    feedback: 'Please include more practical questions and reduce the number of theoretical questions.',
-  },
-];
-
-const upcomingDeadline = new Date();
-upcomingDeadline.setDate(upcomingDeadline.getDate() + 2);
-upcomingDeadline.setHours(23, 59, 59);
-
 export function TeacherDashboard() {
   const { profile } = useAuth();
-  const [papers] = useState<ExamPaper[]>(mockPapers);
+  const { papers, isLoading, error } = useTeacherPapers();
 
   const stats = {
     total: papers.length,
@@ -76,6 +27,30 @@ export function TeacherDashboard() {
   };
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Teacher';
+  const now = new Date();
+  const upcoming = papers
+    .map((paper) => ({
+      deadline: paper.deadline,
+      label: `${paper.subjectName} - ${paper.examType.replace('_', ' ')}`,
+    }))
+    .filter((item) => item.deadline.getTime() > now.getTime())
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime())[0];
+
+  const displayPapers: ExamPaper[] = papers.map((paper) => ({
+    id: paper.id,
+    subjectId: paper.subjectId,
+    subjectName: paper.subjectName,
+    examType: paper.examType,
+    setName: paper.setName,
+    status: paper.status,
+    uploadedBy: paper.uploadedBy,
+    uploadedAt: paper.uploadedAt,
+    deadline: paper.deadline,
+    department: paper.department,
+    version: paper.version,
+    feedback: paper.feedback ?? undefined,
+    approvedAt: paper.approvedAt ?? undefined,
+  }));
 
   return (
     <div className="space-y-8">
@@ -134,11 +109,34 @@ export function TeacherDashboard() {
             </Link>
           </div>
 
-          <div className="space-y-4">
-            {papers.map((paper) => (
-              <PaperCard key={paper.id} paper={paper} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="rounded-xl border border-border/60 p-6 text-sm text-muted-foreground">
+              Loading your submissions...
+            </div>
+          ) : error ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+              {error}
+            </div>
+          ) : papers.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/70 p-8 text-center">
+              <p className="text-lg font-medium">No submissions yet</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Upload your first paper to start the review process.
+              </p>
+              <Link to="/upload" className="inline-block mt-4">
+                <Button variant="hero" size="lg" className="gap-2">
+                  <Plus className="w-5 h-5" />
+                  Upload Paper
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {displayPapers.map((paper) => (
+                <PaperCard key={paper.id} paper={paper} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -146,7 +144,13 @@ export function TeacherDashboard() {
           {/* Upcoming Deadline */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Next Deadline</h3>
-            <DeadlineTimer deadline={upcomingDeadline} label="Database Systems - End Term" />
+            {upcoming ? (
+              <DeadlineTimer deadline={upcoming.deadline} label={upcoming.label} />
+            ) : (
+              <div className="rounded-xl border border-border/60 p-6 text-sm text-muted-foreground">
+                No upcoming deadlines yet.
+              </div>
+            )}
           </div>
 
           {/* Quick Actions */}
