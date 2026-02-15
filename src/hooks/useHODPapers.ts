@@ -62,7 +62,7 @@ export function useHODPapers() {
           )
         `)
         .eq('subjects.department_id', profile.department_id)
-        .in('status', ['pending_review', 'approved', 'rejected'])
+        .in('status', ['pending_review', 'approved', 'rejected', 'locked'])
         .order('uploaded_at', { ascending: false });
 
       if (fetchError) {

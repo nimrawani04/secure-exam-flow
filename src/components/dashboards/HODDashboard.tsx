@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ExamPaper } from '@/types';
+import { useHODPapers } from '@/hooks/useHODPapers';
 import {
   FileCheck,
   Clock,
@@ -16,68 +16,14 @@ import {
   FileText,
 } from 'lucide-react';
 
-interface Department {
-  name: string;
-}
-
-// Mock data - papers shown anonymously
-const mockPapersForReview: ExamPaper[] = [
-  {
-    id: '1',
-    subjectId: 's1',
-    subjectName: 'Data Structures',
-    examType: 'mid_term',
-    setName: 'A',
-    status: 'pending_review',
-    uploadedBy: 'hidden',
-    uploadedAt: new Date('2024-03-10'),
-    deadline: new Date('2024-03-20'),
-    department: 'Computer Science',
-    version: 1,
-  },
-  {
-    id: '2',
-    subjectId: 's1',
-    subjectName: 'Data Structures',
-    examType: 'mid_term',
-    setName: 'B',
-    status: 'pending_review',
-    uploadedBy: 'hidden',
-    uploadedAt: new Date('2024-03-11'),
-    deadline: new Date('2024-03-20'),
-    department: 'Computer Science',
-    version: 1,
-  },
-  {
-    id: '3',
-    subjectId: 's1',
-    subjectName: 'Data Structures',
-    examType: 'mid_term',
-    setName: 'C',
-    status: 'pending_review',
-    uploadedBy: 'hidden',
-    uploadedAt: new Date('2024-03-12'),
-    deadline: new Date('2024-03-20'),
-    department: 'Computer Science',
-    version: 1,
-  },
-];
-
-const subjectsNeedingReview = [
-  { id: 's1', name: 'Data Structures', papersCount: 3, deadline: new Date('2024-03-20') },
-  { id: 's2', name: 'Algorithms', papersCount: 2, deadline: new Date('2024-03-22') },
-  { id: 's3', name: 'Database Systems', papersCount: 1, deadline: new Date('2024-03-25') },
-];
-
 export function HODDashboard() {
   const { profile } = useAuth();
-  const [selectedSubject, setSelectedSubject] = useState<string | null>('s1');
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
-  const [papers] = useState<ExamPaper[]>(mockPapersForReview);
+  const { papers, isLoading: isLoadingPapers, error } = useHODPapers();
   const [departmentName, setDepartmentName] = useState<string>('your department');
   const [sortBy, setSortBy] = useState<'deadline' | 'subject' | 'status'>('deadline');
   const [filterBy, setFilterBy] = useState<'all' | 'pending' | 'selected'>('all');
-  const isLoadingPapers = false;
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -96,11 +42,44 @@ export function HODDashboard() {
     fetchDepartment();
   }, [profile?.department_id]);
 
+  const papersForReview = useMemo(
+    () => papers.filter((paper) => paper.status === 'pending_review'),
+    [papers]
+  );
+
+  const subjectsNeedingReview = useMemo(() => {
+    const subjectMap = new Map<string, { id: string; name: string; papersCount: number; deadline: Date }>();
+    papersForReview.forEach((paper) => {
+      const existing = subjectMap.get(paper.subjectId);
+      if (!existing) {
+        subjectMap.set(paper.subjectId, {
+          id: paper.subjectId,
+          name: paper.subjectName,
+          papersCount: 1,
+          deadline: paper.deadline,
+        });
+      } else {
+        existing.papersCount += 1;
+        if (paper.deadline.getTime() < existing.deadline.getTime()) {
+          existing.deadline = paper.deadline;
+        }
+      }
+    });
+    return Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [papersForReview]);
+
+  useEffect(() => {
+    if (selectedSubject) return;
+    if (subjectsNeedingReview.length > 0) {
+      setSelectedSubject(subjectsNeedingReview[0].id);
+    }
+  }, [selectedSubject, subjectsNeedingReview]);
+
   const handleSelectPaper = (paperId: string) => {
     setSelectedPaperId(selectedPaperId === paperId ? null : paperId);
   };
 
-  const formatExamType = (examType: ExamPaper['examType']) => {
+  const formatExamType = (examType: string) => {
     if (examType === 'mid_term') return 'Mid Term';
     if (examType === 'final_term') return 'Final Term';
     return examType.replace('_', ' ');
@@ -113,7 +92,7 @@ export function HODDashboard() {
     return diffDays <= 3;
   };
 
-  const visiblePapers = papers
+  const visiblePapers = papersForReview
     .filter((paper) => (selectedSubject ? paper.subjectId === selectedSubject : true))
     .filter((paper) => {
       if (filterBy === 'pending') return paper.status === 'pending_review';
@@ -131,6 +110,12 @@ export function HODDashboard() {
     console.log('Navigate to review page for paper', paperId);
   };
 
+  const pendingReviewCount = papers.filter((paper) => paper.status === 'pending_review').length;
+  const approvedCount = papers.filter((paper) => paper.status === 'approved').length;
+  const rejectedCount = papers.filter((paper) => paper.status === 'rejected').length;
+  const lockedCount = papers.filter((paper) => paper.status === 'locked').length;
+  const selectedPaper = papersForReview.find((paper) => paper.id === selectedPaperId);
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
@@ -145,26 +130,26 @@ export function HODDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Pending Review"
-          value={6}
+          value={pendingReviewCount}
           subtitle="Papers awaiting selection"
           icon={Clock}
           variant="warning"
         />
         <StatsCard
           title="Selected Today"
-          value={2}
+          value={approvedCount}
           icon={CheckCircle}
           variant="success"
         />
         <StatsCard
           title="Rejected"
-          value={1}
+          value={rejectedCount}
           icon={XCircle}
           variant="destructive"
         />
         <StatsCard
           title="Locked Papers"
-          value={5}
+          value={lockedCount}
           subtitle="Ready for exam"
           icon={Lock}
           variant="accent"
@@ -198,29 +183,41 @@ export function HODDashboard() {
             </div>
             <Badge variant="secondary">{subjectsNeedingReview.length} Total</Badge>
           </div>
-          <div className="border rounded-lg divide-y bg-card">
-            {subjectsNeedingReview.map((subject) => (
-              <button
-                key={subject.id}
-                onClick={() => setSelectedSubject(subject.id)}
-                className={`w-full px-4 py-3 text-left transition-all duration-150 ${
-                  selectedSubject === subject.id
-                    ? 'bg-accent/10 border-l-4 border-accent'
-                    : 'hover:bg-muted/40'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{subject.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Due {subject.deadline.toLocaleDateString()}
+          {error ? (
+            <div className="border rounded-lg bg-card p-4 text-sm text-destructive">
+              {error}
+            </div>
+          ) : (
+            <div className="border rounded-lg divide-y bg-card">
+              {subjectsNeedingReview.length > 0 ? (
+                subjectsNeedingReview.map((subject) => (
+                  <button
+                    key={subject.id}
+                    onClick={() => setSelectedSubject(subject.id)}
+                    className={`w-full px-4 py-3 text-left transition-all duration-150 ${
+                      selectedSubject === subject.id
+                        ? 'bg-accent/10 border-l-4 border-accent'
+                        : 'hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-medium">{subject.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Due {subject.deadline.toLocaleDateString()}
+                        </div>
+                      </div>
+                      <Badge variant="pending">{subject.papersCount}</Badge>
                     </div>
-                  </div>
-                  <Badge variant="pending">{subject.papersCount}</Badge>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-6 text-sm text-muted-foreground">
+                  No subjects pending review.
                 </div>
-              </button>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Pending Papers */}
@@ -315,7 +312,7 @@ export function HODDashboard() {
                     <div className="space-y-1">
                       <div className="font-semibold text-base">{paper.subjectName}</div>
                       <div className="text-xs text-muted-foreground">
-                        Paper {index + 1} • {formatExamType(paper.examType)} • {paper.department}
+                        {paper.anonymousId} • {formatExamType(paper.examType)} • {paper.subjectCode}
                       </div>
                     </div>
                     <div className="text-sm space-y-1">
@@ -358,7 +355,7 @@ export function HODDashboard() {
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-success" />
               <span className="font-medium">
-                Paper {papers.findIndex((paper) => paper.id === selectedPaperId) + 1} ready to approve
+                {selectedPaper?.anonymousId || 'Selected paper'} ready to approve
               </span>
             </div>
             <div className="flex items-center gap-3">

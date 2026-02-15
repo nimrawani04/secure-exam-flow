@@ -48,6 +48,10 @@ export default function Department() {
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [removingTeacherId, setRemovingTeacherId] = useState<string | null>(null);
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [teacherSort, setTeacherSort] = useState<'name' | 'subjects'>('name');
+  const [teacherToRemove, setTeacherToRemove] = useState<Teacher | null>(null);
 
   const teacherAssignments = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -175,6 +179,38 @@ export default function Department() {
 
   const toggleTeacher = (teacherId: string) => {
     setSelectedTeachers((prev) => {
+      const next = new Set(prev);
+      if (next.has(teacherId)) {
+        next.delete(teacherId);
+      } else {
+        next.add(teacherId);
+      }
+      return next;
+    });
+  };
+
+  const filteredTeachers = useMemo(() => {
+    const query = teacherSearch.trim().toLowerCase();
+    const list = query
+      ? teachers.filter((teacher) => {
+          const name = teacher.full_name?.toLowerCase() || '';
+          const email = teacher.email?.toLowerCase() || '';
+          return name.includes(query) || email.includes(query);
+        })
+      : teachers;
+
+    return [...list].sort((a, b) => {
+      if (teacherSort === 'subjects') {
+        const countA = teacherAssignments.get(a.id)?.length || 0;
+        const countB = teacherAssignments.get(b.id)?.length || 0;
+        if (countA !== countB) return countB - countA;
+      }
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [teacherSearch, teacherSort, teachers, teacherAssignments]);
+
+  const toggleExpandedTeacher = (teacherId: string) => {
+    setExpandedTeachers((prev) => {
       const next = new Set(prev);
       if (next.has(teacherId)) {
         next.delete(teacherId);
@@ -314,7 +350,6 @@ export default function Department() {
   };
 
   const handleRemoveTeacher = async (teacher: Teacher) => {
-    if (!confirm(`Remove ${teacher.full_name} from ${departmentName}?`)) return;
     setRemovingTeacherId(teacher.id);
     try {
       const { error } = await supabase.functions.invoke('hod-teachers', {
@@ -330,6 +365,7 @@ export default function Department() {
       toast({ title: 'Error', description: error?.message || 'Failed to remove teacher.', variant: 'destructive' });
     } finally {
       setRemovingTeacherId(null);
+      setTeacherToRemove(null);
     }
   };
 
@@ -409,23 +445,81 @@ export default function Department() {
                 No teachers found in this department.
               </div>
             ) : (
-              teachers.map((teacher) => {
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="w-full sm:max-w-xs">
+                    <Label htmlFor="teacher-search">Search teachers</Label>
+                    <Input
+                      id="teacher-search"
+                      value={teacherSearch}
+                      onChange={(event) => setTeacherSearch(event.target.value)}
+                      placeholder="Search by name or email"
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className="w-full sm:w-56">
+                    <Label htmlFor="teacher-sort">Sort by</Label>
+                    <select
+                      id="teacher-sort"
+                      value={teacherSort}
+                      onChange={(event) => setTeacherSort(event.target.value as 'name' | 'subjects')}
+                      className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="name">Name</option>
+                      <option value="subjects">Subject count</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {filteredTeachers.map((teacher) => {
                 const assigned = (teacherAssignments.get(teacher.id) || [])
                   .map((subjectId) => subjects.find((s) => s.id === subjectId))
                   .filter(Boolean) as Subject[];
+                const isExpanded = expandedTeachers.has(teacher.id);
+                const visibleSubjects = assigned.slice(0, 3);
+                const hiddenCount = Math.max(assigned.length - visibleSubjects.length, 0);
 
                 return (
-                  <div key={teacher.id} className="rounded-2xl border bg-card p-6 shadow-card">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">{teacher.full_name}</h3>
+                  <div key={teacher.id} className="rounded-lg border bg-card">
+                    <div
+                      className="group flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                      onClick={() => toggleExpandedTeacher(teacher.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleExpandedTeacher(teacher.id);
+                        }
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold">{teacher.full_name}</h3>
                         <p className="text-sm text-muted-foreground">{teacher.email}</p>
+                        <button
+                          type="button"
+                          className="mt-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleExpandedTeacher(teacher.id);
+                          }}
+                        >
+                          {assigned.length} subjects • {isExpanded ? 'Hide details' : 'View details'}
+                        </button>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Dialog open={activeTeacher?.id === teacher.id} onOpenChange={(open) => !open && setActiveTeacher(null)}>
                           <DialogTrigger asChild>
-                            <Button onClick={() => openAssignDialog(teacher)} variant="outline">
-                              Assign Subjects
+                            <Button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openAssignDialog(teacher);
+                              }}
+                              variant="default"
+                              size="sm"
+                            >
+                              Assign
                             </Button>
                           </DialogTrigger>
                           <DialogContent>
@@ -457,31 +551,71 @@ export default function Department() {
                         </Dialog>
                         <Button
                           variant="destructive"
-                          onClick={() => handleRemoveTeacher(teacher)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setTeacherToRemove(teacher);
+                          }}
                           disabled={removingTeacherId === teacher.id}
+                          size="sm"
                         >
                           {removingTeacherId === teacher.id ? 'Removing...' : 'Remove'}
                         </Button>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {assigned.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">No subjects assigned.</span>
-                      ) : (
-                        assigned.map((subject) => (
-                          <Badge key={subject.id} variant="secondary">
-                            {subject.name}
-                          </Badge>
-                        ))
-                      )}
+                    <div
+                      className={`overflow-hidden border-t px-4 transition-all duration-200 ease-out ${
+                        isExpanded ? 'max-h-24 py-3 opacity-100' : 'max-h-0 py-0 opacity-0'
+                      }`}
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {assigned.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">No subjects assigned.</span>
+                        ) : (
+                          <>
+                            {visibleSubjects.map((subject) => (
+                              <Badge key={subject.id} variant="secondary">
+                                {subject.name}
+                              </Badge>
+                            ))}
+                            {hiddenCount > 0 && (
+                              <span className="text-xs text-muted-foreground">+{hiddenCount} more</span>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
-              })
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}
+
+        <Dialog open={!!teacherToRemove} onOpenChange={(open) => !open && setTeacherToRemove(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Remove Teacher</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Remove {teacherToRemove?.full_name} from {departmentName}? This action cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTeacherToRemove(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => teacherToRemove && handleRemoveTeacher(teacherToRemove)}
+                disabled={removingTeacherId === teacherToRemove?.id}
+              >
+                {removingTeacherId === teacherToRemove?.id ? 'Removing...' : 'Remove'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="space-y-4">
           <div>
