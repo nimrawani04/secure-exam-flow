@@ -19,6 +19,7 @@ export interface HODPaper {
   uploadedAt: Date;
   version: number;
   isSelected: boolean;
+  filePath: string | null;
   // Anonymous label instead of teacher name
   anonymousId: string;
 }
@@ -52,6 +53,7 @@ export function useHODPapers() {
           uploaded_at,
           version,
           is_selected,
+          file_path,
           subjects!inner (
             id,
             name,
@@ -91,6 +93,7 @@ export function useHODPapers() {
           uploadedAt: new Date(p.uploaded_at),
           version: p.version,
           isSelected: p.is_selected || false,
+          filePath: p.file_path,
           anonymousId: `Submission ${subjectGroups[subjectKey]}`,
         };
       });

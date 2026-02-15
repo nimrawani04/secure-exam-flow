@@ -3,12 +3,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -26,6 +23,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type PaperStatus = Database['public']['Enums']['paper_status'];
 
@@ -50,13 +49,14 @@ const examTypeLabels: Record<string, string> = {
 
 interface ReviewCardProps {
   paper: HODPaper;
+  onPreview: () => void;
   onApprove: () => void;
   onReject: () => void;
   onSelect: () => void;
   isProcessing: boolean;
 }
 
-function ReviewCard({ paper, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
+function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
   const config = statusConfig[paper.status];
 
   return (
@@ -111,7 +111,7 @@ function ReviewCard({ paper, onApprove, onReject, onSelect, isProcessing }: Revi
       {/* Actions for pending papers */}
       {paper.status === 'pending_review' && (
         <div className="mt-4 flex items-center gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onPreview}>
             <Eye className="h-4 w-4" />
             Preview
           </Button>
@@ -141,7 +141,7 @@ function ReviewCard({ paper, onApprove, onReject, onSelect, isProcessing }: Revi
       {/* Actions for approved papers - can select */}
       {paper.status === 'approved' && !paper.isSelected && (
         <div className="mt-4 flex items-center gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onPreview}>
             <Eye className="h-4 w-4" />
             Preview
           </Button>
@@ -175,11 +175,9 @@ export default function Review() {
   const { papers, isLoading, error, refetch, approvePaper, rejectPaper, selectPaper } = useHODPapers();
   const [activeTab, setActiveTab] = useState('pending');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; paper: HODPaper | null }>({
-    open: false,
-    paper: null,
-  });
-  const [rejectFeedback, setRejectFeedback] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const handleApprove = async (paper: HODPaper) => {
     setIsProcessing(true);
@@ -187,18 +185,9 @@ export default function Review() {
     setIsProcessing(false);
   };
 
-  const handleRejectClick = (paper: HODPaper) => {
-    setRejectDialog({ open: true, paper });
-    setRejectFeedback('');
-  };
-
-  const handleRejectConfirm = async () => {
-    if (!rejectDialog.paper || !rejectFeedback.trim()) return;
-    
+  const handleReject = async (paper: HODPaper) => {
     setIsProcessing(true);
-    await rejectPaper(rejectDialog.paper.id, rejectFeedback.trim());
-    setRejectDialog({ open: false, paper: null });
-    setRejectFeedback('');
+    await rejectPaper(paper.id, '');
     setIsProcessing(false);
   };
 
@@ -206,6 +195,26 @@ export default function Review() {
     setIsProcessing(true);
     await selectPaper(paper.id, paper.subjectId, paper.examType);
     setIsProcessing(false);
+  };
+
+  const handlePreview = async (paper: HODPaper) => {
+    if (!paper.filePath) {
+      toast.error('No file available for preview');
+      return;
+    }
+
+    const { data, error: previewError } = await supabase.storage
+      .from('exam-papers')
+      .createSignedUrl(paper.filePath, 60 * 10);
+
+    if (previewError || !data?.signedUrl) {
+      toast.error(previewError?.message || 'Failed to load preview');
+      return;
+    }
+
+    setPreviewTitle(`${paper.subjectName} (${paper.subjectCode})`);
+    setPreviewUrl(data.signedUrl);
+    setPreviewOpen(true);
   };
 
   const filteredPapers = papers.filter((paper) => {
@@ -315,8 +324,9 @@ export default function Review() {
                   <ReviewCard 
                     key={paper.id} 
                     paper={paper}
+                    onPreview={() => handlePreview(paper)}
                     onApprove={() => handleApprove(paper)}
-                    onReject={() => handleRejectClick(paper)}
+                    onReject={() => handleReject(paper)}
                     onSelect={() => handleSelect(paper)}
                     isProcessing={isProcessing}
                   />
@@ -326,39 +336,22 @@ export default function Review() {
           </TabsContent>
         </Tabs>
 
-        {/* Reject Dialog */}
-        <Dialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, paper: null })}>
-          <DialogContent>
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>Reject Paper</DialogTitle>
-              <DialogDescription>
-                Please provide feedback explaining why this paper is being rejected. 
-                The teacher will use this feedback to revise and resubmit.
-              </DialogDescription>
+              <DialogTitle>Preview: {previewTitle}</DialogTitle>
             </DialogHeader>
-            <div className="py-4">
-              <Textarea
-                placeholder="Enter your feedback here..."
-                value={rejectFeedback}
-                onChange={(e) => setRejectFeedback(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectDialog({ open: false, paper: null })}>
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleRejectConfirm}
-                disabled={!rejectFeedback.trim() || isProcessing}
-              >
-                {isProcessing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Reject Paper
-              </Button>
-            </DialogFooter>
+            {previewUrl ? (
+              <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+                <iframe
+                  src={previewUrl}
+                  title="Paper preview"
+                  className="h-full w-full"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No preview available.</p>
+            )}
           </DialogContent>
         </Dialog>
       </div>

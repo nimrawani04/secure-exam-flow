@@ -34,6 +34,7 @@ export default function UploadPaper() {
   const [file, setFile] = useState<File | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
+  const [examSchedule, setExamSchedule] = useState<{ subjectId: string; scheduledDate: Date }[]>([]);
 
   const defaultDeadline = useMemo(() => getDefaultDeadline(), []);
 
@@ -43,17 +44,39 @@ export default function UploadPaper() {
   }, [subjects]);
 
   useEffect(() => {
-    if (!selectedSemester && semesters.length > 0) {
+    if (selectedSemester || semesters.length === 0) return;
+    if (examSchedule.length === 0) {
+      setSelectedSemester(semesters[0]);
+      return;
+    }
+    const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+    const earliest = examSchedule
+      .map((item) => ({ ...item, subject: subjectMap.get(item.subjectId) }))
+      .filter((item) => item.subject)
+      .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())[0];
+    if (earliest?.subject?.semester) {
+      setSelectedSemester(earliest.subject.semester);
+    } else {
       setSelectedSemester(semesters[0]);
     }
-  }, [selectedSemester, semesters]);
+  }, [selectedSemester, semesters, examSchedule, subjects]);
 
   const filteredSubjects = useMemo(() => {
     if (!selectedSemester) return [];
+    const scheduleMap = new Map<string, Date>();
+    examSchedule.forEach((item) => scheduleMap.set(item.subjectId, item.scheduledDate));
+
     return subjects
       .filter((subject) => subject.semester === selectedSemester)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [subjects, selectedSemester]);
+      .sort((a, b) => {
+        const dateA = scheduleMap.get(a.id)?.getTime();
+        const dateB = scheduleMap.get(b.id)?.getTime();
+        if (dateA && dateB && dateA !== dateB) return dateA - dateB;
+        if (dateA && !dateB) return -1;
+        if (!dateA && dateB) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [subjects, selectedSemester, examSchedule]);
 
   useEffect(() => {
     if (selectedSubject && !filteredSubjects.some((subject) => subject.id === selectedSubject)) {
@@ -81,6 +104,51 @@ export default function UploadPaper() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchExamSchedule() {
+      if (subjects.length === 0) {
+        setExamSchedule([]);
+        return;
+      }
+
+      const subjectIds = subjects.map((subject) => subject.id);
+      const { data, error } = await supabase
+        .from('exams')
+        .select('subject_id, scheduled_date')
+        .in('subject_id', subjectIds)
+        .order('scheduled_date', { ascending: true });
+
+      if (!error && data && isMounted) {
+        const mapped = data
+          .map((row) => ({
+            subjectId: row.subject_id,
+            scheduledDate: new Date(row.scheduled_date),
+          }))
+          .filter((row) => !Number.isNaN(row.scheduledDate.getTime()));
+        setExamSchedule(mapped);
+      }
+    }
+
+    fetchExamSchedule();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [subjects]);
+
+  const dateSheet = useMemo(() => {
+    const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+    return examSchedule
+      .map((item) => ({
+        ...item,
+        subject: subjectMap.get(item.subjectId),
+      }))
+      .filter((item) => item.subject)
+      .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime());
+  }, [examSchedule, subjects]);
 
   const deadline = useMemo(() => {
     if (!selectedExamType) {
@@ -201,9 +269,38 @@ export default function UploadPaper() {
             </form>
           </div>
 
-          {/* Sidebar */}
+        {/* Sidebar */}
+        <div className="space-y-6">
           <UploadSidebar deadline={deadline} />
+          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-3">
+            <h3 className="text-lg font-semibold">Date Sheet</h3>
+            {dateSheet.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No exam dates available yet. Please check back later.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {dateSheet.map((item) => (
+                  <div
+                    key={`${item.subjectId}-${item.scheduledDate.toISOString()}`}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {item.subject?.name} ({item.subject?.code})
+                      </p>
+                      <p className="text-muted-foreground">Semester {item.subject?.semester}</p>
+                    </div>
+                    <span className="text-muted-foreground">
+                      {item.scheduledDate.toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

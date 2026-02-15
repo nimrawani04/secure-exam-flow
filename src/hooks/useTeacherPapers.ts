@@ -56,7 +56,7 @@ export function useTeacherPapers() {
             id,
             name,
             code,
-            department
+            department_id
           )
         `)
         .eq('uploaded_by', user.id)
@@ -64,7 +64,7 @@ export function useTeacherPapers() {
 
       if (fetchError) {
         console.error('Error fetching papers:', fetchError);
-        setError('Failed to load submissions');
+        setError(fetchError.message || 'Failed to load submissions');
         return;
       }
 
@@ -73,7 +73,7 @@ export function useTeacherPapers() {
         subjectId: p.subject_id,
         subjectName: (p.subjects as any)?.name || 'Unknown Subject',
         subjectCode: (p.subjects as any)?.code || '',
-        department: (p.subjects as any)?.department || 'Unknown Department',
+        department: (p.subjects as any)?.department_id || 'Unknown Department',
         examType: p.exam_type,
         setName: p.set_name,
         status: p.status,
@@ -85,7 +85,7 @@ export function useTeacherPapers() {
         approvedAt: p.approved_at ? new Date(p.approved_at) : null,
       }));
 
-      setPapers(mappedPapers);
+      setPapers(mappedPapers.filter((paper) => paper.status !== 'rejected'));
       setError(null);
     } catch (err) {
       console.error('Error in fetchPapers:', err);

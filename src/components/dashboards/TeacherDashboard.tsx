@@ -8,10 +8,8 @@ import type { ExamPaper } from '@/types';
 import {
   FileText,
   Upload,
-  CheckCircle,
   Clock,
   Plus,
-  AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,9 +19,7 @@ export function TeacherDashboard() {
 
   const stats = {
     total: papers.length,
-    approved: papers.filter(p => p.status === 'approved').length,
     pending: papers.filter(p => p.status === 'pending_review').length,
-    rejected: papers.filter(p => p.status === 'rejected').length,
   };
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Teacher';
@@ -71,7 +67,7 @@ export function TeacherDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatsCard
           title="Total Submissions"
           value={stats.total}
@@ -79,22 +75,10 @@ export function TeacherDashboard() {
           icon={FileText}
         />
         <StatsCard
-          title="Approved"
-          value={stats.approved}
-          icon={CheckCircle}
-          variant="success"
-        />
-        <StatsCard
           title="Pending Review"
           value={stats.pending}
           icon={Clock}
           variant="warning"
-        />
-        <StatsCard
-          title="Needs Revision"
-          value={stats.rejected}
-          icon={AlertCircle}
-          variant="destructive"
         />
       </div>
 
@@ -133,7 +117,7 @@ export function TeacherDashboard() {
           ) : (
             <div className="space-y-4">
               {displayPapers.map((paper) => (
-                <PaperCard key={paper.id} paper={paper} />
+                <PaperCard key={paper.id} paper={paper} hideStatus hideFeedback />
               ))}
             </div>
           )}

@@ -8,6 +8,8 @@ interface PaperCardProps {
   paper: ExamPaper;
   showActions?: boolean;
   isAnonymous?: boolean;
+  hideStatus?: boolean;
+  hideFeedback?: boolean;
   anonymousLabel?: string;
   onView?: () => void;
   onApprove?: () => void;
@@ -29,6 +31,8 @@ export function PaperCard({
   paper,
   showActions = false,
   isAnonymous = false,
+  hideStatus = false,
+  hideFeedback = false,
   anonymousLabel,
   onView,
   onApprove,
@@ -70,21 +74,19 @@ export function PaperCard({
             </div>
           </div>
         </div>
-        <Badge variant={status.variant}>{status.label}</Badge>
+        {!hideStatus && <Badge variant={status.variant}>{status.label}</Badge>}
       </div>
 
       <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <Clock className="h-4 w-4" />
           <span>
-            {paper.status === 'approved' || paper.status === 'locked'
-              ? `Approved ${paper.approvedAt?.toLocaleDateString()}`
-              : `Due ${paper.deadline.toLocaleDateString()}`}
+            Due {paper.deadline.toLocaleDateString()}
           </span>
         </div>
       </div>
 
-      {paper.feedback && paper.status === 'rejected' && (
+      {!hideFeedback && paper.feedback && paper.status === 'rejected' && (
         <div className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
           <p className="text-sm text-destructive">
             <strong>Feedback:</strong> {paper.feedback}
