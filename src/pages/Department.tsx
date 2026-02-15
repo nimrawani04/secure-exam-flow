@@ -14,6 +14,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
+  semester: number;
 }
 
 interface Teacher {
@@ -38,6 +39,8 @@ export default function Department() {
   const [loading, setLoading] = useState(true);
   const [activeTeacher, setActiveTeacher] = useState<Teacher | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
+  const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
+  const [selectedTeachers, setSelectedTeachers] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addingTeacher, setAddingTeacher] = useState(false);
@@ -56,6 +59,26 @@ export default function Department() {
     return map;
   }, [assignments]);
 
+  const subjectAssignments = useMemo(() => {
+    const map = new Map<string, string[]>();
+    assignments.forEach((assignment) => {
+      const list = map.get(assignment.subject_id) || [];
+      list.push(assignment.teacher_id);
+      map.set(assignment.subject_id, list);
+    });
+    return map;
+  }, [assignments]);
+
+  const subjectsBySemester = useMemo(() => {
+    const map = new Map<number, Subject[]>();
+    subjects.forEach((subject) => {
+      const list = map.get(subject.semester) || [];
+      list.push(subject);
+      map.set(subject.semester, list);
+    });
+    return map;
+  }, [subjects]);
+
   const loadData = useCallback(async () => {
     if (!profile?.department_id) {
       setLoading(false);
@@ -71,8 +94,9 @@ export default function Department() {
       ] = await Promise.all([
         supabase
           .from('subjects')
-          .select('id, name, code')
+          .select('id, name, code, semester')
           .eq('department_id', profile.department_id)
+          .order('semester', { ascending: true })
           .order('name'),
         supabase
           .from('profiles')
@@ -131,6 +155,12 @@ export default function Department() {
     setActiveTeacher(teacher);
   };
 
+  const openSubjectAssignDialog = (subject: Subject) => {
+    const assigned = new Set(subjectAssignments.get(subject.id) || []);
+    setSelectedTeachers(assigned);
+    setActiveSubject(subject);
+  };
+
   const toggleSubject = (subjectId: string) => {
     setSelectedSubjects((prev) => {
       const next = new Set(prev);
@@ -138,6 +168,18 @@ export default function Department() {
         next.delete(subjectId);
       } else {
         next.add(subjectId);
+      }
+      return next;
+    });
+  };
+
+  const toggleTeacher = (teacherId: string) => {
+    setSelectedTeachers((prev) => {
+      const next = new Set(prev);
+      if (next.has(teacherId)) {
+        next.delete(teacherId);
+      } else {
+        next.add(teacherId);
       }
       return next;
     });
@@ -179,6 +221,49 @@ export default function Department() {
       setAssignments(assignmentData || []);
       toast({ title: 'Assignments updated', description: 'Subjects have been assigned successfully.' });
       setActiveTeacher(null);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Failed to update assignments.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSubjectAssignments = async () => {
+    if (!activeSubject) return;
+    setSaving(true);
+    try {
+      const current = new Set(subjectAssignments.get(activeSubject.id) || []);
+      const toAdd = Array.from(selectedTeachers).filter((id) => !current.has(id));
+      const toRemove = Array.from(current).filter((id) => !selectedTeachers.has(id));
+
+      if (toAdd.length) {
+        const { error } = await supabase.from('teacher_subjects').insert(
+          toAdd.map((teacherId) => ({
+            teacher_id: teacherId,
+            subject_id: activeSubject.id,
+          }))
+        );
+        if (error) throw error;
+      }
+
+      if (toRemove.length) {
+        const { error } = await supabase
+          .from('teacher_subjects')
+          .delete()
+          .eq('subject_id', activeSubject.id)
+          .in('teacher_id', toRemove);
+        if (error) throw error;
+      }
+
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('teacher_subjects')
+        .select('id, teacher_id, subject_id')
+        .in('teacher_id', teachers.map((t) => t.id));
+      if (assignmentError) throw assignmentError;
+
+      setAssignments(assignmentData || []);
+      toast({ title: 'Assignments updated', description: 'Teachers have been assigned successfully.' });
+      setActiveSubject(null);
     } catch (error: any) {
       toast({ title: 'Error', description: error?.message || 'Failed to update assignments.', variant: 'destructive' });
     } finally {
@@ -397,6 +482,103 @@ export default function Department() {
             )}
           </div>
         )}
+
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Semester-wise Subjects</h2>
+            <p className="text-sm text-muted-foreground">
+              Assign teachers to subjects for paper creation by semester.
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading subjects...
+            </div>
+          ) : subjects.length === 0 ? (
+            <div className="rounded-xl border bg-card p-6 text-muted-foreground">
+              No subjects found for this department.
+            </div>
+          ) : (
+            Array.from(subjectsBySemester.entries()).map(([semester, semesterSubjects]) => (
+              <div key={semester} className="rounded-2xl border bg-card p-6 shadow-card">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Semester {semester}</h3>
+                  <Badge variant="secondary">{semesterSubjects.length} subjects</Badge>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {semesterSubjects.map((subject) => {
+                    const assignedTeachers = (subjectAssignments.get(subject.id) || [])
+                      .map((teacherId) => teachers.find((t) => t.id === teacherId))
+                      .filter(Boolean) as Teacher[];
+
+                    return (
+                      <div key={subject.id} className="rounded-xl border bg-background p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{subject.name}</p>
+                            <p className="text-xs text-muted-foreground">{subject.code}</p>
+                          </div>
+                          <Dialog open={activeSubject?.id === subject.id} onOpenChange={(open) => !open && setActiveSubject(null)}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" onClick={() => openSubjectAssignDialog(subject)}>
+                                Assign
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Assign Teachers</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-3">
+                                {teachers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">No teachers available.</p>
+                                ) : (
+                                  teachers.map((teacher) => (
+                                    <label key={teacher.id} className="flex items-center gap-3 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedTeachers.has(teacher.id)}
+                                        onChange={() => toggleTeacher(teacher.id)}
+                                        className="h-4 w-4"
+                                      />
+                                      <span>{teacher.full_name} ({teacher.email})</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setActiveSubject(null)}>
+                                  Cancel
+                                </Button>
+                                <Button onClick={handleSaveSubjectAssignments} disabled={saving}>
+                                  {saving ? 'Saving...' : 'Save Assignments'}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {assignedTeachers.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">No teachers assigned.</span>
+                          ) : (
+                            assignedTeachers.map((teacher) => (
+                              <Badge key={teacher.id} variant="secondary">
+                                {teacher.full_name}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
