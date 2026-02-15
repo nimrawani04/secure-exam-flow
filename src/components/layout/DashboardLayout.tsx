@@ -333,7 +333,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </DropdownMenu>
 
               <ThemeToggle className="hidden h-9 sm:inline-flex" compact />
-              <Button variant="outline" size="sm" className="gap-2 px-2 sm:px-3" onClick={() => navigate('/profile')}>
+              <Button variant="ghost" size="sm" className="gap-2 px-2 sm:px-3" onClick={() => navigate('/profile')}>
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
                   {profile?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
                 </span>

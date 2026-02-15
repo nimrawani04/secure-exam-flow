@@ -69,6 +69,10 @@ export const setAccentFromHex = (hex: string, userId?: string | null) => {
   const [h, s] = hsl.split(' ');
   root.style.setProperty('--dashboard-bg', `${h} ${s} 98%`);
   root.style.setProperty('--dashboard-bg-dark', `${h} ${s} 12%`);
+  root.style.setProperty('--sidebar-primary', hsl);
+  root.style.setProperty('--sidebar-ring', hsl);
+  root.style.setProperty('--sidebar-accent', `${h} ${s} 22%`);
+  root.style.setProperty('--sidebar-border', `${h} ${s} 28%`);
 
   localStorage.setItem(getAccentStorageKey(userId), hex);
   return true;

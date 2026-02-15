@@ -108,7 +108,7 @@ export function Sidebar({
       )}
     >
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border relative">
+      <div className="p-6 relative">
         {!isMobile && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -142,7 +142,7 @@ export function Sidebar({
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="p-4">
         <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
           <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-semibold">
             {getInitials()}
@@ -191,7 +191,7 @@ export function Sidebar({
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border space-y-2">
+      <div className="p-4 space-y-2">
         {collapsed && !isMobile ? (
           <Tooltip>
             <TooltipTrigger asChild>
