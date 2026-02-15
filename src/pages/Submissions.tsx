@@ -108,10 +108,10 @@ export default function Submissions() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:overflow-visible sm:grid sm:grid-cols-2 sm:gap-2">
-          <TabsTrigger value="all" className="w-full">All ({stats.total})</TabsTrigger>
-          <TabsTrigger value="pending" className="w-full">Pending ({stats.pending})</TabsTrigger>
-        </TabsList>
+          <TabsList className="w-full justify-start gap-2 overflow-x-auto sm:overflow-visible">
+            <TabsTrigger value="all" className="w-full">All ({stats.total})</TabsTrigger>
+            <TabsTrigger value="pending" className="w-full">Pending ({stats.pending})</TabsTrigger>
+          </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
             {isLoading ? (
@@ -130,18 +130,22 @@ export default function Submissions() {
             ) : filteredPapers.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium">No submissions found</p>
-                <p className="text-muted-foreground mt-1">
-                  {activeTab === 'all' 
-                    ? "You haven't uploaded any papers yet." 
-                    : `No ${activeTab} papers found.`}
+                <p className="text-lg font-medium">
+                  {activeTab === 'pending' ? 'No pending submissions' : 'No submissions found'}
                 </p>
-                <Link to="/upload">
-                  <Button variant="hero" className="mt-4 gap-2">
-                    <Upload className="h-4 w-4" />
-                    Upload Your First Paper
-                  </Button>
-                </Link>
+                <p className="text-muted-foreground mt-1">
+                  {activeTab === 'all'
+                    ? "You haven't uploaded any papers yet."
+                    : 'No pending papers found.'}
+                </p>
+                {stats.total === 0 && (
+                  <Link to="/upload">
+                    <Button variant="hero" className="mt-4 gap-2">
+                      <Upload className="h-4 w-4" />
+                      Upload Your First Paper
+                    </Button>
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
