@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { TeacherSubject } from '@/hooks/useTeacherSubjects';
 import type { Database } from '@/integrations/supabase/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -49,16 +48,18 @@ export function PaperDetailsForm({
   setPaperOption,
 }: PaperDetailsFormProps) {
   return (
-    <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-      <h2 className="text-lg font-semibold">Paper Details</h2>
+    <div className="bg-card rounded-lg border p-5 space-y-4">
+      <div className="pb-3 border-b border-border/60">
+        <h2 className="text-lg font-semibold">Paper Details</h2>
+      </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <Label htmlFor="semester">Semester *</Label>
         <Select
           value={selectedSemester ? String(selectedSemester) : ''}
           onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
         >
-          <SelectTrigger id="semester" className="h-12">
+          <SelectTrigger id="semester" className="h-10">
             <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
           </SelectTrigger>
           <SelectContent>
@@ -78,10 +79,10 @@ export function PaperDetailsForm({
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <Label htmlFor="subject">Subject *</Label>
           <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-            <SelectTrigger id="subject" className="h-12">
+            <SelectTrigger id="subject" className="h-10">
               <SelectValue 
                 placeholder={isLoadingSubjects ? 'Loading subjects...' : 'Select subject'} 
               />
@@ -107,13 +108,13 @@ export function PaperDetailsForm({
           )}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <Label htmlFor="examType">Exam Type *</Label>
           <Select 
             value={selectedExamType} 
             onValueChange={(v) => setSelectedExamType(v as ExamType)}
           >
-            <SelectTrigger id="examType" className="h-12">
+            <SelectTrigger id="examType" className="h-10">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
@@ -127,25 +128,40 @@ export function PaperDetailsForm({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <Label>Paper Option *</Label>
         <RadioGroup
           value={paperOption}
           onValueChange={(value) => setPaperOption(value as PaperOption)}
-          className="grid gap-3 md:grid-cols-3"
+          className="grid gap-2 sm:grid-cols-3"
         >
-          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
-            <RadioGroupItem value="single" />
-            <span className="text-sm font-medium">Single Paper</span>
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
-            <RadioGroupItem value="paper1" />
-            <span className="text-sm font-medium">Paper 1</span>
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
-            <RadioGroupItem value="paper2" />
-            <span className="text-sm font-medium">Paper 2</span>
-          </label>
+          <div>
+            <RadioGroupItem value="single" id="paper-option-single" className="peer sr-only" />
+            <Label
+              htmlFor="paper-option-single"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+            >
+              Single Paper
+            </Label>
+          </div>
+          <div>
+            <RadioGroupItem value="paper1" id="paper-option-1" className="peer sr-only" />
+            <Label
+              htmlFor="paper-option-1"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+            >
+              Paper 1
+            </Label>
+          </div>
+          <div>
+            <RadioGroupItem value="paper2" id="paper-option-2" className="peer sr-only" />
+            <Label
+              htmlFor="paper-option-2"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+            >
+              Paper 2
+            </Label>
+          </div>
         </RadioGroup>
       </div>
 

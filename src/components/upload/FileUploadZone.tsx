@@ -8,9 +8,10 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 interface FileUploadZoneProps {
   file: File | null;
   setFile: (file: File | null) => void;
+  action?: React.ReactNode;
 }
 
-export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
+export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -60,8 +61,13 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
   };
 
   return (
-    <div className="bg-card rounded-2xl border p-6 shadow-card">
-      <h2 className="text-lg font-semibold mb-4">Upload File</h2>
+    <div className="bg-card rounded-lg border p-5">
+      <div className="pb-3 border-b border-border/60">
+        <h2 className="text-lg font-semibold">Upload File</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Upload a single PDF file for the selected paper option.
+        </p>
+      </div>
 
       <div
         onDragOver={handleDragOver}
@@ -73,21 +79,21 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
           }
         }}
         className={cn(
-          'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200',
+          'relative border-2 border-dashed rounded-md p-5 text-center transition-colors duration-200 mt-4',
           !file && 'cursor-pointer',
-          isDragging && 'border-accent bg-accent/5',
-          file && !error && 'border-success bg-success/5',
-          error && 'border-destructive bg-destructive/5'
+          isDragging && 'border-accent/60 bg-accent/5',
+          file && !error && 'border-success/40 bg-transparent',
+          error && 'border-destructive/40 bg-transparent'
         )}
       >
         {file ? (
           <div className="flex items-center justify-center gap-4">
             <div className={cn(
-              'w-12 h-12 rounded-lg flex items-center justify-center',
-              error ? 'bg-destructive/20' : 'bg-success/20'
+              'w-11 h-11 rounded-md flex items-center justify-center',
+              error ? 'bg-destructive/10' : 'bg-success/10'
             )}>
               <FileText className={cn(
-                'w-6 h-6',
+                'w-5 h-5',
                 error ? 'text-destructive' : 'text-success'
               )} />
             </div>
@@ -107,11 +113,11 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
           </div>
         ) : (
           <>
-            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="font-medium mb-2">
+            <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2.5" />
+            <p className="font-medium mb-1.5">
               Drag and drop your PDF here
             </p>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-2.5">
               or click to browse files
             </p>
             <Input
@@ -126,16 +132,22 @@ export function FileUploadZone({ file, setFile }: FileUploadZoneProps) {
       </div>
 
       {error && (
-        <div className="mt-4 flex items-start gap-2 text-sm text-destructive">
+        <div className="mt-3 flex items-start gap-2 text-sm text-destructive">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <p>{error}</p>
         </div>
       )}
 
-      <div className="mt-4 flex items-start gap-2 text-sm text-muted-foreground">
+      <div className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <p>Only PDF files are accepted. Maximum file size: 50MB</p>
       </div>
+
+      {action && (
+        <div className="mt-4 pt-4 border-t border-border/60 flex justify-end">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

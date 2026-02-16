@@ -222,18 +222,18 @@ export default function UploadPaper() {
 
   return (
     <DashboardLayout>
-      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Upload Exam Paper</h1>
-          <p className="text-muted-foreground mt-1">
+      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-bold">Upload Exam Paper</h1>
+          <p className="text-muted-foreground text-sm">
             Submit your question paper securely for HOD review
           </p>
         </div>
 
-      <div className="grid xl:grid-cols-[2.2fr_1fr] gap-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
         {/* Main Form */}
-        <div>
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6 flex flex-col lg:flex-[2.2] lg:self-stretch">
+          <form onSubmit={handleSubmit} className="space-y-6 flex flex-col h-full">
               <PaperDetailsForm
                 subjects={filteredSubjects}
                 semesters={semesters}
@@ -248,11 +248,34 @@ export default function UploadPaper() {
                 setPaperOption={setPaperOption}
               />
 
-              <FileUploadZone file={file} setFile={setFile} />
+              <FileUploadZone
+                file={file}
+                setFile={setFile}
+                action={
+                  <Button
+                    type="submit"
+                    variant="hero"
+                    className="w-full sm:w-auto h-10 rounded-md shadow-none sm:min-w-[240px]"
+                    disabled={!isFormValid || isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Submit Paper for Review
+                      </>
+                    )}
+                  </Button>
+                }
+              />
 
               {/* Upload Progress */}
               {isUploading && (
-                <div className="bg-card rounded-xl border p-4 space-y-3">
+                <div className="bg-card rounded-lg border p-5 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Uploading...</span>
                     <span className="font-medium">{uploadProgress}%</span>
@@ -260,35 +283,14 @@ export default function UploadPaper() {
                   <Progress value={uploadProgress} className="h-2" />
                 </div>
               )}
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant="hero"
-                size="xl"
-                className="w-full"
-                disabled={!isFormValid || isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5 mr-2" />
-                    Submit Paper for Review
-                  </>
-                )}
-              </Button>
             </form>
           </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-1 lg:self-stretch">
           <UploadSidebar deadline={deadline} />
-          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-3">
-            <h3 className="text-lg font-semibold">Date Sheet</h3>
+          <div className="bg-card rounded-lg border p-5 space-y-3">
+            <h3 className="text-base font-semibold">Date Sheet</h3>
             {dateSheet.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No exam dates available yet. Please check back later.
@@ -314,6 +316,7 @@ export default function UploadPaper() {
               </div>
             )}
           </div>
+          <div className="flex-1" />
         </div>
       </div>
       </div>

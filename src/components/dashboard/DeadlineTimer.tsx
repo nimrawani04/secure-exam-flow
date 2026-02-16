@@ -40,10 +40,10 @@ export function DeadlineTimer({ deadline, label = 'Deadline' }: DeadlineTimerPro
 
   if (timeLeft.expired) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5">
         <div className="flex items-center gap-2 text-destructive">
-          <Clock className="h-5 w-5" />
-          <span className="font-semibold">Deadline Passed</span>
+          <Clock className="h-4 w-4" />
+          <span className="text-sm font-semibold">Deadline Passed</span>
         </div>
       </div>
     );
@@ -51,14 +51,14 @@ export function DeadlineTimer({ deadline, label = 'Deadline' }: DeadlineTimerPro
 
   return (
     <div className={cn(
-      'rounded-xl border p-4 transition-colors',
-      isUrgent ? 'border-destructive/30 bg-destructive/10' :
-      isWarning ? 'border-warning/30 bg-warning/10' :
-      'border-accent/30 bg-accent/10'
+      'rounded-lg border p-5 transition-colors',
+      isUrgent ? 'border-destructive/30 bg-destructive/5' :
+      isWarning ? 'border-warning/30 bg-warning/5' :
+      'border-accent/20 bg-accent/5'
     )}>
       <div className="flex items-center gap-2 mb-3">
         <Clock className={cn(
-          'h-5 w-5',
+          'h-4 w-4',
           isUrgent ? 'text-destructive' : isWarning ? 'text-warning' : 'text-accent'
         )} />
         <span className={cn(
@@ -75,10 +75,12 @@ export function DeadlineTimer({ deadline, label = 'Deadline' }: DeadlineTimerPro
           { value: timeLeft.minutes, label: 'Mins' },
           { value: timeLeft.seconds, label: 'Secs' },
         ].map((item) => (
-          <div key={item.label} className="bg-card rounded-lg p-2 shadow-sm">
+          <div key={item.label} className="bg-background/60 rounded-md p-2">
             <div className={cn(
-              'text-2xl font-bold tabular-nums',
-              isUrgent ? 'text-destructive' : isWarning ? 'text-warning' : 'text-foreground'
+              'text-2xl font-semibold tabular-nums',
+              isUrgent ? 'text-destructive' :
+              isWarning ? 'text-warning' :
+              item.label === 'Days' ? 'text-accent' : 'text-foreground'
             )}>
               {String(item.value).padStart(2, '0')}
             </div>

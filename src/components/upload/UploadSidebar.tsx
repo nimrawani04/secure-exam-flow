@@ -7,17 +7,17 @@ interface UploadSidebarProps {
 
 export function UploadSidebar({ deadline }: UploadSidebarProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Deadline */}
       <DeadlineTimer deadline={deadline} label="Submission Deadline" />
 
       {/* Security Info */}
-      <div className="bg-card rounded-xl border p-4 space-y-4">
-        <h3 className="font-semibold flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-success" />
+      <div className="bg-success/5 rounded-lg border border-success/20 p-5 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-success" />
           Security Features
         </h3>
-        <ul className="space-y-3 text-sm">
+        <ul className="space-y-2.5 text-sm">
           <li className="flex items-start gap-2">
             <Lock className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
             <span>Secure storage with access control</span>
@@ -34,9 +34,9 @@ export function UploadSidebar({ deadline }: UploadSidebarProps) {
       </div>
 
       {/* Guidelines */}
-      <div className="bg-accent/10 rounded-xl border border-accent/20 p-4">
-        <h4 className="font-semibold text-accent mb-3 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4" />
+      <div className="bg-accent/5 rounded-lg border border-accent/15 p-5">
+        <h4 className="text-sm font-semibold text-foreground mb-2.5 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-accent" />
           Guidelines
         </h4>
         <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
