@@ -191,9 +191,8 @@ export default function Profile() {
         style={accentVars}
       >
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Profile Settings</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold">Profile Settings</h1>
-          <p className="text-muted-foreground">Manage your personal details and theme preferences.</p>
+          <h1 className="text-3xl sm:text-4xl font-bold">Profile Settings</h1>
+          <p className="text-muted-foreground text-sm">Manage your personal details and theme preferences.</p>
         </div>
 
         <section className="border-b pb-8">
