@@ -25,7 +25,7 @@ export default function Landing() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<AppRole>('teacher');
+  const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +57,10 @@ export default function Landing() {
           toast({ title: 'Error', description: 'Please enter your full name', variant: 'destructive' });
           return;
         }
+        if (!selectedRole) {
+          toast({ title: 'Error', description: 'Please select a role', variant: 'destructive' });
+          return;
+        }
         if (selectedRole !== 'exam_cell' && !selectedDepartment) {
           toast({ title: 'Error', description: 'Please select a department', variant: 'destructive' });
           return;
@@ -66,7 +70,7 @@ export default function Landing() {
           email,
           password,
           fullName,
-          selectedRole,
+          selectedRole as AppRole,
           selectedRole !== 'exam_cell' ? selectedDepartment : undefined
         );
 
@@ -159,7 +163,7 @@ export default function Landing() {
                     </label>
                     <input
                       type="text"
-                      placeholder="Dr. John Smith"
+                      placeholder="Enter your full name"
                       value={fullName}
                       onChange={(event) => setFullName(event.target.value)}
                       className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
@@ -169,12 +173,12 @@ export default function Landing() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                    Login
-                  </label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                      Email
+                    </label>
                   <input
                     type="email"
-                    placeholder="Username / Email"
+                      placeholder="Enter your email address"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
@@ -189,7 +193,7 @@ export default function Landing() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Password"
+                      placeholder="Create a password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 pr-10 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
@@ -225,9 +229,12 @@ export default function Landing() {
                     </label>
                     <select
                       value={selectedRole}
-                      onChange={(event) => setSelectedRole(event.target.value as AppRole)}
+                      onChange={(event) => setSelectedRole(event.target.value as AppRole | '')}
                       className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white focus:border-white/60 focus:outline-none"
                     >
+                      <option value="" disabled className="text-slate-900">
+                        Select role
+                      </option>
                       {roleOptions.map((role) => (
                         <option key={role.value} value={role.value} className="text-slate-900">
                           {role.label}
@@ -237,7 +244,7 @@ export default function Landing() {
                   </div>
                 )}
 
-                {isSignUp && selectedRole !== 'exam_cell' && (
+                {isSignUp && selectedRole && selectedRole !== 'exam_cell' && (
                   <div className="space-y-2">
                     <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
                       Department
