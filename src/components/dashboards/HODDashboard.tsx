@@ -258,15 +258,15 @@ export function HODDashboard() {
           </div>
 
           {isLoadingPapers ? (
-            <div className="border rounded-lg divide-y bg-card">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={`skeleton-${index}`} className="px-4 py-3 animate-pulse">
-                  <div className="grid grid-cols-[40px_1.6fr_1fr_auto_auto] gap-4 items-center">
-                    <div className="h-10 w-10 rounded-md bg-muted" />
-                    <div className="space-y-2">
-                      <div className="h-3 w-40 rounded bg-muted" />
-                      <div className="h-2 w-56 rounded bg-muted" />
-                    </div>
+              <div className="border rounded-lg divide-y bg-card">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`skeleton-${index}`} className="px-4 py-3 animate-pulse">
+                    <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[40px_1.6fr_1fr_auto_auto] sm:gap-4 sm:items-center">
+                      <div className="h-10 w-10 rounded-md bg-muted" />
+                      <div className="space-y-2">
+                        <div className="h-3 w-40 rounded bg-muted" />
+                        <div className="h-2 w-56 rounded bg-muted" />
+                      </div>
                     <div className="space-y-2">
                       <div className="h-3 w-24 rounded bg-muted" />
                       <div className="h-2 w-20 rounded bg-muted" />
@@ -305,7 +305,7 @@ export function HODDashboard() {
                     selectedPaperId === paper.id ? 'bg-accent/10' : 'hover:bg-muted/40'
                   }`}
                 >
-                  <div className="grid grid-cols-[40px_1.6fr_1fr_auto_auto] gap-4 items-center">
+                  <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[40px_1.6fr_1fr_auto_auto] sm:gap-4 sm:items-center">
                     <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
                       <FileText className="h-5 w-5 text-muted-foreground" />
                     </div>
@@ -325,14 +325,14 @@ export function HODDashboard() {
                       </div>
                       <div className="text-xs text-muted-foreground">Submission deadline</div>
                     </div>
-                    <Badge variant="pending" className="justify-self-end">
+                    <Badge variant="pending" className="justify-self-start sm:justify-self-end">
                       Pending Review
                     </Badge>
-                    <div className="justify-self-end">
+                    <div className="justify-self-start sm:justify-self-end">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-2"
+                        className="gap-2 w-full sm:w-auto"
                         onClick={(event) => {
                           event.stopPropagation();
                           handleRowClick(paper.id);

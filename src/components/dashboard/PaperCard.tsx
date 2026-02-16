@@ -95,19 +95,19 @@ export function PaperCard({
       )}
 
       {showActions && (
-        <div className="mt-4 flex items-center gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" onClick={onView} className="gap-1.5">
+        <div className="mt-4 flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" onClick={onView} className="gap-1.5 w-full sm:w-auto">
             <Eye className="h-4 w-4" />
             Preview
           </Button>
           {onApprove && (
-            <Button variant="success" size="sm" onClick={onApprove} className="gap-1.5">
+            <Button variant="success" size="sm" onClick={onApprove} className="gap-1.5 w-full sm:w-auto">
               <CheckCircle className="h-4 w-4" />
               Approve
             </Button>
           )}
           {onReject && (
-            <Button variant="destructive" size="sm" onClick={onReject} className="gap-1.5">
+            <Button variant="destructive" size="sm" onClick={onReject} className="gap-1.5 w-full sm:w-auto">
               <XCircle className="h-4 w-4" />
               Reject
             </Button>
@@ -117,7 +117,7 @@ export function PaperCard({
               variant={isSelected ? 'hero' : 'outline'}
               size="sm"
               onClick={onSelect}
-              className="ml-auto"
+              className="w-full sm:w-auto sm:ml-auto"
             >
               {isSelected ? 'Selected' : 'Select Paper'}
             </Button>

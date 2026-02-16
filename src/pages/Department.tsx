@@ -522,31 +522,50 @@ export default function Department() {
                               Assign
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Assign Subjects</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-3">
-                              {subjects.map((subject) => (
-                                <label key={subject.id} className="flex items-center gap-3 text-sm">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedSubjects.has(subject.id)}
-                                    onChange={() => toggleSubject(subject.id)}
-                                    className="h-4 w-4"
-                                  />
-                                  <span>{subject.name} ({subject.code})</span>
-                                </label>
-                              ))}
+                          <DialogContent className="w-[95vw] max-w-2xl p-0">
+                            <div className="flex max-h-[85vh] flex-col">
+                              <div className="px-6 pt-6">
+                                <DialogHeader>
+                                  <DialogTitle>Assign Subjects</DialogTitle>
+                                </DialogHeader>
+                              </div>
+                              <div className="px-6 pt-4 text-sm text-muted-foreground">
+                                Select the subjects this teacher should handle.
+                              </div>
+                              <div className="flex-1 overflow-y-auto px-6 pb-4 pt-3">
+                                <div className="space-y-3">
+                                  {subjects.map((subject) => (
+                                    <label key={subject.id} className="flex items-start gap-3 text-sm leading-snug cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedSubjects.has(subject.id)}
+                                        onChange={() => toggleSubject(subject.id)}
+                                        className="mt-0.5 h-4 w-4"
+                                      />
+                                      <span className="min-w-0 break-words">
+                                        {subject.name} ({subject.code})
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                              <DialogFooter className="border-t px-6 pb-6 pt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setActiveTeacher(null)}
+                                  className="w-full sm:w-auto"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={handleSaveAssignments}
+                                  disabled={saving}
+                                  className="w-full sm:w-auto"
+                                >
+                                  {saving ? 'Saving...' : 'Save Assignments'}
+                                </Button>
+                              </DialogFooter>
                             </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setActiveTeacher(null)}>
-                                Cancel
-                              </Button>
-                              <Button onClick={handleSaveAssignments} disabled={saving}>
-                                {saving ? 'Saving...' : 'Save Assignments'}
-                              </Button>
-                            </DialogFooter>
                           </DialogContent>
                         </Dialog>
                         <Button
@@ -682,11 +701,19 @@ export default function Department() {
                                   ))
                                 )}
                               </div>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setActiveSubject(null)}>
+                              <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setActiveSubject(null)}
+                                  className="w-full sm:w-auto"
+                                >
                                   Cancel
                                 </Button>
-                                <Button onClick={handleSaveSubjectAssignments} disabled={saving}>
+                                <Button
+                                  onClick={handleSaveSubjectAssignments}
+                                  disabled={saving}
+                                  className="w-full sm:w-auto"
+                                >
                                   {saving ? 'Saving...' : 'Save Assignments'}
                                 </Button>
                               </DialogFooter>

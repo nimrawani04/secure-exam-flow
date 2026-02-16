@@ -110,8 +110,8 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
       {/* Actions for pending papers */}
       {paper.status === 'pending_review' && (
-        <div className="mt-4 flex items-center gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={onPreview}>
+        <div className="mt-4 flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto" onClick={onPreview}>
             <Eye className="h-4 w-4" />
             Preview
           </Button>
@@ -120,7 +120,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
             size="sm" 
             onClick={onApprove} 
             disabled={isProcessing}
-            className="gap-1.5"
+            className="gap-1.5 w-full sm:w-auto"
           >
             <CheckCircle className="h-4 w-4" />
             Approve
@@ -130,7 +130,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
             size="sm" 
             onClick={onReject} 
             disabled={isProcessing}
-            className="gap-1.5"
+            className="gap-1.5 w-full sm:w-auto"
           >
             <XCircle className="h-4 w-4" />
             Reject
@@ -140,8 +140,8 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
       {/* Actions for approved papers - can select */}
       {paper.status === 'approved' && !paper.isSelected && (
-        <div className="mt-4 flex items-center gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={onPreview}>
+        <div className="mt-4 flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto" onClick={onPreview}>
             <Eye className="h-4 w-4" />
             Preview
           </Button>
@@ -150,7 +150,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
             size="sm" 
             onClick={onSelect} 
             disabled={isProcessing}
-            className="gap-1.5 ml-auto"
+            className="gap-1.5 w-full sm:w-auto sm:ml-auto"
           >
             <CheckCircle className="h-4 w-4" />
             Select for Exam
