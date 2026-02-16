@@ -9,8 +9,10 @@ import {
 import { cn } from '@/lib/utils';
 import { TeacherSubject } from '@/hooks/useTeacherSubjects';
 import type { Database } from '@/integrations/supabase/types';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type ExamType = Database['public']['Enums']['exam_type'];
+type PaperOption = 'single' | 'paper1' | 'paper2';
 
 const examTypes: { id: ExamType; name: string }[] = [
   { id: 'mid_term', name: 'Mid Term Examination' },
@@ -29,6 +31,8 @@ interface PaperDetailsFormProps {
   setSelectedSubject: (value: string) => void;
   selectedExamType: ExamType | '';
   setSelectedExamType: (value: ExamType | '') => void;
+  paperOption: PaperOption;
+  setPaperOption: (value: PaperOption) => void;
 }
 
 export function PaperDetailsForm({
@@ -41,6 +45,8 @@ export function PaperDetailsForm({
   setSelectedSubject,
   selectedExamType,
   setSelectedExamType,
+  paperOption,
+  setPaperOption,
 }: PaperDetailsFormProps) {
   return (
     <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
@@ -121,8 +127,30 @@ export function PaperDetailsForm({
         </div>
       </div>
 
+      <div className="space-y-3">
+        <Label>Paper Option *</Label>
+        <RadioGroup
+          value={paperOption}
+          onValueChange={(value) => setPaperOption(value as PaperOption)}
+          className="grid gap-3 md:grid-cols-3"
+        >
+          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
+            <RadioGroupItem value="single" />
+            <span className="text-sm font-medium">Single Paper</span>
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
+            <RadioGroupItem value="paper1" />
+            <span className="text-sm font-medium">Paper 1</span>
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary/50 transition-colors">
+            <RadioGroupItem value="paper2" />
+            <span className="text-sm font-medium">Paper 2</span>
+          </label>
+        </RadioGroup>
+      </div>
+
       <p className="text-sm text-muted-foreground">
-        Upload one paper per subject and exam type. Need variants? You can upload again later.
+        Upload one paper per subject and exam type. To submit two papers, upload Paper 1 and Paper 2 separately.
       </p>
     </div>
   );

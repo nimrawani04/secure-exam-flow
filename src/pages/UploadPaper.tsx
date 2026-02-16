@@ -31,6 +31,7 @@ export default function UploadPaper() {
   const [selectedSemester, setSelectedSemester] = useState<number | ''>('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedExamType, setSelectedExamType] = useState<ExamType | ''>('');
+  const [paperOption, setPaperOption] = useState<'single' | 'paper1' | 'paper2'>('single');
   const [file, setFile] = useState<File | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
@@ -169,6 +170,17 @@ export default function UploadPaper() {
 
   const isFormValid = file && selectedSubject && selectedExamType;
 
+  const setNameForOption = (option: 'single' | 'paper1' | 'paper2') => {
+    switch (option) {
+      case 'paper1':
+        return 'Paper 1';
+      case 'paper2':
+        return 'Paper 2';
+      default:
+        return 'Single';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -180,7 +192,7 @@ export default function UploadPaper() {
     const result = await uploadPaper({
       subjectId: selectedSubject,
       examType: selectedExamType,
-      setName: 'A',
+      setName: setNameForOption(paperOption),
       deadline,
       file,
     });
@@ -195,6 +207,7 @@ export default function UploadPaper() {
   const resetForm = () => {
     setSelectedSubject('');
     setSelectedExamType('');
+    setPaperOption('single');
     setFile(null);
     setUploadSuccess(false);
   };
@@ -231,6 +244,8 @@ export default function UploadPaper() {
                 setSelectedSubject={setSelectedSubject}
                 selectedExamType={selectedExamType}
                 setSelectedExamType={setSelectedExamType}
+                paperOption={paperOption}
+                setPaperOption={setPaperOption}
               />
 
               <FileUploadZone file={file} setFile={setFile} />
