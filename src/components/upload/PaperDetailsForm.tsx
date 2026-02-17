@@ -50,73 +50,45 @@ export function PaperDetailsForm({
   paperOptionDisabled,
 }: PaperDetailsFormProps) {
   return (
-    <div className="bg-card rounded-lg border p-5 space-y-4">
-      <div className="pb-3 border-b border-border/60">
-        <h2 className="text-lg font-semibold">Paper Details</h2>
+    <div className="space-y-3.5 sm:space-y-4 sm:bg-card sm:rounded-lg sm:border sm:p-5">
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold sm:text-lg">Paper Details</h2>
+        <div className="h-px bg-border/60 sm:hidden" />
       </div>
 
-      <div className="space-y-2.5">
-        <Label htmlFor="semester">Semester *</Label>
-        <Select
-          value={selectedSemester ? String(selectedSemester) : ''}
-          onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
-        >
-          <SelectTrigger id="semester" className="h-10">
-            <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
-          </SelectTrigger>
-          <SelectContent>
-            {semesters.length === 0 && !isLoadingSubjects ? (
-              <SelectItem value="none" disabled>
-                No semesters available
-              </SelectItem>
-            ) : (
-              semesters.map((semester) => (
-                <SelectItem key={semester} value={String(semester)}>
-                  Semester {semester}
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="space-y-2.5">
-          <Label htmlFor="subject">Subject *</Label>
-          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-            <SelectTrigger id="subject" className="h-10">
-              <SelectValue 
-                placeholder={isLoadingSubjects ? 'Loading subjects...' : 'Select subject'} 
-              />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="space-y-1.5 sm:space-y-2.5">
+          <Label htmlFor="semester">Semester *</Label>
+          <Select
+            value={selectedSemester ? String(selectedSemester) : ''}
+            onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
+          >
+            <SelectTrigger id="semester" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
+              <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
             </SelectTrigger>
             <SelectContent>
-              {subjects.length === 0 && !isLoadingSubjects ? (
+              {semesters.length === 0 && !isLoadingSubjects ? (
                 <SelectItem value="none" disabled>
-                  No subjects for this semester
+                  No semesters available
                 </SelectItem>
               ) : (
-                subjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name} ({subject.code})
+                semesters.map((semester) => (
+                  <SelectItem key={semester} value={String(semester)}>
+                    Semester {semester}
                   </SelectItem>
                 ))
               )}
             </SelectContent>
           </Select>
-          {subjects.length === 0 && !isLoadingSubjects && (
-            <p className="text-sm text-destructive">
-              No subjects assigned in this semester. Contact your HOD.
-            </p>
-          )}
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-1.5 sm:space-y-2.5">
           <Label htmlFor="examType">Exam Type *</Label>
           <Select 
             value={selectedExamType} 
             onValueChange={(v) => setSelectedExamType(v as ExamType)}
           >
-            <SelectTrigger id="examType" className="h-10">
+            <SelectTrigger id="examType" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
@@ -130,12 +102,41 @@ export function PaperDetailsForm({
         </div>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-1.5 sm:space-y-2.5">
+        <Label htmlFor="subject">Subject *</Label>
+        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+          <SelectTrigger id="subject" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
+            <SelectValue 
+              placeholder={isLoadingSubjects ? 'Loading subjects...' : 'Select subject'} 
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {subjects.length === 0 && !isLoadingSubjects ? (
+              <SelectItem value="none" disabled>
+                No subjects for this semester
+              </SelectItem>
+            ) : (
+              subjects.map((subject) => (
+                <SelectItem key={subject.id} value={subject.id}>
+                  {subject.name} ({subject.code})
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {subjects.length === 0 && !isLoadingSubjects && (
+          <p className="text-xs text-destructive">
+            No subjects assigned in this semester. Contact your HOD.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5 sm:space-y-2.5">
         <Label>Paper Option *</Label>
         <RadioGroup
           value={paperOption}
           onValueChange={(value) => setPaperOption(value as PaperOption)}
-          className="grid gap-2 sm:grid-cols-3"
+          className="-mx-4 flex gap-2 overflow-x-auto rounded-full bg-muted/30 p-1 px-4 pb-1 sm:mx-0 sm:overflow-visible sm:bg-transparent sm:p-0 sm:px-0"
         >
           <div>
             <RadioGroupItem
@@ -146,7 +147,7 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-single"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
             >
               Single Paper
             </Label>
@@ -160,7 +161,7 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-1"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
             >
               Paper 1
             </Label>
@@ -174,7 +175,7 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-2"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
             >
               Paper 2
             </Label>
@@ -182,8 +183,8 @@ export function PaperDetailsForm({
         </RadioGroup>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Upload either a Single paper or two papers as Paper 1 and Paper 2. You cannot upload three papers.
+      <p className="text-xs text-muted-foreground/70 mt-2">
+        Upload a single paper or split as Paper 1 and Paper 2. You cannot upload three papers.
       </p>
     </div>
   );

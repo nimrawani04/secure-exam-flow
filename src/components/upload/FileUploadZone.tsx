@@ -61,11 +61,12 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   };
 
   return (
-    <div className="bg-card rounded-lg border p-5">
-      <div className="pb-3 border-b border-border/60">
-        <h2 className="text-lg font-semibold">Upload File</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          Upload a single PDF file for the selected paper option.
+    <div className="space-y-4 sm:bg-card sm:rounded-lg sm:border sm:p-5">
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold sm:text-lg">Upload File</h2>
+        <div className="h-px bg-border/60 sm:hidden" />
+        <p className="text-xs text-muted-foreground/70">
+          Upload one PDF for the selected paper option.
         </p>
       </div>
 
@@ -79,9 +80,9 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
           }
         }}
         className={cn(
-          'relative border-2 border-dashed rounded-md p-5 text-center transition-colors duration-200 mt-4',
+          'relative border border-dashed rounded-xl p-4 transition-colors duration-200 bg-muted/20 focus-within:border-accent focus-within:bg-accent/5 min-h-[72px]',
           !file && 'cursor-pointer',
-          isDragging && 'border-accent/60 bg-accent/5',
+          isDragging && 'border-accent bg-accent/5',
           file && !error && 'border-success/40 bg-transparent',
           error && 'border-destructive/40 bg-transparent'
         )}
@@ -113,13 +114,17 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
           </div>
         ) : (
           <>
-            <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2.5" />
-            <p className="font-medium mb-1.5">
-              Drag and drop your PDF here
-            </p>
-            <p className="text-sm text-muted-foreground mb-2.5">
-              or click to browse files
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-background/70 flex items-center justify-center border border-border/60">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium">Upload PDF</p>
+                <p className="text-xs text-muted-foreground/70">
+                  Tap to select or drag file
+                </p>
+              </div>
+            </div>
             <Input
               ref={fileInputRef}
               type="file"
@@ -138,13 +143,13 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
         </div>
       )}
 
-      <div className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
+      <div className="mt-2 flex items-start gap-2 text-[11px] text-muted-foreground/70">
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <p>Only PDF files are accepted. Maximum file size: 50MB</p>
+        <p>PDF only · Max 50MB</p>
       </div>
 
       {action && (
-        <div className="mt-4 pt-4 border-t border-border/60 flex justify-end">
+        <div className="mt-4 sm:mt-4 sm:pt-4 sm:border-t sm:border-border/60 flex justify-end">
           {action}
         </div>
       )}

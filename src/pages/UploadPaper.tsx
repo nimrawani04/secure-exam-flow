@@ -284,18 +284,18 @@ export default function UploadPaper() {
 
   return (
     <DashboardLayout>
-      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-bold">Upload Exam Paper</h1>
-          <p className="text-muted-foreground text-sm">
+      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-6">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h1 className="text-lg font-semibold sm:text-4xl sm:font-bold">Upload Exam Paper</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">
             Submit your question paper securely for HOD review
           </p>
         </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+      <div className="flex flex-col gap-5 sm:gap-6 lg:flex-row lg:items-stretch">
         {/* Main Form */}
-        <div className="space-y-6 flex flex-col lg:flex-[2.2] lg:self-stretch">
-          <form onSubmit={handleSubmit} className="space-y-6 flex flex-col h-full">
+        <div className="space-y-5 sm:space-y-6 flex flex-col lg:flex-[2.2] lg:self-stretch">
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 flex flex-col h-full">
               <PaperDetailsForm
                 subjects={filteredSubjects}
                 semesters={semesters}
@@ -322,7 +322,7 @@ export default function UploadPaper() {
                   <Button
                     type="submit"
                     variant="hero"
-                    className="w-full sm:w-auto h-10 rounded-md shadow-none sm:min-w-[240px]"
+                    className="w-full sm:w-auto h-11 rounded-[10px] shadow-none sm:min-w-[240px] sm:h-10 sm:rounded-md"
                     disabled={!isFormValid || isUploading}
                   >
                     {isUploading ? (
@@ -342,7 +342,7 @@ export default function UploadPaper() {
 
               {/* Upload Progress */}
               {isUploading && (
-                <div className="bg-card rounded-lg border p-5 space-y-3">
+                <div className="rounded-md border border-border/60 p-3 sm:p-5 sm:bg-card sm:rounded-lg space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Uploading...</span>
                     <span className="font-medium">{uploadProgress}%</span>
