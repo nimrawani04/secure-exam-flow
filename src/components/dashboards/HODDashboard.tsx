@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useHODPapers } from '@/hooks/useHODPapers';
@@ -126,34 +125,56 @@ export function HODDashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          title="Pending Review"
-          value={pendingReviewCount}
-          subtitle="Papers awaiting selection"
-          icon={Clock}
-          variant="warning"
-        />
-        <StatsCard
-          title="Selected Today"
-          value={approvedCount}
-          icon={CheckCircle}
-          variant="success"
-        />
-        <StatsCard
-          title="Rejected"
-          value={rejectedCount}
-          icon={XCircle}
-          variant="destructive"
-        />
-        <StatsCard
-          title="Locked Papers"
-          value={lockedCount}
-          subtitle="Ready for exam"
-          icon={Lock}
-          variant="accent"
-        />
+      {/* Stats */}
+      <div className="rounded-[12px] border border-border/40 bg-card">
+        <div className="grid grid-cols-1 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/40 sm:border-r sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-warning/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <Clock className="h-4 w-4 text-warning sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Pending Review</p>
+                <p className="text-xs text-muted-foreground mt-1">Papers awaiting selection</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{pendingReviewCount}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/40 sm:border-b sm:border-r-0 sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <CheckCircle className="h-4 w-4 text-success sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Selected Today</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{approvedCount}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/40 sm:border-b-0 sm:border-r sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-destructive/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <XCircle className="h-4 w-4 text-destructive sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Rejected</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{rejectedCount}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <Lock className="h-4 w-4 text-accent sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Locked Papers</p>
+                <p className="text-xs text-muted-foreground mt-1">Ready for exam</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{lockedCount}</p>
+          </div>
+        </div>
       </div>
 
       {/* Anonymous Review Notice */}
