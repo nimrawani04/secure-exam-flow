@@ -65,12 +65,10 @@ export function PaperCard({
             {isAnonymous ? (
               <p className="text-sm text-accent font-medium">{anonymousLabel}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">Set {paper.setName} • v{paper.version}</p>
+              <p className="text-sm text-muted-foreground">Set {paper.setName} - v{paper.version}</p>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="px-2 py-0.5 bg-secondary rounded-md">{examTypeLabels[paper.examType]}</span>
-              <span>•</span>
-              <span>{paper.department}</span>
             </div>
           </div>
         </div>
@@ -127,3 +125,4 @@ export function PaperCard({
     </div>
   );
 }
+

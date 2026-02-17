@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, Loader2 } from 'lucide-react';
 import { useTeacherSubjects } from '@/hooks/useTeacherSubjects';
 import { useUploadPaper } from '@/hooks/useUploadPaper';
+import { useAuth } from '@/contexts/AuthContext';
 import { PaperDetailsForm } from '@/components/upload/PaperDetailsForm';
 import { FileUploadZone } from '@/components/upload/FileUploadZone';
 import { UploadSidebar } from '@/components/upload/UploadSidebar';
@@ -25,6 +26,7 @@ const getDefaultDeadline = () => {
 };
 
 export default function UploadPaper() {
+  const { user } = useAuth();
   const { subjects, isLoading: isLoadingSubjects } = useTeacherSubjects();
   const { uploadPaper, isUploading, uploadProgress } = useUploadPaper();
 
@@ -36,6 +38,7 @@ export default function UploadPaper() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [examSchedule, setExamSchedule] = useState<{ subjectId: string; scheduledDate: Date }[]>([]);
+  const [existingSetNames, setExistingSetNames] = useState<string[]>([]);
 
   const defaultDeadline = useMemo(() => getDefaultDeadline(), []);
 
@@ -140,6 +143,35 @@ export default function UploadPaper() {
     };
   }, [subjects]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchExistingSets() {
+      if (!selectedSubject || !selectedExamType || !user) {
+        if (isMounted) setExistingSetNames([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('exam_papers')
+        .select('set_name')
+        .eq('subject_id', selectedSubject)
+        .eq('exam_type', selectedExamType)
+        .eq('uploaded_by', user.id);
+
+      if (!error && data && isMounted) {
+        const unique = Array.from(new Set(data.map((row) => row.set_name)));
+        setExistingSetNames(unique);
+      }
+    }
+
+    fetchExistingSets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSubject, selectedExamType, user]);
+
   const dateSheet = useMemo(() => {
     const subjectMap = new Map(subjects.map((s) => [s.id, s]));
     return examSchedule
@@ -169,6 +201,26 @@ export default function UploadPaper() {
   }, [selectedExamType, sessions, defaultDeadline]);
 
   const isFormValid = file && selectedSubject && selectedExamType;
+  const existingSetLookup = useMemo(() => new Set(existingSetNames), [existingSetNames]);
+  const hasSingle = existingSetLookup.has('Single');
+  const hasPaper1 = existingSetLookup.has('Paper 1');
+  const hasPaper2 = existingSetLookup.has('Paper 2');
+  const allowSingle = !(hasPaper1 || hasPaper2);
+  const allowPaper1 = !hasSingle;
+  const allowPaper2 = !hasSingle;
+
+  useEffect(() => {
+    const isCurrentAllowed =
+      (paperOption === 'single' && allowSingle) ||
+      (paperOption === 'paper1' && allowPaper1) ||
+      (paperOption === 'paper2' && allowPaper2);
+
+    if (!isCurrentAllowed) {
+      if (allowSingle) setPaperOption('single');
+      else if (allowPaper1) setPaperOption('paper1');
+      else if (allowPaper2) setPaperOption('paper2');
+    }
+  }, [paperOption, allowSingle, allowPaper1, allowPaper2]);
 
   const setNameForOption = (option: 'single' | 'paper1' | 'paper2') => {
     switch (option) {
@@ -186,6 +238,16 @@ export default function UploadPaper() {
     
     if (!file || !selectedSubject || !selectedExamType) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (paperOption === 'single' && !allowSingle) {
+      toast.error('Single paper is not allowed when Paper 1 or Paper 2 already exists.');
+      return;
+    }
+
+    if ((paperOption === 'paper1' || paperOption === 'paper2') && !allowPaper1) {
+      toast.error('Paper 1 / Paper 2 are not allowed when a Single paper already exists.');
       return;
     }
 
@@ -246,6 +308,11 @@ export default function UploadPaper() {
                 setSelectedExamType={setSelectedExamType}
                 paperOption={paperOption}
                 setPaperOption={setPaperOption}
+                paperOptionDisabled={{
+                  single: !allowSingle,
+                  paper1: !allowPaper1,
+                  paper2: !allowPaper2,
+                }}
               />
 
               <FileUploadZone

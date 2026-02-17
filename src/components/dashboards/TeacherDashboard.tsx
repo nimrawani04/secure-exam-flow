@@ -166,7 +166,7 @@ export function TeacherDashboard() {
           <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
             <h4 className="font-semibold text-accent mb-2">Pro Tip</h4>
             <p className="text-sm text-muted-foreground">
-              Upload multiple paper sets (A, B, C) to give HOD more options for selection. 
+              Upload either a Single paper or two papers as Paper 1 and Paper 2.
               Only PDFs are accepted to ensure document integrity.
             </p>
           </div>

@@ -32,6 +32,7 @@ interface PaperDetailsFormProps {
   setSelectedExamType: (value: ExamType | '') => void;
   paperOption: PaperOption;
   setPaperOption: (value: PaperOption) => void;
+  paperOptionDisabled?: Partial<Record<PaperOption, boolean>>;
 }
 
 export function PaperDetailsForm({
@@ -46,6 +47,7 @@ export function PaperDetailsForm({
   setSelectedExamType,
   paperOption,
   setPaperOption,
+  paperOptionDisabled,
 }: PaperDetailsFormProps) {
   return (
     <div className="bg-card rounded-lg border p-5 space-y-4">
@@ -136,28 +138,43 @@ export function PaperDetailsForm({
           className="grid gap-2 sm:grid-cols-3"
         >
           <div>
-            <RadioGroupItem value="single" id="paper-option-single" className="peer sr-only" />
+            <RadioGroupItem
+              value="single"
+              id="paper-option-single"
+              className="peer sr-only"
+              disabled={paperOptionDisabled?.single}
+            />
             <Label
               htmlFor="paper-option-single"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
             >
               Single Paper
             </Label>
           </div>
           <div>
-            <RadioGroupItem value="paper1" id="paper-option-1" className="peer sr-only" />
+            <RadioGroupItem
+              value="paper1"
+              id="paper-option-1"
+              className="peer sr-only"
+              disabled={paperOptionDisabled?.paper1}
+            />
             <Label
               htmlFor="paper-option-1"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
             >
               Paper 1
             </Label>
           </div>
           <div>
-            <RadioGroupItem value="paper2" id="paper-option-2" className="peer sr-only" />
+            <RadioGroupItem
+              value="paper2"
+              id="paper-option-2"
+              className="peer sr-only"
+              disabled={paperOptionDisabled?.paper2}
+            />
             <Label
               htmlFor="paper-option-2"
-              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
+              className="flex items-center justify-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:text-accent peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-accent/40"
             >
               Paper 2
             </Label>
@@ -166,7 +183,7 @@ export function PaperDetailsForm({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Upload one paper per subject and exam type. To submit two papers, upload Paper 1 and Paper 2 separately.
+        Upload either a Single paper or two papers as Paper 1 and Paper 2. You cannot upload three papers.
       </p>
     </div>
   );
