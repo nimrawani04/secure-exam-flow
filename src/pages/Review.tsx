@@ -61,8 +61,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
   return (
     <div className={cn(
-      'group rounded-[14px] border bg-card p-6 shadow-[0_1px_4px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]',
-      paper.isSelected && 'ring-2 ring-accent border-accent'
+      'group rounded-[14px] border bg-card p-6 shadow-[0_1px_4px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]'
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 flex-1">
