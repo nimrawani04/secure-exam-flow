@@ -51,11 +51,11 @@ export function PaperCard({
   return (
     <div
       className={cn(
-        'group rounded-xl border bg-card px-5 py-4 shadow-card transition-all duration-200 hover:shadow-card-hover',
+        'group rounded-xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]',
         isSelected && 'ring-2 ring-accent border-accent'
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 rounded-[10px] bg-secondary/80 flex items-center justify-center">
             <FileText className="h-5 w-5 text-primary" />
@@ -65,25 +65,32 @@ export function PaperCard({
             <p className="text-[13px] text-muted-foreground">{paper.subjectCode}</p>
             {isAnonymous ? (
               <p className="text-xs text-accent font-medium">{anonymousLabel}</p>
-            ) : (
-              <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
-                {examTypeLabels[paper.examType]} • v{paper.version}
-              </span>
-            )}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-              <Clock className="h-3.5 w-3.5" />
-              <span>
-                Uploaded{' '}
-                {paper.uploadedAt.toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </span>
-            </div>
+            ) : null}
           </div>
         </div>
-        {!hideStatus && <Badge variant={status.variant}>{status.label}</Badge>}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70 sm:justify-end">
+          {!isAnonymous && (
+            <>
+              <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
+                {examTypeLabels[paper.examType]}
+              </span>
+              <span className="inline-flex h-6 items-center rounded-full bg-secondary px-3 text-xs font-medium text-foreground">
+                v{paper.version}
+              </span>
+            </>
+          )}
+          <span className="hidden h-5 w-px bg-border/70 sm:inline-block" />
+          <Clock className="h-3.5 w-3.5" />
+          <span>
+            Uploaded{' '}
+            {paper.uploadedAt.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </span>
+          {!hideStatus && <Badge variant={status.variant}>{status.label}</Badge>}
+        </div>
       </div>
 
       {!hideFeedback && paper.feedback && paper.status === 'rejected' && (
