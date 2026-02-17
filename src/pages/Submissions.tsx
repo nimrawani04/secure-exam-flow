@@ -101,14 +101,31 @@ export default function Submissions() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="bg-card rounded-xl border border-border/60 px-5 py-4 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
-            <p className="text-sm text-muted-foreground">Total Submissions</p>
-            <p className="text-2xl font-bold mt-1">{stats.total}</p>
-          </div>
-          <div className="bg-card rounded-xl border border-border/60 px-5 py-4 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
-            <p className="text-sm text-muted-foreground">Pending Review</p>
-            <p className="text-2xl font-bold mt-1 text-warning">{stats.pending}</p>
+        <div className="rounded-[12px] border border-border/40 bg-card">
+          <div className="flex flex-col divide-y divide-border/40 sm:flex-row sm:divide-y-0 sm:divide-x">
+            <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:flex-1 sm:p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center sm:h-10 sm:w-10">
+                  <FileText className="h-4 w-4 text-accent sm:h-5 sm:w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Total Submissions</p>
+                  <p className="text-xs text-muted-foreground mt-1">This semester</p>
+                </div>
+              </div>
+              <p className="text-[28px] font-semibold leading-none">{stats.total}</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:flex-1 sm:p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-warning/10 flex items-center justify-center sm:h-10 sm:w-10">
+                  <Clock className="h-4 w-4 text-warning sm:h-5 sm:w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Pending Review</p>
+                </div>
+              </div>
+              <p className="text-[28px] font-semibold leading-none">{stats.pending}</p>
+            </div>
           </div>
         </div>
 
