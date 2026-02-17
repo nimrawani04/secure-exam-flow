@@ -187,7 +187,7 @@ export default function Profile() {
   return (
     <DashboardLayout>
       <div
-        className="mx-auto w-full max-w-[1080px] space-y-6 px-4 py-8 sm:px-6 lg:px-8 transition-colors duration-300"
+        className="w-full space-y-6 px-8 py-6 sm:px-10 lg:px-12 transition-colors duration-300"
         style={accentVars}
       >
         <div className="space-y-2">
@@ -195,196 +195,211 @@ export default function Profile() {
           <p className="text-muted-foreground text-sm">Manage your personal details and theme preferences.</p>
         </div>
 
-        <section className="border-b pb-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Basic Information</h2>
-              <p className="text-sm text-muted-foreground">Keep your account details up to date.</p>
-            </div>
-          </div>
-          <div className="mt-4 h-px bg-border/70" />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="h-11 focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
-              />
-            </div>
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11 focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
-              />
-            </div>
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label>Role</Label>
-              <Input value={profile?.role || ''} disabled className="h-11" />
-            </div>
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label>Department</Label>
-              <Input value={profile?.department_name || profile?.department_id || ''} disabled className="h-11" />
-            </div>
-          </div>
+        <section className="rounded-xl border border-border/60 bg-card/80 p-[18px] shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+          <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <aside className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-secondary text-foreground/80 flex items-center justify-center text-sm font-semibold">
+                  {(fullName || profile?.full_name || 'U')
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase())
+                    .join('')}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{fullName || profile?.full_name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{email || profile?.email || 'No email set'}</p>
+                </div>
+              </div>
 
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="h-11 px-6 bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] disabled:bg-[var(--accent-soft)] disabled:text-foreground"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </section>
+              <div className="pt-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">Appearance</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetTheme}
+                    className="h-[34px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
+                  >
+                    Reset
+                  </Button>
+                </div>
 
-        <section className="border-b pb-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Appearance</h2>
-              <p className="text-sm text-muted-foreground">Choose an accent that feels personal, not loud.</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetTheme}
-              className="h-9 border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground"
-            >
-              Reset
-            </Button>
-          </div>
-          <div className="mt-4 h-px bg-border/70" />
+                <div className="mt-4 space-y-3.5">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Accent Colors</Label>
+                    <div className="mt-3 grid grid-cols-4 gap-2">
+                      {presetColors.map((color) => {
+                        const isActive = accentHex.toLowerCase() === color.toLowerCase();
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => handleThemeChange(color)}
+                            className={`h-[30px] w-[30px] rounded-full border border-border/60 transition-transform hover:scale-105 ${isActive ? 'ring-2 ring-white shadow-[0_0_0_4px_var(--accent-soft)]' : ''}`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`Set color ${color}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
 
-          <div className="mt-6 space-y-6">
-            <div>
-              <Label className="text-sm text-muted-foreground">Accent Color</Label>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {presetColors.map((color) => {
-                  const isActive = accentHex.toLowerCase() === color.toLowerCase();
-                  return (
-                    <button
-                      key={color}
+                  <div>
+                    <label className="block">
+                      <span className="sr-only">Pick a custom color</span>
+                      <input
+                        type="color"
+                        value={accentHex}
+                        onChange={(e) => handleThemeChange(e.target.value)}
+                        className="h-9 w-full cursor-pointer rounded-md border border-input bg-transparent p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)]"
+                        aria-label="Pick a custom color"
+                      />
+                    </label>
+                    <div className="mt-4 flex items-center gap-3">
+                      <Input
+                        value={accentHex}
+                        onChange={(e) => setAccentHex(e.target.value)}
+                        placeholder="#17a38b"
+                        className="h-10 flex-1 min-w-0 font-mono focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
+                      />
+                      <Button
+                        onClick={() => handleThemeChange(accentHex)}
+                        className="h-10 min-w-[110px] shrink-0 px-5 shadow-none hover:shadow-sm bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Preview</p>
+                    <Button
                       type="button"
-                      onClick={() => handleThemeChange(color)}
-                      className={`h-9 w-9 rounded-full border border-border/60 transition-transform hover:scale-105 ${isActive ? 'ring-2 ring-[var(--accent-color)] ring-offset-2 ring-offset-background' : ''}`}
-                      style={{ backgroundColor: color }}
-                      aria-label={`Set color ${color}`}
-                    />
-                  );
-                })}
+                      size="sm"
+                      className="h-10 min-w-[110px] shadow-none hover:shadow-sm bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+                    >
+                      Accent Preview
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </aside>
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-              <label className="block w-full">
-                <span className="sr-only">Pick a custom color</span>
-                <input
-                  type="color"
-                  value={accentHex}
-                  onChange={(e) => handleThemeChange(e.target.value)}
-                  className="h-11 w-full cursor-pointer rounded-lg border border-input bg-transparent p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)]"
-                  aria-label="Pick a custom color"
-                />
-              </label>
-              <Input
-                value={accentHex}
-                onChange={(e) => setAccentHex(e.target.value)}
-                placeholder="#17a38b"
-                className="h-11 w-full sm:w-40 font-mono focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
-              />
-              <Button
-                onClick={() => handleThemeChange(accentHex)}
-                className="h-11 bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-              >
-                Apply
-              </Button>
-            </div>
+            <div className="space-y-5 pt-2">
+              <div className="space-y-1.5">
+                <h2 className="text-base font-semibold">Account Settings</h2>
+                <p className="text-sm text-muted-foreground">Update your profile and security settings.</p>
+              </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-md border border-border/60 px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Preview</p>
-                <p className="text-xs text-muted-foreground">Live accent on a compact button.</p>
+                <p className="text-sm font-semibold text-foreground">Profile Info</p>
+                <div className="mt-3 grid gap-y-3.5 gap-x-6 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="h-[38px] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-[38px] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Role</Label>
+                    <Input value={profile?.role || ''} disabled className="h-[38px]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Department</Label>
+                    <Input value={profile?.department_name || profile?.department_id || ''} disabled className="h-[38px]" />
+                  </div>
+                </div>
+                <div className="mt-3.5 flex justify-end">
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="h-[38px] min-w-[170px] px-5 shadow-none hover:shadow-sm bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] disabled:bg-[var(--accent-soft)] disabled:text-foreground"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-9 bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-              >
-                Accent Preview
-              </Button>
-            </div>
-          </div>
-        </section>
 
-        <section className="pb-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Security</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">Update your password and keep your account secure.</p>
-          </div>
-          <div className="mt-4 h-px bg-border/70" />
+              <div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold">Security</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Update your password and keep your account secure.</p>
+                </div>
 
-          {passwordUpdated && (
-            <div
-              className="mt-4 rounded-md border px-4 py-3 text-sm"
-              style={{ backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent-ring)' }}
-            >
-              Password updated successfully.
-            </div>
-          )}
+                {passwordUpdated && (
+                  <div
+                    className="mt-3 rounded-md border px-4 py-3 text-sm"
+                    style={{ backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent-ring)' }}
+                  >
+                    Password updated successfully.
+                  </div>
+                )}
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={handleSendResetLink}
-              className="h-10 border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground"
-            >
-              Send Reset Link
-            </Button>
-          </div>
+                <div className="mt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleSendResetLink}
+                    className="h-[38px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
+                  >
+                    Send Reset Link
+                  </Button>
+                </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label>New Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPasswordUpdated(false);
-                }}
-                className="h-11 focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
-              />
+                <div className="mt-3.5 grid gap-y-3.5 gap-x-6 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>New Password</Label>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setPasswordUpdated(false);
+                      }}
+                      className="h-[38px] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Confirm Password</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setPasswordUpdated(false);
+                      }}
+                      className="h-[38px] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3.5 flex justify-end">
+                  <Button
+                    onClick={handleUpdatePassword}
+                    disabled={savingPassword}
+                    className="h-[38px] min-w-[170px] px-5 shadow-none hover:shadow-sm bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] disabled:bg-[var(--accent-soft)] disabled:text-foreground"
+                  >
+                    {savingPassword ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2 rounded-md p-3 -m-3 transition-colors hover:bg-muted/40">
-              <Label>Confirm Password</Label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setPasswordUpdated(false);
-                }}
-                className="h-11 focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] focus-visible:border-[var(--accent-color)]"
-              />
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={handleUpdatePassword}
-              disabled={savingPassword}
-              className="h-11 px-6 bg-[var(--accent-color)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent-ring)] disabled:bg-[var(--accent-soft)] disabled:text-foreground"
-            >
-              {savingPassword ? 'Updating...' : 'Update Password'}
-            </Button>
           </div>
         </section>
       </div>
