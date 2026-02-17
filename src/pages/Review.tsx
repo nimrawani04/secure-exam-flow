@@ -61,47 +61,42 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
   return (
     <div className={cn(
-      'group rounded-xl border bg-card p-5 shadow-card transition-all duration-200 hover:shadow-card-hover',
+      'group rounded-[14px] border bg-card p-6 shadow-[0_1px_4px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]',
       paper.isSelected && 'ring-2 ring-accent border-accent'
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 flex-1">
-          <div className="rounded-lg bg-secondary p-3">
-            <FileText className="h-6 w-6 text-primary" />
+          <div className="rounded-[10px] bg-secondary p-2.5">
+            <FileText className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-lg">{paper.subjectName}</h3>
+            <div className="flex items-center gap-1 flex-wrap">
+              <h3 className="font-semibold text-[17px]">{paper.subjectName}</h3>
               <span className="text-sm text-muted-foreground">({paper.subjectCode})</span>
             </div>
-            
-            {/* Anonymous submission label */}
-            <div className="flex items-center gap-2 mt-1">
-              <img src="/cuk-favicon.png" alt="CUK Logo" className="h-4 w-4 object-contain" />
-              <span className="text-sm font-medium text-accent">{paper.anonymousId}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className="px-2 py-0.5 bg-secondary rounded-md text-sm">
-                {examTypeLabels[paper.examType]}
+
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[13px] text-muted-foreground">
+              <span className="font-medium text-foreground/90">{paper.anonymousId}</span>
+              <span>•</span>
+              <span>{examTypeLabels[paper.examType]}</span>
+              <span>•</span>
+              <span>Set {paper.setName}</span>
+              <span>•</span>
+              <span>v{paper.version}</span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                Deadline {paper.deadline.toLocaleDateString()}
               </span>
-              <span className="text-sm text-muted-foreground">|</span>
-              <span className="text-sm text-muted-foreground">Set {paper.setName}</span>
-              <span className="text-sm text-muted-foreground">|</span>
-              <span className="text-sm text-muted-foreground">v{paper.version}</span>
-            </div>
-            
-            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>Deadline {paper.deadline.toLocaleDateString()}</span>
-              </div>
             </div>
           </div>
         </div>
-        
+
         <div className="flex flex-col items-end gap-2">
-          <Badge variant={config.variant as any}>
+          <Badge
+            variant={config.variant as any}
+            className="mt-[2px] h-6 rounded-full px-2.5 text-[11px] font-medium shadow-none"
+          >
             {paper.isSelected && <Lock className="h-3 w-3 mr-1" />}
             {config.label}
           </Badge>
@@ -110,27 +105,32 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
       {/* Actions for pending papers */}
       {paper.status === 'pending_review' && (
-        <div className="mt-4 flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center">
-          <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto" onClick={onPreview}>
+        <div className="mt-3 flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-10 w-full border-border/70 text-foreground/80 hover:border-accent/50 hover:text-foreground sm:w-auto"
+            onClick={onPreview}
+          >
             <Eye className="h-4 w-4" />
             Preview
           </Button>
           <Button 
-            variant="success" 
+            variant="default" 
             size="sm" 
             onClick={onApprove} 
             disabled={isProcessing}
-            className="gap-1.5 w-full sm:w-auto"
+            className="gap-1.5 h-10 w-full sm:w-auto"
           >
             <CheckCircle className="h-4 w-4" />
             Approve
           </Button>
           <Button 
-            variant="destructive" 
+            variant="outline" 
             size="sm" 
             onClick={onReject} 
             disabled={isProcessing}
-            className="gap-1.5 w-full sm:w-auto"
+            className="gap-1.5 h-10 w-full border-destructive/50 text-destructive hover:border-destructive hover:bg-destructive/10 sm:w-auto"
           >
             <XCircle className="h-4 w-4" />
             Reject
@@ -140,8 +140,13 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
       {/* Actions for approved papers - can select */}
       {paper.status === 'approved' && !paper.isSelected && (
-        <div className="mt-4 flex flex-col gap-2 pt-4 border-t sm:flex-row sm:items-center">
-          <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto" onClick={onPreview}>
+        <div className="mt-3 flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-10 w-full border-border/70 text-foreground/80 hover:border-accent/50 hover:text-foreground sm:w-auto"
+            onClick={onPreview}
+          >
             <Eye className="h-4 w-4" />
             Preview
           </Button>
@@ -150,7 +155,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
             size="sm" 
             onClick={onSelect} 
             disabled={isProcessing}
-            className="gap-1.5 w-full sm:w-auto sm:ml-auto"
+            className="gap-1.5 h-10 w-full sm:w-auto sm:ml-auto"
           >
             <CheckCircle className="h-4 w-4" />
             Select for Exam
