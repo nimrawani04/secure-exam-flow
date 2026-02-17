@@ -271,22 +271,60 @@ export default function Review() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Pending Review</p>
-            <p className="text-2xl font-bold mt-1 text-warning">{stats.pending}</p>
-          </div>
-          <div className="bg-card rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Approved</p>
-            <p className="text-2xl font-bold mt-1 text-success">{stats.approved}</p>
-          </div>
-          <div className="bg-card rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Selected & Locked</p>
-            <p className="text-2xl font-bold mt-1 text-accent">{stats.selected}</p>
-          </div>
-          <div className="bg-card rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Rejected</p>
-            <p className="text-2xl font-bold mt-1 text-destructive">{stats.rejected}</p>
+        <div className="bg-card rounded-2xl border overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border/60">
+            <div className="divide-y divide-border/60">
+              <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
+                    <Clock className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Pending Review</p>
+                    <p className="text-xs text-muted-foreground">Papers awaiting selection</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{stats.pending}</p>
+              </div>
+              <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                    <XCircle className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Rejected</p>
+                    <p className="text-xs text-muted-foreground">Needs revision</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{stats.rejected}</p>
+              </div>
+            </div>
+            <div className="divide-y divide-border/60">
+              <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 text-success">
+                    <CheckCircle className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Approved</p>
+                    <p className="text-xs text-muted-foreground">Approved papers</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{stats.approved}</p>
+              </div>
+              <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                    <Lock className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Selected & Locked</p>
+                    <p className="text-xs text-muted-foreground">Ready for exam</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{stats.selected}</p>
+              </div>
+            </div>
           </div>
         </div>
 
