@@ -54,22 +54,23 @@ export default function ApprovedPapers() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {approvedPapers.map((paper) => (
-              <div key={paper.id} className="rounded-xl border bg-card p-5 shadow-card">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{paper.subjectName}</h3>
+              <div key={paper.id} className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.05)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-foreground truncate">{paper.subjectName}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{paper.subjectCode}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span className="rounded-md bg-secondary px-2 py-0.5">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-accent/10 text-accent px-2.5 py-0.5">
                         {examTypeLabels[paper.examType]}
                       </span>
-                      <span>|</span>
                       <span>Set {paper.setName}</span>
-                      <span>|</span>
                       <span>v{paper.version}</span>
                     </div>
                   </div>
-                  <Badge variant="success" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1 bg-success/10 text-success border border-success/20"
+                  >
                     <Lock className="h-3 w-3" />
                     Locked
                   </Badge>
