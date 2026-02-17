@@ -23,30 +23,36 @@ const examTypeLabels: Record<string, string> = {
 
 function PaperRow({ paper }: { paper: TeacherPaper }) {
   return (
-    <div className="group rounded-xl border bg-card p-5 shadow-card transition-all duration-200 hover:shadow-card-hover">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4 flex-1">
-          <div className="rounded-lg bg-secondary p-3">
-            <FileText className="h-6 w-6 text-primary" />
+    <div className="group rounded-xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-[10px] bg-secondary/80 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-lg">{paper.subjectName}</h3>
-              <span className="text-sm text-muted-foreground">({paper.subjectCode})</span>
-            </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="px-2 py-0.5 bg-secondary rounded-md text-sm">
-                {examTypeLabels[paper.examType]}
-              </span>
-              <span className="text-sm text-muted-foreground">|</span>
-              <span className="text-sm text-muted-foreground">v{paper.version}</span>
-            </div>
-            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>Uploaded {paper.uploadedAt.toLocaleDateString()}</span>
-              </div>
-            </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-[17px]">{paper.subjectName}</h3>
+            <p className="text-[13px] text-muted-foreground">{paper.subjectCode}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
+              {examTypeLabels[paper.examType]}
+            </span>
+            <span className="inline-flex h-6 items-center rounded-full bg-primary/10 px-3 text-xs font-medium text-primary">
+              v{paper.version}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              Uploaded{' '}
+              {paper.uploadedAt.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </span>
           </div>
         </div>
       </div>
@@ -95,12 +101,12 @@ export default function Submissions() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-          <div className="bg-card rounded-xl border p-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="bg-card rounded-xl border border-border/60 px-5 py-4 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
             <p className="text-sm text-muted-foreground">Total Submissions</p>
             <p className="text-2xl font-bold mt-1">{stats.total}</p>
           </div>
-          <div className="bg-card rounded-xl border p-4">
+          <div className="bg-card rounded-xl border border-border/60 px-5 py-4 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
             <p className="text-sm text-muted-foreground">Pending Review</p>
             <p className="text-2xl font-bold mt-1 text-warning">{stats.pending}</p>
           </div>
@@ -108,9 +114,19 @@ export default function Submissions() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full justify-start gap-2 overflow-x-auto sm:overflow-visible">
-            <TabsTrigger value="all" className="w-full">All ({stats.total})</TabsTrigger>
-            <TabsTrigger value="pending" className="w-full">Pending ({stats.pending})</TabsTrigger>
+          <TabsList className="w-full rounded-full bg-secondary/70 p-1 grid grid-cols-2 gap-1 sm:inline-grid sm:w-auto">
+            <TabsTrigger
+              value="all"
+              className="w-full rounded-full text-sm data-[state=active]:bg-accent/10 data-[state=active]:text-accent data-[state=active]:shadow-none"
+            >
+              All ({stats.total})
+            </TabsTrigger>
+            <TabsTrigger
+              value="pending"
+              className="w-full rounded-full text-sm data-[state=active]:bg-accent/10 data-[state=active]:text-accent data-[state=active]:shadow-none"
+            >
+              Pending ({stats.pending})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">

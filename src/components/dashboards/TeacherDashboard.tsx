@@ -36,6 +36,7 @@ export function TeacherDashboard() {
     id: paper.id,
     subjectId: paper.subjectId,
     subjectName: paper.subjectName,
+    subjectCode: paper.subjectCode,
     examType: paper.examType,
     setName: paper.setName,
     status: paper.status,

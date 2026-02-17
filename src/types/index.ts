@@ -17,6 +17,7 @@ export interface ExamPaper {
   id: string;
   subjectId: string;
   subjectName: string;
+  subjectCode: string;
   examType: ExamType;
   setName: string; // A, B, C
   status: PaperStatus;
