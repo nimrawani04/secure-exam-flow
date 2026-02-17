@@ -1,5 +1,4 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { StatsCard } from '@/components/dashboard/StatsCard';
 import { PaperCard } from '@/components/dashboard/PaperCard';
 import { DeadlineTimer } from '@/components/dashboard/DeadlineTimer';
 import { Button } from '@/components/ui/button';
@@ -67,20 +66,33 @@ export function TeacherDashboard() {
         </Link>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <StatsCard
-          title="Total Submissions"
-          value={stats.total}
-          subtitle="This semester"
-          icon={FileText}
-        />
-        <StatsCard
-          title="Pending Review"
-          value={stats.pending}
-          icon={Clock}
-          variant="warning"
-        />
+      {/* Stats Bar */}
+      <div className="rounded-[12px] border border-border/40 bg-card">
+        <div className="flex flex-col divide-y divide-border/40 sm:flex-row sm:divide-y-0 sm:divide-x">
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:flex-1 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <FileText className="h-4 w-4 text-accent sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Total Submissions</p>
+                <p className="text-xs text-muted-foreground mt-1">This semester</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats.total}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:flex-1 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-warning/10 flex items-center justify-center sm:h-10 sm:w-10">
+                <Clock className="h-4 w-4 text-warning sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Pending Review</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats.pending}</p>
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
