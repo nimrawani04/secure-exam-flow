@@ -47,6 +47,7 @@ type ExamWithMeta = Exam & {
   subjectCode?: string;
   departmentId?: string | null;
   paperStatus?: PaperStatus | null;
+  paperFilePath?: string | null;
 };
 
 const examTypeLabels: Record<ExamType, string> = {
@@ -248,7 +249,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           status,
           selected_paper_id,
           subjects ( id, name, code, department_id ),
-          exam_papers:exam_papers!exams_selected_paper_id_fkey ( id, status )`
+          exam_papers:exam_papers!exams_selected_paper_id_fkey ( id, status, file_path )`
         )
         .order('scheduled_date', { ascending: true });
 
@@ -264,7 +265,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       const { data: selectedPapers, error: selectedPapersError } = await supabase
         .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected')
+        .select('id, subject_id, exam_type, status, is_selected, file_path')
         .eq('is_selected', true)
         .in('status', ['approved', 'locked']);
 
@@ -272,13 +273,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         console.error('Error fetching selected papers:', selectedPapersError);
       }
 
-      const selectedPaperByExamKey = new Map<string, { id: string; status: PaperStatus }>();
+      const selectedPaperByExamKey = new Map<string, { id: string; status: PaperStatus; filePath: string | null }>();
       (selectedPapers || []).forEach((paper: any) => {
         const key = `${paper.subject_id}-${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
             id: paper.id,
             status: paper.status as PaperStatus,
+            filePath: paper.file_path ?? null,
           });
         }
       });
@@ -295,6 +297,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
           const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
+          const resolvedPaperFilePath = row.exam_papers?.file_path ?? fallbackSelectedPaper?.filePath ?? null;
 
           return {
             id: row.id,
@@ -307,6 +310,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             unlockTime,
             paperId: resolvedPaperId ?? undefined,
             paperStatus: resolvedPaperStatus,
+            paperFilePath: resolvedPaperFilePath,
             status: row.status,
           } as ExamWithMeta;
         })
@@ -423,6 +427,52 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       setSelectedDate(next);
       return next;
     });
+  };
+
+  const getPaperFileName = (exam: ExamWithMeta) => {
+    if (exam.paperFilePath) {
+      const chunks = exam.paperFilePath.split('/');
+      const fileName = chunks[chunks.length - 1];
+      if (fileName) return fileName;
+    }
+    const safeSubject = exam.subjectName.replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    return `${safeSubject}_${exam.examType}.pdf`;
+  };
+
+  const handlePreviewPaper = async (exam: ExamWithMeta) => {
+    if (!exam.paperFilePath) {
+      toast({ title: 'No file available', description: 'This paper has no file path configured.', variant: 'destructive' });
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('exam-papers')
+      .createSignedUrl(exam.paperFilePath, 60 * 10);
+
+    if (error || !data?.signedUrl) {
+      toast({ title: 'Preview failed', description: error?.message || 'Could not generate preview link.', variant: 'destructive' });
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadPaper = async (exam: ExamWithMeta) => {
+    if (!exam.paperFilePath) {
+      toast({ title: 'No file available', description: 'This paper has no file path configured.', variant: 'destructive' });
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('exam-papers')
+      .createSignedUrl(exam.paperFilePath, 60 * 10, { download: getPaperFileName(exam) });
+
+    if (error || !data?.signedUrl) {
+      toast({ title: 'Download failed', description: error?.message || 'Could not generate download link.', variant: 'destructive' });
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
   const getPaperBadge = (exam: ExamWithMeta) => {
@@ -1205,10 +1255,10 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handlePreviewPaper(exam)} title="Preview paper">
+                          <FileText className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" disabled>
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadPaper(exam)} title="Download paper">
                           <Download className="w-4 h-4" />
                         </Button>
                       </div>
