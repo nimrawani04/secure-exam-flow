@@ -1155,11 +1155,21 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   </div>
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 pt-2">
-                    <Button variant="outline" size="default" className="flex-1 h-10 gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="default"
+                      className="flex-1 h-10 gap-1.5"
+                      onClick={() => handlePreviewPaper(exam)}
+                    >
                       <Eye className="w-4 h-4" />
                       Preview
                     </Button>
-                    <Button variant="hero" size="default" className="flex-1 h-10 gap-1.5" disabled>
+                    <Button
+                      variant="hero"
+                      size="default"
+                      className="flex-1 h-10 gap-1.5"
+                      onClick={() => handleDownloadPaper(exam)}
+                    >
                       <Download className="w-4 h-4" />
                       Download
                     </Button>
