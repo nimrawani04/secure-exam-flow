@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,6 +39,7 @@ import {
 import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 type ExamType = Database['public']['Enums']['exam_type'];
 type PaperStatus = Database['public']['Enums']['paper_status'];
@@ -182,6 +183,7 @@ const getTimelineIssue = (input: {
 export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }) {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { data: departments, isLoading: deptsLoading } = useAdminDepartments();
   const { data: sessions, isLoading: sessionsLoading } = useExamSessions();
   const createSession = useCreateExamSession();
@@ -219,6 +221,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'success'>('info');
   const [broadcastTargetMode, setBroadcastTargetMode] = useState<'all' | 'targeted'>('all');
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
+  const [latestPapersSort, setLatestPapersSort] = useState<'latest' | 'oldest'>('latest');
+  const seenInboxPaperKeysRef = useRef<Set<string>>(new Set());
+  const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
 
   const departmentNameMap = useMemo(() => {
@@ -408,6 +413,15 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
     [exams]
   );
+  const latestInboxExams = useMemo(() => {
+    const sorted = [...inboxExams].sort((a, b) => {
+      if (latestPapersSort === 'oldest') {
+        return a.scheduledDate.getTime() - b.scheduledDate.getTime();
+      }
+      return b.scheduledDate.getTime() - a.scheduledDate.getTime();
+    });
+    return sorted.slice(0, 6);
+  }, [inboxExams, latestPapersSort]);
   const papersReadyCount = inboxExams.length;
   const pendingPapersCount = paperStats.pending_review;
 
@@ -484,6 +498,38 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     }
     return { label: 'Not ready', variant: 'secondary' as const };
   };
+
+  useEffect(() => {
+    const currentKeys = new Set(
+      inboxExams.map((exam) => exam.paperId ?? `exam-${exam.id}`)
+    );
+
+    if (!initializedInboxFeedRef.current) {
+      seenInboxPaperKeysRef.current = currentKeys;
+      initializedInboxFeedRef.current = true;
+      return;
+    }
+
+    const newPapers = inboxExams.filter(
+      (exam) => !seenInboxPaperKeysRef.current.has(exam.paperId ?? `exam-${exam.id}`)
+    );
+
+    if (newPapers.length > 0) {
+      newPapers.slice(0, 2).forEach((exam) => {
+        const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
+        const examTypeLabel = exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+        const subjectLabel = exam.subjectCode
+          ? `${exam.subjectName} (${exam.subjectCode})`
+          : exam.subjectName;
+        toast({
+          title: 'New paper received in inbox',
+          description: `${departmentName ?? 'Department unavailable'} • ${examTypeLabel} • ${subjectLabel}`,
+        });
+      });
+    }
+
+    seenInboxPaperKeysRef.current = currentKeys;
+  }, [inboxExams, departmentNameMap, toast]);
 
   const resetSessionForm = () => {
     setSessionName('');
@@ -1376,8 +1422,53 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border bg-secondary/30 p-6 text-sm text-muted-foreground">
-            Choose a section from the sidebar to manage sessions, alerts, calendar, inbox, or archive details.
+          <div className="rounded-2xl border bg-card p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-base font-semibold">Latest Papers</h3>
+              <div className="flex items-center gap-2">
+                <Select value={latestPapersSort} onValueChange={(value) => setLatestPapersSort(value as 'latest' | 'oldest')}>
+                  <SelectTrigger className="h-8 w-[132px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">Latest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs" onClick={() => navigate('/inbox')}>
+                  Show all
+                </Button>
+              </div>
+            </div>
+            {latestInboxExams.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No new papers in inbox yet.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {latestInboxExams.map((exam) => {
+                  const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
+                  return (
+                    <div key={exam.id} className="rounded-xl border border-border/60 bg-secondary/20 px-3.5 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium leading-tight">
+                            {exam.subjectName}
+                            {exam.subjectCode ? ` (${exam.subjectCode})` : ''}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {(departmentName ?? 'Unknown Department')} • {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
+                        </div>
+                        <Badge variant="success" className="text-[10px]">
+                          {exam.paperStatus === 'locked' ? 'Locked' : 'Approved'}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
