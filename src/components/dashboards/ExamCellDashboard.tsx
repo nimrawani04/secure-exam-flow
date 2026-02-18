@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,50 +38,17 @@ import {
   useUpdateExamSession,
 } from '@/hooks/useAdminExamSessions';
 import type { Database } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
 
-// Mock data
-const mockExams: Exam[] = [
-  {
-    id: '1',
-    subjectId: 's1',
-    subjectName: 'Data Structures',
-    examType: 'mid_term',
-    scheduledDate: new Date('2024-03-25T09:00:00'),
-    unlockTime: new Date('2024-03-25T08:30:00'),
-    paperId: 'p1',
-    status: 'scheduled',
-  },
-  {
-    id: '2',
-    subjectId: 's2',
-    subjectName: 'Algorithms',
-    examType: 'mid_term',
-    scheduledDate: new Date('2024-03-26T14:00:00'),
-    unlockTime: new Date('2024-03-26T13:30:00'),
-    paperId: 'p2',
-    status: 'scheduled',
-  },
-  {
-    id: '3',
-    subjectId: 's3',
-    subjectName: 'Database Systems',
-    examType: 'end_term',
-    scheduledDate: new Date('2024-03-27T09:00:00'),
-    unlockTime: new Date('2024-03-27T08:30:00'),
-    paperId: 'p3',
-    status: 'scheduled',
-  },
-];
-
-const calendarDays = Array.from({ length: 35 }, (_, i) => {
-  const date = new Date('2024-03-01');
-  date.setDate(date.getDate() + i - date.getDay());
-  return date;
-});
-
 type ExamType = Database['public']['Enums']['exam_type'];
+type PaperStatus = Database['public']['Enums']['paper_status'];
 type ExamCellView = 'overview' | 'calendar' | 'sessions' | 'alerts' | 'inbox' | 'archive';
+type ExamWithMeta = Exam & {
+  subjectCode?: string;
+  departmentId?: string | null;
+  paperStatus?: PaperStatus | null;
+};
 
 const examTypeLabels: Record<ExamType, string> = {
   mid_term: 'Mid Term',
@@ -129,6 +96,15 @@ const notificationTypeVariant: Record<string, 'secondary' | 'warning' | 'destruc
   warning: 'warning',
   critical: 'destructive',
   success: 'success',
+};
+
+const emptyPaperStats: Record<PaperStatus, number> = {
+  draft: 0,
+  submitted: 0,
+  pending_review: 0,
+  approved: 0,
+  rejected: 0,
+  locked: 0,
 };
 
 const toLocalInputValue = (value?: string | null) => {
@@ -212,10 +188,17 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const updateSession = useUpdateExamSession();
   const deleteSession = useDeleteExamSession();
   const createNotification = useCreateNotification();
-  const { data: recentNotifications } = useAdminNotifications(profile?.id);
+  const { data: recentNotifications, isLoading: notificationsLoading } = useAdminNotifications(profile?.id);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date('2024-03-25'));
-  const [exams] = useState<Exam[]>(mockExams);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [exams, setExams] = useState<ExamWithMeta[]>([]);
+  const [isLoadingExams, setIsLoadingExams] = useState(true);
+  const [examsError, setExamsError] = useState<string | null>(null);
+  const [paperStats, setPaperStats] = useState<Record<PaperStatus, number>>(emptyPaperStats);
 
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionName, setSessionName] = useState('');
@@ -235,6 +218,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'success'>('info');
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
+  const broadcastMessageLimit = 500;
 
   const departmentNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -246,13 +230,181 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return (recentNotifications || []).filter((notification) => notification.target_roles.includes('hod'));
   }, [recentNotifications]);
 
-  const examDates = new Set(exams.map(e => e.scheduledDate.toDateString()));
+  useEffect(() => {
+    let isMounted = true;
 
-  const getExamsForDate = (date: Date) => {
-    return exams.filter(e => e.scheduledDate.toDateString() === date.toDateString());
+    const fetchExams = async () => {
+      setIsLoadingExams(true);
+      setExamsError(null);
+
+      const { data, error } = await supabase
+        .from('exams')
+        .select(
+          `id,
+          subject_id,
+          exam_type,
+          scheduled_date,
+          unlock_time,
+          status,
+          selected_paper_id,
+          subjects ( id, name, code, department_id ),
+          exam_papers:exam_papers!exams_selected_paper_id_fkey ( id, status )`
+        )
+        .order('scheduled_date', { ascending: true });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error('Error fetching exams:', error);
+        setExamsError('Failed to load exams.');
+        setExams([]);
+        setIsLoadingExams(false);
+        return;
+      }
+
+      const mapped = (data || [])
+        .map((row: any) => {
+          const scheduledDate = new Date(row.scheduled_date);
+          const unlockTime = new Date(row.unlock_time);
+          if (Number.isNaN(scheduledDate.getTime()) || Number.isNaN(unlockTime.getTime())) {
+            return null;
+          }
+          return {
+            id: row.id,
+            subjectId: row.subject_id,
+            subjectName: row.subjects?.name ?? 'Unknown Subject',
+            subjectCode: row.subjects?.code ?? '',
+            departmentId: row.subjects?.department_id ?? null,
+            examType: row.exam_type,
+            scheduledDate,
+            unlockTime,
+            paperId: row.selected_paper_id ?? undefined,
+            paperStatus: row.exam_papers?.status ?? null,
+            status: row.status,
+          } as ExamWithMeta;
+        })
+        .filter((row): row is ExamWithMeta => Boolean(row));
+
+      setExams(mapped);
+      setIsLoadingExams(false);
+    };
+
+    fetchExams();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPaperStats = async () => {
+      const { data, error } = await supabase.from('exam_papers').select('status');
+      if (!isMounted) return;
+
+      if (error) {
+        console.error('Error fetching paper stats:', error);
+        setPaperStats(emptyPaperStats);
+        return;
+      }
+
+      const nextStats = { ...emptyPaperStats };
+      data?.forEach((paper: any) => {
+        if (paper?.status && nextStats[paper.status as PaperStatus] !== undefined) {
+          nextStats[paper.status as PaperStatus] += 1;
+        }
+      });
+      setPaperStats(nextStats);
+    };
+
+    fetchPaperStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      const nextExamDate = exams.find((exam) => !Number.isNaN(exam.scheduledDate.getTime()))?.scheduledDate;
+      setSelectedDate(nextExamDate ?? new Date());
+      return;
+    }
+
+    setCurrentMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+  }, [exams, selectedDate]);
+
+  const calendarDays = useMemo(() => {
+    const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const startDay = start.getDay();
+    const gridStart = new Date(start);
+    gridStart.setDate(start.getDate() - startDay);
+    return Array.from({ length: 42 }, (_, i) => {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + i);
+      return date;
+    });
+  }, [currentMonth]);
+
+  const examDates = useMemo(
+    () => new Set(exams.map((exam) => exam.scheduledDate.toDateString())),
+    [exams]
+  );
+
+  const selectedExams = useMemo(() => {
+    if (!selectedDate) return [];
+    return exams.filter((exam) => exam.scheduledDate.toDateString() === selectedDate.toDateString());
+  }, [exams, selectedDate]);
+
+  const upcomingExamsCount = useMemo(() => {
+    const now = Date.now();
+    const nextWeek = now + 7 * 24 * 60 * 60 * 1000;
+    return exams.filter((exam) => {
+      const time = exam.scheduledDate.getTime();
+      return exam.status !== 'archived' && time >= now && time <= nextWeek;
+    }).length;
+  }, [exams]);
+
+  const archivedExamsCount = useMemo(
+    () => exams.filter((exam) => exam.status === 'archived').length,
+    [exams]
+  );
+
+  const papersReadyCount = paperStats.locked + paperStats.approved;
+  const pendingPapersCount = paperStats.pending_review;
+  const inboxExams = useMemo(
+    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
+    [exams]
+  );
+
+  const currentMonthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy'), [currentMonth]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth((prev) => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      setSelectedDate(next);
+      return next;
+    });
   };
 
-  const selectedExams = selectedDate ? getExamsForDate(selectedDate) : [];
+  const handleNextMonth = () => {
+    setCurrentMonth((prev) => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      setSelectedDate(next);
+      return next;
+    });
+  };
+
+  const getPaperBadge = (exam: ExamWithMeta) => {
+    if (exam.paperStatus === 'locked' || exam.paperStatus === 'approved') {
+      return { label: 'Ready', variant: 'success' as const };
+    }
+    if (exam.paperStatus === 'pending_review' || exam.paperStatus === 'submitted') {
+      return { label: 'Pending', variant: 'warning' as const };
+    }
+    return { label: 'Not ready', variant: 'secondary' as const };
+  };
 
   const resetSessionForm = () => {
     setSessionName('');
@@ -379,6 +531,27 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       setBroadcastMessage('');
     } catch (error: any) {
       toast({ title: 'Error', description: error?.message || 'Failed to send alert.', variant: 'destructive' });
+    }
+  };
+
+  const handlePreview = () => {
+    if (!broadcastTitle.trim() && !broadcastMessage.trim()) {
+      toast({ title: 'Preview not available', description: 'Add a title and message to preview.', variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: broadcastTitle.trim() || 'Untitled alert',
+      description:
+        broadcastMessage.trim().slice(0, 200) + (broadcastMessage.trim().length > 200 ? '...' : ''),
+    });
+  };
+
+  const handleBroadcastKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (!createNotification.isPending) {
+        handleBroadcast();
+      }
     }
   };
 
@@ -533,140 +706,203 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-      <div className="bg-card rounded-2xl border p-6 shadow-card space-y-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">HOD Alerts</h2>
-            <p className="text-sm text-muted-foreground">
-              Broadcast updates to HODs by department or campus-wide.
-            </p>
+      <div className="space-y-2">
+        <h1 className="text-3xl sm:text-4xl font-bold">HOD Alerts</h1>
+        <p className="text-sm text-muted-foreground">
+          Broadcast department or campus-wide updates to HODs.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
+        <div className="space-y-4">
+          <div className="bg-card rounded-lg border p-5 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold">Compose Alert</h2>
+                <p className="text-sm text-muted-foreground">
+                  Notify HODs across departments or targeted groups.
+                </p>
+              </div>
+              <Badge variant={notificationTypeVariant[broadcastType]} className="text-xs uppercase">
+                {broadcastType}
+              </Badge>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-center">
+                <Label>Title</Label>
+                <Input
+                  placeholder="e.g. Review window opens Monday"
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  onKeyDown={handleBroadcastKeyDown}
+                />
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-start">
+                <Label>Message</Label>
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Share any instructions or deadlines for HODs..."
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    rows={4}
+                    maxLength={broadcastMessageLimit}
+                    className="min-h-[120px]"
+                    onKeyDown={handleBroadcastKeyDown}
+                  />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Keep it clear and actionable.</span>
+                    <span>{broadcastMessage.length}/{broadcastMessageLimit}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Alert Type</Label>
+                  <Select value={broadcastType} onValueChange={(value) => setBroadcastType(value as typeof broadcastType)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select alert type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {notificationTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Target Departments</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setBroadcastDepartments([])}
+                      disabled={broadcastDepartments.length === 0}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  {deptsLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading departments...</p>
+                  ) : departments && departments.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {departments.map((dept) => (
+                        <label key={dept.id} className="flex items-start gap-3 rounded-lg border bg-secondary/20 p-3">
+                          <Checkbox
+                            checked={broadcastDepartments.includes(dept.id)}
+                            onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
+                          />
+                          <div>
+                            <p className="text-sm font-medium">{dept.name}</p>
+                            <p className="text-xs text-muted-foreground">{dept.code}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No departments available.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to notify all HODs across departments.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
+              <div className="text-xs text-muted-foreground">Press Cmd/Ctrl + Enter to send once ready.</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePreview}>
+                  Preview
+                </Button>
+                <Button variant="hero" className="gap-2" onClick={handleBroadcast} disabled={createNotification.isPending}>
+                  <Bell className="w-4 h-4" />
+                  {createNotification.isPending ? 'Sending...' : 'Send Alert'}
+                </Button>
+              </div>
+            </div>
           </div>
-          <Badge variant={notificationTypeVariant[broadcastType]} className="text-xs uppercase">
-            {broadcastType}
-          </Badge>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input
-              placeholder="e.g. Review window opens Monday"
-              value={broadcastTitle}
-              onChange={(e) => setBroadcastTitle(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Message</Label>
-            <Textarea
-              placeholder="Share any instructions or deadlines for HODs..."
-              value={broadcastMessage}
-              onChange={(e) => setBroadcastMessage(e.target.value)}
-              rows={4}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Alert Type</Label>
-            <Select value={broadcastType} onValueChange={(value) => setBroadcastType(value as typeof broadcastType)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select alert type" />
-              </SelectTrigger>
-              <SelectContent>
-                {notificationTypeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-3">
+        <div className="space-y-4 lg:self-start">
+          <div className="bg-card rounded-lg border p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Target Departments (optional)</Label>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => setBroadcastDepartments([])}
-                disabled={broadcastDepartments.length === 0}
-              >
-                Clear
-              </Button>
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
+                <p className="text-xs text-muted-foreground">Latest alerts you sent.</p>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {hodNotifications.length}
+              </Badge>
             </div>
-            {deptsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading departments...</p>
-            ) : departments && departments.length > 0 ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {departments.map((dept) => (
-                  <label key={dept.id} className="flex items-start gap-3 rounded-xl border bg-secondary/30 p-3">
-                    <Checkbox
-                      checked={broadcastDepartments.includes(dept.id)}
-                      onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">{dept.name}</p>
-                      <p className="text-xs text-muted-foreground">{dept.code}</p>
+
+            {notificationsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`hod-alert-skeleton-${index}`} className="flex items-start gap-3 rounded-lg border p-4 animate-pulse">
+                    <div className="h-9 w-9 rounded-md bg-muted" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-32 rounded bg-muted" />
+                      <div className="h-3 w-full rounded bg-muted" />
+                      <div className="h-3 w-24 rounded bg-muted" />
                     </div>
-                  </label>
+                  </div>
+                ))}
+              </div>
+            ) : hodNotifications.length > 0 ? (
+              <div className="divide-y border rounded-lg">
+                {hodNotifications.map((notification) => (
+                  <div key={notification.id} className="flex items-start gap-3 p-4">
+                    <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
+                      <Bell className="w-4 h-4 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium truncate">{notification.title}</span>
+                        <Badge
+                          variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
+                          className="text-[10px] uppercase"
+                        >
+                          {notification.type || 'info'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {notification.message.length > 120 ? `${notification.message.slice(0, 120)}...` : notification.message}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          {notification.created_at
+                            ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                            : 'Just now'}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatDepartmentTargets(notification.target_departments)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No departments available.</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Leave empty to notify all HODs across departments.
-            </p>
-          </div>
-        </div>
-
-        <Button variant="hero" className="gap-2" onClick={handleBroadcast} disabled={createNotification.isPending}>
-          <Bell className="w-4 h-4" />
-          {createNotification.isPending ? 'Sending...' : 'Send Alert'}
-        </Button>
-      </div>
-
-      <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
-          <Badge variant="outline" className="text-xs">
-            {hodNotifications.length}
-          </Badge>
-        </div>
-
-        {hodNotifications.length > 0 ? (
-          <div className="space-y-3">
-            {hodNotifications.map((notification) => (
-              <div key={notification.id} className="flex items-start gap-3 rounded-xl border bg-secondary/30 p-4">
-                <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                  <Bell className="w-4 h-4 text-accent" />
+              <div className="rounded-lg border border-dashed bg-secondary/10 p-6 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                <div className="h-12 w-12 rounded-full border border-dashed flex items-center justify-center">
+                  <Bell className="w-5 h-5 opacity-60" />
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{notification.title}</span>
-                    <Badge variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'} className="text-[10px] uppercase">
-                      {notification.type || 'info'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {notification.message.length > 120 ? `${notification.message.slice(0, 120)}...` : notification.message}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <span>Departments: {formatDepartmentTargets(notification.target_departments)}</span>
-                    <span>
-                      {notification.created_at
-                        ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
-                        : 'Just now'}
-                    </span>
-                  </div>
+                <div>
+                  <p className="font-medium text-sm">No alerts sent yet</p>
+                  <p className="text-xs text-muted-foreground">Compose an alert to notify HODs quickly.</p>
                 </div>
+                <Button variant="outline" size="sm" onClick={handlePreview}>
+                  Send your first alert
+                </Button>
               </div>
-            ))}
+            )}
           </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Bell className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <p>No alerts sent yet</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -678,9 +914,13 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="text-xl font-semibold">Exam Calendar</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="min-w-[96px]">Previous</Button>
-              <span className="font-medium px-4">March 2024</span>
-              <Button variant="outline" size="sm" className="min-w-[96px]">Next</Button>
+              <Button variant="outline" size="sm" className="min-w-[96px]" onClick={handlePrevMonth}>
+                Previous
+              </Button>
+              <span className="font-medium px-4">{currentMonthLabel}</span>
+              <Button variant="outline" size="sm" className="min-w-[96px]" onClick={handleNextMonth}>
+                Next
+              </Button>
             </div>
           </div>
 
@@ -693,7 +933,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             {calendarDays.map((date, index) => {
               const hasExam = examDates.has(date.toDateString());
               const isSelected = selectedDate?.toDateString() === date.toDateString();
-              const isCurrentMonth = date.getMonth() === 2;
+              const isCurrentMonth =
+                date.getMonth() === currentMonth.getMonth() && date.getFullYear() === currentMonth.getFullYear();
 
               return (
                 <button
@@ -739,29 +980,44 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       <div className="space-y-6">
         <div className="bg-card rounded-2xl border p-6 shadow-card">
           <h3 className="text-lg font-semibold mb-4">
-            {selectedDate?.toLocaleDateString('en-US', {
+            {(selectedDate ?? currentMonth)?.toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',
               day: 'numeric',
             })}
           </h3>
 
-          {selectedExams.length > 0 ? (
+          {isLoadingExams ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" />
+              <p>Loading exams...</p>
+            </div>
+          ) : examsError ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>{examsError}</p>
+            </div>
+          ) : selectedExams.length > 0 ? (
             <div className="space-y-4">
               {selectedExams.map((exam) => (
                 <div
                   key={exam.id}
                   className="p-4 rounded-xl border bg-secondary/50 space-y-3"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium">{exam.subjectName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {exam.examType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </p>
-                    </div>
-                    <Badge variant="success">Ready</Badge>
-                  </div>
+                  {(() => {
+                    const badge = getPaperBadge(exam);
+                    return (
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium">{exam.subjectName}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
+                        </div>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -829,48 +1085,72 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px]">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Subject</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Type</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Department</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Date</th>
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-              <th className="text-right py-3 px-4 font-medium text-muted-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {exams.map((exam) => (
-              <tr key={exam.id} className="border-b hover:bg-secondary/50 transition-colors">
-                <td className="py-4 px-4 font-medium">{exam.subjectName}</td>
-                <td className="py-4 px-4 text-muted-foreground">
-                  {exam.examType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </td>
-                <td className="py-4 px-4 text-muted-foreground">Computer Science</td>
-                <td className="py-4 px-4 text-muted-foreground">
-                  {exam.scheduledDate.toLocaleDateString()}
-                </td>
-                <td className="py-4 px-4">
-                  <Badge variant="success">
-                    <Lock className="w-3 h-3 mr-1" />
-                    Locked
-                  </Badge>
-                </td>
-                <td className="py-4 px-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" disabled>
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </td>
+        {isLoadingExams ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" />
+            <p>Loading approved papers...</p>
+          </div>
+        ) : examsError ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>{examsError}</p>
+          </div>
+        ) : inboxExams.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <Archive className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No approved papers yet</p>
+            <p className="text-sm mt-1">Approved and locked papers will appear here.</p>
+          </div>
+        ) : (
+          <table className="w-full min-w-[720px]">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Subject</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Type</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Department</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Date</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {inboxExams.map((exam) => {
+                const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
+                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : 'Approved';
+                return (
+                  <tr key={exam.id} className="border-b hover:bg-secondary/50 transition-colors">
+                    <td className="py-4 px-4 font-medium">{exam.subjectName}</td>
+                    <td className="py-4 px-4 text-muted-foreground">
+                      {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </td>
+                    <td className="py-4 px-4 text-muted-foreground">
+                      {departmentName ?? 'Unknown Department'}
+                    </td>
+                    <td className="py-4 px-4 text-muted-foreground">
+                      {exam.scheduledDate.toLocaleDateString()}
+                    </td>
+                    <td className="py-4 px-4">
+                      <Badge variant="success">
+                        <Lock className="w-3 h-3 mr-1" />
+                        {statusLabel}
+                      </Badge>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" disabled>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -905,28 +1185,28 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard
               title="Upcoming Exams"
-              value={12}
+              value={isLoadingExams ? '—' : upcomingExamsCount}
               subtitle="Next 7 days"
               icon={Calendar}
               variant="accent"
             />
             <StatsCard
               title="Papers Ready"
-              value={10}
+              value={isLoadingExams ? '—' : papersReadyCount}
               subtitle="Approved & locked"
               icon={FileText}
               variant="success"
             />
             <StatsCard
               title="Pending Papers"
-              value={2}
+              value={isLoadingExams ? '—' : pendingPapersCount}
               subtitle="Awaiting HOD approval"
               icon={Clock}
               variant="warning"
             />
             <StatsCard
               title="Archived"
-              value={156}
+              value={isLoadingExams ? '—' : archivedExamsCount}
               subtitle="Past exams"
               icon={Archive}
             />
