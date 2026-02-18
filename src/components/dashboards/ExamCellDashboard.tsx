@@ -1120,60 +1120,74 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               {selectedExams.map((exam) => (
                 <div
                   key={exam.id}
-                  className="p-4 rounded-xl border bg-secondary/50 space-y-3"
+                  className="rounded-xl border border-border/60 bg-card px-[18px] py-4"
                 >
                   {(() => {
                     const badge = getPaperBadge(exam);
+                    const isReady = badge.label === 'Ready';
                     return (
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex flex-col gap-2.5">
+                        <div className="flex items-start justify-between gap-3">
                           <h4 className="font-medium">{exam.subjectName}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </p>
+                          <span
+                            style={
+                              isReady
+                                ? {
+                                    backgroundColor: 'var(--theme-color-soft)',
+                                    color: 'var(--theme-color)',
+                                  }
+                                : undefined
+                            }
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                              !isReady && 'bg-secondary text-muted-foreground'
+                            )}
+                          >
+                            {badge.label}
+                          </span>
                         </div>
-                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                        <p className="text-sm text-muted-foreground">
+                          {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3.5 text-sm">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            {exam.scheduledDate.toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                          <div className="flex items-center gap-1.5" style={{ color: 'var(--theme-color)' }}>
+                            <Lock className="h-4 w-4" />
+                            Unlocks at {exam.unlockTime.toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                        </div>
+                        <div className="mt-0.5 flex gap-2.5">
+                          <Button
+                            variant="outline"
+                            size="default"
+                            className="h-[38px] flex-1 rounded-[10px] px-3.5"
+                            onClick={() => handlePreviewPaper(exam)}
+                          >
+                            <FileText className="w-4 h-4" />
+                            Preview
+                          </Button>
+                          <Button
+                            size="default"
+                            style={{ backgroundColor: 'var(--theme-color)', color: 'white' }}
+                            className="h-[38px] flex-1 rounded-[10px] border border-transparent px-3.5 hover:opacity-95"
+                            onClick={() => handleDownloadPaper(exam)}
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </Button>
+                        </div>
                       </div>
                     );
                   })()}
-
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      {exam.scheduledDate.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-accent">
-                      <Lock className="w-4 h-4" />
-                      Unlocks at {exam.unlockTime.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="default"
-                      className="flex-1 h-10 gap-1.5"
-                      onClick={() => handlePreviewPaper(exam)}
-                    >
-                      <Eye className="w-4 h-4" />
-                      Preview
-                    </Button>
-                    <Button
-                      variant="hero"
-                      size="default"
-                      className="flex-1 h-10 gap-1.5"
-                      onClick={() => handleDownloadPaper(exam)}
-                    >
-                      <Download className="w-4 h-4" />
-                      Download
-                    </Button>
-                  </div>
                 </div>
               ))}
             </div>
