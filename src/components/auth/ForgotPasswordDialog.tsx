@@ -22,6 +22,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
+  const resetRedirectUrl = new URL(`${import.meta.env.BASE_URL}auth?reset=true`, window.location.origin).toString();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +35,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
     setIsResetting(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: resetRedirectUrl,
       });
 
       if (error) {

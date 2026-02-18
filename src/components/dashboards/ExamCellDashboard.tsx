@@ -262,6 +262,27 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         return;
       }
 
+      const { data: selectedPapers, error: selectedPapersError } = await supabase
+        .from('exam_papers')
+        .select('id, subject_id, exam_type, status, is_selected')
+        .eq('is_selected', true)
+        .in('status', ['approved', 'locked']);
+
+      if (selectedPapersError) {
+        console.error('Error fetching selected papers:', selectedPapersError);
+      }
+
+      const selectedPaperByExamKey = new Map<string, { id: string; status: PaperStatus }>();
+      (selectedPapers || []).forEach((paper: any) => {
+        const key = `${paper.subject_id}-${paper.exam_type}`;
+        if (!selectedPaperByExamKey.has(key)) {
+          selectedPaperByExamKey.set(key, {
+            id: paper.id,
+            status: paper.status as PaperStatus,
+          });
+        }
+      });
+
       const mapped = (data || [])
         .map((row: any) => {
           const scheduledDate = new Date(row.scheduled_date);
@@ -269,6 +290,12 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           if (Number.isNaN(scheduledDate.getTime()) || Number.isNaN(unlockTime.getTime())) {
             return null;
           }
+
+          const examKey = `${row.subject_id}-${row.exam_type}`;
+          const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
+          const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
+          const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
+
           return {
             id: row.id,
             subjectId: row.subject_id,
@@ -278,8 +305,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             examType: row.exam_type,
             scheduledDate,
             unlockTime,
-            paperId: row.selected_paper_id ?? undefined,
-            paperStatus: row.exam_papers?.status ?? null,
+            paperId: resolvedPaperId ?? undefined,
+            paperStatus: resolvedPaperStatus,
             status: row.status,
           } as ExamWithMeta;
         })
@@ -373,12 +400,12 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     [exams]
   );
 
-  const papersReadyCount = paperStats.locked + paperStats.approved;
-  const pendingPapersCount = paperStats.pending_review;
   const inboxExams = useMemo(
     () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
     [exams]
   );
+  const papersReadyCount = inboxExams.length;
+  const pendingPapersCount = paperStats.pending_review;
 
   const currentMonthLabel = useMemo(() => format(currentMonth, 'MMMM yyyy'), [currentMonth]);
 

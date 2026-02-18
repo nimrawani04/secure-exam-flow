@@ -64,6 +64,7 @@ export default function Profile() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
   const accentStorageKey = getAccentStorageKey(profile?.id);
+  const resetRedirectUrl = new URL(`${import.meta.env.BASE_URL}auth?reset=true`, window.location.origin).toString();
   const [accentHex, setAccentHex] = useState(
     () => localStorage.getItem(accentStorageKey) || DEFAULT_ACCENT_HEX
   );
@@ -170,7 +171,7 @@ export default function Profile() {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth?reset=true`,
+      redirectTo: resetRedirectUrl,
     });
 
     if (error) {
