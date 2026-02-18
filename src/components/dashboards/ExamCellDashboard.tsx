@@ -216,6 +216,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'success'>('info');
+  const [broadcastTargetMode, setBroadcastTargetMode] = useState<'all' | 'targeted'>('all');
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
   const broadcastMessageLimit = 500;
 
@@ -517,6 +518,10 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       toast({ title: 'Error', description: 'Title and message are required.', variant: 'destructive' });
       return;
     }
+    if (broadcastTargetMode === 'targeted' && broadcastDepartments.length === 0) {
+      toast({ title: 'Error', description: 'Select at least one target department.', variant: 'destructive' });
+      return;
+    }
 
     try {
       await createNotification.mutateAsync({
@@ -524,12 +529,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         title: broadcastTitle.trim(),
         message: broadcastMessage.trim(),
         targetRoles: ['hod'],
-        targetDepartments: broadcastDepartments.length > 0 ? broadcastDepartments : null,
+        targetDepartments: broadcastTargetMode === 'targeted' ? broadcastDepartments : null,
         type: broadcastType,
       });
       toast({ title: 'Alert sent', description: 'HOD notification broadcasted successfully.' });
       setBroadcastTitle('');
       setBroadcastMessage('');
+      setBroadcastTargetMode('all');
+      setBroadcastDepartments([]);
     } catch (error: any) {
       toast({ title: 'Error', description: error?.message || 'Failed to send alert.', variant: 'destructive' });
     }
@@ -714,19 +721,16 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
           <div className="bg-card rounded-lg border p-5 space-y-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold">Compose Alert</h2>
                 <p className="text-sm text-muted-foreground">
                   Notify HODs across departments or targeted groups.
                 </p>
               </div>
-              <Badge variant={notificationTypeVariant[broadcastType]} className="text-xs uppercase">
-                {broadcastType}
-              </Badge>
             </div>
 
             <div className="space-y-4">
@@ -775,52 +779,81 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Target Departments</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setBroadcastDepartments([])}
-                      disabled={broadcastDepartments.length === 0}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                  {deptsLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading departments...</p>
-                  ) : departments && departments.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {departments.map((dept) => (
-                        <label key={dept.id} className="flex items-start gap-3 rounded-lg border bg-secondary/20 p-3">
-                          <Checkbox
-                            checked={broadcastDepartments.includes(dept.id)}
-                            onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
-                          />
-                          <div>
-                            <p className="text-sm font-medium">{dept.name}</p>
-                            <p className="text-xs text-muted-foreground">{dept.code}</p>
+                  <Label>Target Departments</Label>
+                  <Select
+                    value={broadcastTargetMode}
+                    onValueChange={(value) => {
+                      const mode = value as 'all' | 'targeted';
+                      setBroadcastTargetMode(mode);
+                      if (mode === 'all') {
+                        setBroadcastDepartments([]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All departments</SelectItem>
+                      <SelectItem value="targeted">Target department</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {broadcastTargetMode === 'targeted' && (
+                    <>
+                      {deptsLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading departments...</p>
+                      ) : departments && departments.length > 0 ? (
+                        <div className="overflow-x-auto pb-1">
+                          <div className="flex min-w-max items-center gap-2">
+                            {departments.map((dept) => {
+                              const isSelectedDept = broadcastDepartments.includes(dept.id);
+                              return (
+                                <label
+                                  key={dept.id}
+                                  style={
+                                    isSelectedDept
+                                      ? {
+                                          borderColor: 'var(--theme-color)',
+                                          backgroundColor: 'var(--theme-color-soft)',
+                                        }
+                                      : undefined
+                                  }
+                                  className="inline-flex items-center gap-2 rounded-[10px] border bg-secondary/20 px-3 py-2 whitespace-nowrap"
+                                >
+                                  <Checkbox
+                                    checked={isSelectedDept}
+                                    onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
+                                  />
+                                  <span className="text-sm font-medium">{dept.name}</span>
+                                </label>
+                              );
+                            })}
                           </div>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No departments available.</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No departments available.</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Choose one or more departments for targeted delivery.
+                      </p>
+                    </>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Leave empty to notify all HODs across departments.
-                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
-              <div className="text-xs text-muted-foreground">Press Cmd/Ctrl + Enter to send once ready.</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePreview}>
+            <div className="mt-4 flex items-center justify-end gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button variant="outline" size="sm" className="h-[38px]" onClick={handlePreview}>
                   Preview
                 </Button>
-                <Button variant="hero" className="gap-2" onClick={handleBroadcast} disabled={createNotification.isPending}>
+                <Button
+                  variant="hero"
+                  className="h-[38px] gap-2"
+                  onClick={handleBroadcast}
+                  disabled={createNotification.isPending}
+                >
                   <Bell className="w-4 h-4" />
                   {createNotification.isPending ? 'Sending...' : 'Send Alert'}
                 </Button>
@@ -829,7 +862,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           </div>
         </div>
 
-        <div className="space-y-4 lg:self-start">
+        <div className="space-y-3 lg:self-start">
           <div className="bg-card rounded-lg border p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -889,7 +922,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed bg-secondary/10 p-6 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+              <div className="rounded-lg border border-dashed bg-secondary/10 px-4 py-7 text-center text-muted-foreground flex flex-col items-center gap-3">
                 <div className="h-12 w-12 rounded-full border border-dashed flex items-center justify-center">
                   <Bell className="w-5 h-5 opacity-60" />
                 </div>
