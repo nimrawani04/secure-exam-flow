@@ -723,7 +723,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
-          <div className="bg-card rounded-lg border p-5 space-y-4">
+          <div className="bg-card rounded-lg border p-4 sm:p-5 space-y-4">
             <div className="flex items-start gap-4">
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold">Compose Alert</h2>
@@ -804,8 +804,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       {deptsLoading ? (
                         <p className="text-sm text-muted-foreground">Loading departments...</p>
                       ) : departments && departments.length > 0 ? (
-                        <div className="overflow-x-auto pb-1">
-                          <div className="flex min-w-max items-center gap-2">
+                        <div className="pb-1 sm:-mx-1 sm:overflow-x-auto sm:px-1">
+                          <div className="flex flex-wrap items-center gap-2 sm:min-w-max sm:flex-nowrap">
                             {departments.map((dept) => {
                               const isSelectedDept = broadcastDepartments.includes(dept.id);
                               return (
@@ -819,13 +819,13 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                                         }
                                       : undefined
                                   }
-                                  className="inline-flex items-center gap-2 rounded-[10px] border bg-secondary/20 px-3 py-2 whitespace-nowrap"
+                                  className="inline-flex max-w-full items-center gap-2 rounded-[10px] border bg-secondary/20 px-3 py-2"
                                 >
                                   <Checkbox
                                     checked={isSelectedDept}
                                     onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
                                   />
-                                  <span className="text-sm font-medium">{dept.name}</span>
+                                  <span className="max-w-[132px] truncate text-xs font-medium sm:max-w-none sm:text-sm">{dept.name}</span>
                                 </label>
                               );
                             })}
@@ -843,14 +843,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Button variant="outline" size="sm" className="h-[38px]" onClick={handlePreview}>
+            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+              <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                <Button variant="outline" size="sm" className="h-[38px] w-full sm:w-auto" onClick={handlePreview}>
                   Preview
                 </Button>
                 <Button
                   variant="hero"
-                  className="h-[38px] gap-2"
+                  className="h-[38px] w-full gap-2 sm:w-auto"
                   onClick={handleBroadcast}
                   disabled={createNotification.isPending}
                 >
@@ -863,8 +863,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         </div>
 
         <div className="space-y-3 lg:self-start">
-          <div className="bg-card rounded-lg border p-5 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="bg-card rounded-lg border p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
                 <p className="text-xs text-muted-foreground">Latest alerts you sent.</p>
@@ -877,7 +877,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             {notificationsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={`hod-alert-skeleton-${index}`} className="flex items-start gap-3 rounded-lg border p-4 animate-pulse">
+                  <div key={`hod-alert-skeleton-${index}`} className="flex items-start gap-3 rounded-lg border p-3 sm:p-4 animate-pulse">
                     <div className="h-9 w-9 rounded-md bg-muted" />
                     <div className="flex-1 space-y-2">
                       <div className="h-3 w-32 rounded bg-muted" />
@@ -890,13 +890,13 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             ) : hodNotifications.length > 0 ? (
               <div className="divide-y border rounded-lg">
                 {hodNotifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-3 p-4">
+                  <div key={notification.id} className="flex items-start gap-3 p-3 sm:p-4">
                     <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
                       <Bell className="w-4 h-4 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">{notification.title}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{notification.title}</span>
                         <Badge
                           variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
                           className="text-[10px] uppercase"
@@ -907,7 +907,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       <p className="text-xs text-muted-foreground">
                         {notification.message.length > 120 ? `${notification.message.slice(0, 120)}...` : notification.message}
                       </p>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                         <span className="text-[11px] text-muted-foreground">
                           {notification.created_at
                             ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
