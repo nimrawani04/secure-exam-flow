@@ -337,9 +337,11 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const calendarDays = useMemo(() => {
     const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     const startDay = start.getDay();
+    const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+    const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
     const gridStart = new Date(start);
     gridStart.setDate(start.getDate() - startDay);
-    return Array.from({ length: 42 }, (_, i) => {
+    return Array.from({ length: totalCells }, (_, i) => {
       const date = new Date(gridStart);
       date.setDate(gridStart.getDate() + i);
       return date;
@@ -907,9 +909,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const calendarSection = (
-    <div className="grid lg:grid-cols-3 gap-8">
+    <div className="grid gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <div className="bg-card rounded-2xl border p-6 shadow-card">
+        <div className="rounded-2xl border bg-card p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="text-xl font-semibold">Exam Calendar</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -939,19 +941,33 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 <button
                   key={index}
                   onClick={() => setSelectedDate(date)}
+                  style={
+                    isSelected
+                      ? {
+                          backgroundColor: 'var(--theme-color)',
+                          color: 'white',
+                          borderRadius: '12px',
+                        }
+                      : hasExam
+                        ? {
+                            backgroundColor: 'var(--theme-color-soft)',
+                            color: 'var(--theme-color)',
+                          }
+                        : undefined
+                  }
                   className={cn(
-                    'aspect-square rounded-lg flex flex-col items-center justify-center text-sm transition-all duration-200',
-                    !isCurrentMonth && 'text-muted-foreground/40',
-                    isSelected && 'bg-accent text-accent-foreground shadow-glow',
-                    hasExam && !isSelected && 'bg-accent/20 text-accent font-medium',
-                    !hasExam && !isSelected && 'hover:bg-secondary'
+                    'h-[72px] w-full rounded-lg border border-transparent text-sm transition-colors duration-150 flex flex-col items-center justify-center',
+                    !isCurrentMonth && 'text-muted-foreground/20',
+                    isSelected && 'font-medium',
+                    hasExam && !isSelected && 'font-medium',
+                    !isSelected && 'hover:bg-[var(--theme-color-soft)]'
                   )}
                 >
                   <span>{date.getDate()}</span>
                   {hasExam && (
                     <span className={cn(
-                      'w-1.5 h-1.5 rounded-full mt-1',
-                      isSelected ? 'bg-accent-foreground' : 'bg-accent'
+                      'mt-1 h-2 w-2 rounded-full',
+                      isSelected ? 'bg-white' : 'bg-[var(--theme-color)]'
                     )} />
                   )}
                 </button>
@@ -959,25 +975,25 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             })}
           </div>
 
-          <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-4 text-sm">
+          <div className="mt-4 border-t pt-3 flex flex-wrap items-center gap-3 text-sm">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-accent" />
+              <span className="h-2 w-2 rounded-full bg-[var(--theme-color)]" />
               <span className="text-muted-foreground">Exam scheduled</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-success" />
+              <span className="h-2 w-2 rounded-full bg-success" />
               <span className="text-muted-foreground">Paper ready</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-warning" />
+              <span className="h-2 w-2 rounded-full bg-warning" />
               <span className="text-muted-foreground">Paper pending</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-6">
-        <div className="bg-card rounded-2xl border p-6 shadow-card">
+      <div className="flex flex-col gap-4">
+        <div className="rounded-2xl border bg-card p-5">
           <h3 className="text-lg font-semibold mb-4">
             {(selectedDate ?? currentMonth)?.toLocaleDateString('en-US', {
               weekday: 'long',
@@ -1056,10 +1072,10 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           )}
         </div>
 
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <div className="flex items-center gap-3 mb-3">
             <AlertTriangle className="w-5 h-5 text-destructive" />
-            <h4 className="font-semibold text-destructive">Emergency Actions</h4>
+            <h4 className="font-semibold">Emergency Actions</h4>
           </div>
           <p className="text-sm text-muted-foreground mb-3">
             Use only if paper leak is suspected

@@ -31,6 +31,8 @@
     /* Accent - Teal */
     --accent: 175 70% 40%;
     --accent-foreground: 0 0% 100%;
+    --theme-color: hsl(var(--accent));
+    --theme-color-soft: hsl(var(--accent) / 0.14);
 
     /* Status Colors */
     --success: 152 60% 40%;
@@ -98,6 +100,8 @@
 
     --accent: 175 70% 45%;
     --accent-foreground: 222 47% 11%;
+    --theme-color: hsl(var(--accent));
+    --theme-color-soft: hsl(var(--accent) / 0.2);
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 210 40% 98%;
