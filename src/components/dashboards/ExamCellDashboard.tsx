@@ -937,23 +937,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const calendarSection = (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <div className="rounded-2xl border bg-card p-4 sm:p-5">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold">Exam Calendar</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="min-w-[96px]" onClick={handlePrevMonth}>
+            <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+              <Button variant="outline" size="sm" className="h-9 px-3 sm:h-10 sm:px-4" onClick={handlePrevMonth}>
                 Previous
               </Button>
-              <span className="font-medium px-4">{currentMonthLabel}</span>
-              <Button variant="outline" size="sm" className="min-w-[96px]" onClick={handleNextMonth}>
+              <span className="px-2 text-center font-medium sm:px-4">{currentMonthLabel}</span>
+              <Button variant="outline" size="sm" className="h-9 px-3 sm:h-10 sm:px-4" onClick={handleNextMonth}>
                 Next
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+              <div key={day} className="py-2 text-center text-xs font-medium text-muted-foreground sm:text-sm">
                 {day}
               </div>
             ))}
@@ -982,7 +982,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         : undefined
                   }
                   className={cn(
-                    'h-[72px] w-full rounded-lg border border-transparent text-sm transition-colors duration-150 flex flex-col items-center justify-center',
+                    'flex h-[64px] w-full flex-col items-center justify-center rounded-lg border border-transparent text-xs transition-colors duration-150 sm:h-[72px] sm:text-sm',
                     !isCurrentMonth && 'text-muted-foreground/20',
                     isSelected && 'font-medium',
                     hasExam && !isSelected && 'font-medium',
