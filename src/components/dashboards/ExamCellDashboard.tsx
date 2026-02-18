@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1182,34 +1181,57 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       {view === 'overview' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatsCard
-              title="Upcoming Exams"
-              value={isLoadingExams ? '—' : upcomingExamsCount}
-              subtitle="Next 7 days"
-              icon={Calendar}
-              variant="accent"
-            />
-            <StatsCard
-              title="Papers Ready"
-              value={isLoadingExams ? '—' : papersReadyCount}
-              subtitle="Approved & locked"
-              icon={FileText}
-              variant="success"
-            />
-            <StatsCard
-              title="Pending Papers"
-              value={isLoadingExams ? '—' : pendingPapersCount}
-              subtitle="Awaiting HOD approval"
-              icon={Clock}
-              variant="warning"
-            />
-            <StatsCard
-              title="Archived"
-              value={isLoadingExams ? '—' : archivedExamsCount}
-              subtitle="Past exams"
-              icon={Archive}
-            />
+          <div className="rounded-[12px] border border-border/40 bg-card">
+            <div className="grid grid-cols-1 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-r sm:px-5 sm:py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 sm:h-10 sm:w-10">
+                    <Calendar className="h-4 w-4 text-accent sm:h-5 sm:w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Upcoming Exams</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Next 7 days</p>
+                  </div>
+                </div>
+                <p className="text-[28px] font-semibold leading-none">{isLoadingExams ? '—' : upcomingExamsCount}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-r-0 sm:px-5 sm:py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 sm:h-10 sm:w-10">
+                    <FileText className="h-4 w-4 text-success sm:h-5 sm:w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Papers Ready</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Approved & locked</p>
+                  </div>
+                </div>
+                <p className="text-[28px] font-semibold leading-none">{isLoadingExams ? '—' : papersReadyCount}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-b-0 sm:border-r sm:px-5 sm:py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning/10 sm:h-10 sm:w-10">
+                    <Clock className="h-4 w-4 text-warning sm:h-5 sm:w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Pending Papers</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Awaiting HOD approval</p>
+                  </div>
+                </div>
+                <p className="text-[28px] font-semibold leading-none">{isLoadingExams ? '—' : pendingPapersCount}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary sm:h-10 sm:w-10">
+                    <Archive className="h-4 w-4 text-foreground/70 sm:h-5 sm:w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Archived</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Past exams</p>
+                  </div>
+                </div>
+                <p className="text-[28px] font-semibold leading-none">{isLoadingExams ? '—' : archivedExamsCount}</p>
+              </div>
+            </div>
           </div>
           <div className="rounded-2xl border bg-secondary/30 p-6 text-sm text-muted-foreground">
             Choose a section from the sidebar to manage sessions, alerts, calendar, inbox, or archive details.
@@ -1505,5 +1527,3 @@ function SessionCard({
     </div>
   );
 }
-
-
