@@ -714,13 +714,6 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-bold">HOD Alerts</h1>
-        <p className="text-sm text-muted-foreground">
-          Broadcast department or campus-wide updates to HODs.
-        </p>
-      </div>
-
       <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
           <div className="bg-card rounded-lg border p-4 sm:p-5 space-y-4">
