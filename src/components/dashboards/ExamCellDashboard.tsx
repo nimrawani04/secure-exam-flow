@@ -222,6 +222,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastTargetMode, setBroadcastTargetMode] = useState<'all' | 'targeted'>('all');
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
   const [latestPapersSort, setLatestPapersSort] = useState<'latest' | 'oldest'>('latest');
+  const [inboxSort, setInboxSort] = useState<'latest' | 'oldest'>('latest');
   const seenInboxPaperKeysRef = useRef<Set<string>>(new Set());
   const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
@@ -413,6 +414,15 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
     [exams]
   );
+  const sortedInboxExams = useMemo(() => {
+    const sorted = [...inboxExams].sort((a, b) => {
+      if (inboxSort === 'oldest') {
+        return a.scheduledDate.getTime() - b.scheduledDate.getTime();
+      }
+      return b.scheduledDate.getTime() - a.scheduledDate.getTime();
+    });
+    return sorted;
+  }, [inboxExams, inboxSort]);
   const latestInboxExams = useMemo(() => {
     const sorted = [...inboxExams].sort((a, b) => {
       if (latestPapersSort === 'oldest') {
@@ -1264,12 +1274,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const inboxSection = (
     <div className="bg-card rounded-2xl border p-6 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold">Approved Papers Inbox</h2>
-        <Button variant="outline" className="gap-2 w-full sm:w-auto">
-          <Archive className="w-4 h-4" />
-          View Archive
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Select value={inboxSort} onValueChange={(value) => setInboxSort(value as 'latest' | 'oldest')}>
+            <SelectTrigger className="h-9 w-full sm:w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Sort: Latest</SelectItem>
+              <SelectItem value="oldest">Sort: Oldest</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+            <Archive className="w-4 h-4" />
+            View Archive
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -1293,43 +1314,58 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b">
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Subject</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Type</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Department</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Exam Date</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                <th className="text-right py-3 px-4 font-medium text-muted-foreground">Actions</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Subject</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Exam Type</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Department</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Exam Date</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Status</th>
+                <th className="px-3 py-2.5 text-right text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {inboxExams.map((exam) => {
+              {sortedInboxExams.map((exam) => {
                 const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
                 const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : 'Approved';
                 return (
-                  <tr key={exam.id} className="border-b hover:bg-secondary/50 transition-colors">
-                    <td className="py-4 px-4 font-medium">{exam.subjectName}</td>
-                    <td className="py-4 px-4 text-muted-foreground">
+                  <tr key={exam.id} className="border-b transition-colors hover:bg-muted/20">
+                    <td className="px-3 py-3.5 font-semibold text-foreground">{exam.subjectName}</td>
+                    <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                     </td>
-                    <td className="py-4 px-4 text-muted-foreground">
+                    <td className="px-3 py-3.5 text-muted-foreground/80">
                       {departmentName ?? 'Unknown Department'}
                     </td>
-                    <td className="py-4 px-4 text-muted-foreground">
+                    <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
                     </td>
-                    <td className="py-4 px-4">
-                      <Badge variant="success">
-                        <Lock className="w-3 h-3 mr-1" />
+                    <td className="px-3 py-3.5">
+                      <Badge
+                        variant="success"
+                        className="border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success"
+                      >
+                        <Lock className="mr-1 h-3 w-3" />
                         {statusLabel}
                       </Badge>
                     </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handlePreviewPaper(exam)} title="Preview paper">
-                          <FileText className="w-4 h-4" />
+                    <td className="px-3 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-3.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/80 hover:text-accent"
+                          onClick={() => handlePreviewPaper(exam)}
+                          title="Preview paper"
+                        >
+                          <FileText className="h-[18px] w-[18px]" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDownloadPaper(exam)} title="Download paper">
-                          <Download className="w-4 h-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/80 hover:text-accent"
+                          onClick={() => handleDownloadPaper(exam)}
+                          title="Download paper"
+                        >
+                          <Download className="h-[18px] w-[18px]" />
                         </Button>
                       </div>
                     </td>

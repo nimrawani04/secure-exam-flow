@@ -47,16 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch role (resilient to duplicate rows; use latest assignment)
+      const { data: roleRows, error: roleError } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('role, created_at')
         .eq('user_id', userId)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      if (roleError && roleError.code !== 'PGRST116') {
+      if (roleError) {
         console.error('Error fetching role:', roleError);
       }
+
+      const resolvedRole =
+        (roleRows && roleRows.length > 0 ? (roleRows[0].role as AppRole) : null) ??
+        ((profileData as any)?.role as AppRole | undefined) ??
+        null;
 
       if (profileData) {
         return {
@@ -65,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: profileData.email,
           department_id: profileData.department_id,
           department_name: (profileData as any)?.departments?.name ?? null,
-          role: (roleData?.role as AppRole) || null,
+          role: resolvedRole,
         };
       }
       return null;
