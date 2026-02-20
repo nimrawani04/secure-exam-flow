@@ -5,7 +5,6 @@ import { useAdminUsers, AdminUser } from '@/hooks/useAdminUsers';
 import { useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useAdminUserActions';
 import { useAdminDepartments, useCreateDepartment, useDeleteDepartment } from '@/hooks/useAdminDepartments';
 import { useAdminNotifications, useCreateNotification } from '@/hooks/useAdminNotifications';
-import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -295,11 +294,60 @@ export function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard title="Total Users" value={stats?.totalUsers || 0} subtitle="Registered accounts" icon={Users} variant="accent" />
-        <StatsCard title="Departments" value={stats?.totalDepartments || 0} subtitle="Active departments" icon={Building} />
-        <StatsCard title="Subjects" value={stats?.totalSubjects || 0} subtitle="Configured subjects" icon={BookOpen} />
-        <StatsCard title="Exam Papers" value={stats?.totalPapers || 0} subtitle="Total submissions" icon={FileText} variant="success" />
+      <div className="rounded-[12px] border border-border/40 bg-card">
+        <div className="grid grid-cols-1 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-r sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 sm:h-10 sm:w-10">
+                <Users className="h-4 w-4 text-accent sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Total Users</p>
+                <p className="mt-1 text-xs text-muted-foreground">Registered accounts</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats?.totalUsers || 0}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary sm:h-10 sm:w-10">
+                <Building className="h-4 w-4 text-foreground/70 sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Departments</p>
+                <p className="mt-1 text-xs text-muted-foreground">Active departments</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats?.totalDepartments || 0}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-b-0 sm:border-r sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary sm:h-10 sm:w-10">
+                <BookOpen className="h-4 w-4 text-foreground/70 sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Subjects</p>
+                <p className="mt-1 text-xs text-muted-foreground">Configured subjects</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats?.totalSubjects || 0}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 sm:h-10 sm:w-10">
+                <FileText className="h-4 w-4 text-success sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Exam Papers</p>
+                <p className="mt-1 text-xs text-muted-foreground">Total submissions</p>
+              </div>
+            </div>
+            <p className="text-[28px] font-semibold leading-none">{stats?.totalPapers || 0}</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
