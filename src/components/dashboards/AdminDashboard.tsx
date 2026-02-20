@@ -149,7 +149,11 @@ export function AdminDashboard() {
   }, [users, broadcastRoles, broadcastDepartments]);
 
   useEffect(() => {
-    if (location.pathname.startsWith('/admin/departments')) {
+    if (location.pathname === '/dashboard') {
+      setActiveTab('overview');
+    } else if (location.pathname.startsWith('/admin/users')) {
+      setActiveTab('users');
+    } else if (location.pathname.startsWith('/admin/departments')) {
       setActiveTab('departments');
     } else if (location.pathname.startsWith('/admin/audit')) {
       setActiveTab('audit');
@@ -158,7 +162,7 @@ export function AdminDashboard() {
     } else if (location.pathname.startsWith('/admin/security')) {
       setActiveTab('overview');
     } else {
-      setActiveTab('users');
+      setActiveTab('overview');
     }
   }, [location.pathname]);
 
