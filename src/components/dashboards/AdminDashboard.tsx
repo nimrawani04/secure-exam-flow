@@ -148,6 +148,16 @@ export function AdminDashboard() {
     }).length;
   }, [users, broadcastRoles, broadcastDepartments]);
 
+  const maxRoleCount = useMemo(() => {
+    if (!stats?.usersByRole || stats.usersByRole.length === 0) return 0;
+    return Math.max(...stats.usersByRole.map((item) => item.count));
+  }, [stats?.usersByRole]);
+
+  const maxStatusCount = useMemo(() => {
+    if (!stats?.papersByStatus || stats.papersByStatus.length === 0) return 0;
+    return Math.max(...stats.papersByStatus.map((item) => item.count));
+  }, [stats?.papersByStatus]);
+
   useEffect(() => {
     if (location.pathname === '/dashboard') {
       setActiveTab('overview');
@@ -824,17 +834,44 @@ export function AdminDashboard() {
             <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
               <h3 className="text-lg font-semibold">Users by Role</h3>
               {stats?.usersByRole && stats.usersByRole.length > 0 ? (
-                <div className="space-y-3">
+                <div className="divide-y divide-border/50">
                   {stats.usersByRole.map(({ role, count }) => (
-                    <div key={role} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          'w-3 h-3 rounded-full',
-                          role === 'admin' ? 'bg-destructive' : role === 'hod' ? 'bg-accent' : role === 'exam_cell' ? 'bg-warning' : 'bg-success'
-                        )} />
-                        <span className="font-medium text-sm">{roleLabels[role] || role}</span>
+                    <div key={role} className="py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={cn(
+                              'w-2.5 h-2.5 rounded-full',
+                              role === 'admin'
+                                ? 'bg-destructive'
+                                : role === 'hod'
+                                  ? 'bg-accent'
+                                  : role === 'exam_cell'
+                                    ? 'bg-warning'
+                                    : 'bg-success'
+                            )}
+                          />
+                          <span className="text-sm text-foreground/85">{roleLabels[role] || role}</span>
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums">{count}</span>
                       </div>
-                      <span className="text-lg font-bold">{count}</span>
+                      <div className="mt-2 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            role === 'admin'
+                              ? 'bg-destructive'
+                              : role === 'hod'
+                                ? 'bg-accent'
+                                : role === 'exam_cell'
+                                  ? 'bg-warning'
+                                  : 'bg-success'
+                          )}
+                          style={{
+                            width: `${maxRoleCount > 0 ? Math.max((count / maxRoleCount) * 100, count > 0 ? 8 : 0) : 0}%`,
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -847,11 +884,30 @@ export function AdminDashboard() {
             <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
               <h3 className="text-lg font-semibold">Papers by Status</h3>
               {stats?.papersByStatus && stats.papersByStatus.length > 0 ? (
-                <div className="space-y-3">
+                <div className="divide-y divide-border/50">
                   {stats.papersByStatus.map(({ status, count }) => (
-                    <div key={status} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                      <span className="font-medium text-sm">{statusLabels[status] || status}</span>
-                      <span className="text-lg font-bold">{count}</span>
+                    <div key={status} className="py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-foreground/85">{statusLabels[status] || status}</span>
+                        <span className="text-sm font-semibold tabular-nums">{count}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            status === 'approved' || status === 'locked'
+                              ? 'bg-success'
+                              : status === 'pending_review' || status === 'submitted'
+                                ? 'bg-warning'
+                                : status === 'rejected'
+                                  ? 'bg-destructive'
+                                  : 'bg-accent'
+                          )}
+                          style={{
+                            width: `${maxStatusCount > 0 ? Math.max((count / maxStatusCount) * 100, count > 0 ? 8 : 0) : 0}%`,
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
