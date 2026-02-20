@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +56,7 @@ import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -95,6 +97,29 @@ const notificationTypeVariant: Record<string, 'secondary' | 'warning' | 'destruc
   success: 'success',
 };
 
+type DepartmentPaperSummary = {
+  approved: number;
+  pending: number;
+  rejected: number;
+  total: number;
+  lastActivity: string | null;
+};
+
+type UserPaperSummary = {
+  submitted: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  lastActivity: string | null;
+};
+
+const roleBadgeClass: Record<string, string> = {
+  admin: 'bg-slate-200 text-slate-800 border-slate-300',
+  hod: 'bg-accent/15 text-accent border-accent/30',
+  teacher: 'bg-secondary/60 text-foreground/80 border-border/60',
+  exam_cell: 'bg-warning/10 text-warning border-warning/30',
+};
+
 export function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useAdminStats();
   const { data: users, isLoading: usersLoading } = useAdminUsers();
@@ -113,6 +138,9 @@ export function AdminDashboard() {
   const [userSearch, setUserSearch] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptCode, setNewDeptCode] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [departmentPaperStats, setDepartmentPaperStats] = useState<Record<string, DepartmentPaperSummary>>({});
+  const [userPaperStats, setUserPaperStats] = useState<Record<string, UserPaperSummary>>({});
   const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'audit' | 'overview' | 'broadcast' | 'security'>('users');
 
   const [newUserName, setNewUserName] = useState('');
@@ -160,6 +188,99 @@ export function AdminDashboard() {
   }, [stats?.papersByStatus]);
 
   useEffect(() => {
+    if (!departments || departments.length === 0) {
+      setSelectedDepartmentId('');
+      return;
+    }
+    if (!selectedDepartmentId || !departments.some((dept) => dept.id === selectedDepartmentId)) {
+      setSelectedDepartmentId(departments[0].id);
+    }
+  }, [departments, selectedDepartmentId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchDepartmentAnalytics = async () => {
+      if (!departments || departments.length === 0) {
+        if (isMounted) {
+          setDepartmentPaperStats({});
+          setUserPaperStats({});
+        }
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('exam_papers')
+        .select('uploaded_by, status, updated_at, subjects(department_id)');
+
+      if (error) {
+        console.error('Error loading department analytics:', error);
+        return;
+      }
+
+      const deptStats: Record<string, DepartmentPaperSummary> = {};
+      const userStats: Record<string, UserPaperSummary> = {};
+
+      (data || []).forEach((row: any) => {
+        const subjectData = row?.subjects;
+        const deptId = Array.isArray(subjectData) ? subjectData[0]?.department_id : subjectData?.department_id;
+        if (!deptId) return;
+
+        const status = row.status as string;
+        const updatedAt = row.updated_at as string | null;
+        const uploader = row.uploaded_by as string | null;
+
+        if (!deptStats[deptId]) {
+          deptStats[deptId] = { approved: 0, pending: 0, rejected: 0, total: 0, lastActivity: null };
+        }
+
+        deptStats[deptId].total += 1;
+        if (status === 'approved' || status === 'locked') deptStats[deptId].approved += 1;
+        else if (status === 'rejected') deptStats[deptId].rejected += 1;
+        else deptStats[deptId].pending += 1;
+
+        if (
+          updatedAt &&
+          (!deptStats[deptId].lastActivity ||
+            new Date(updatedAt).getTime() > new Date(deptStats[deptId].lastActivity as string).getTime())
+        ) {
+          deptStats[deptId].lastActivity = updatedAt;
+        }
+
+        if (uploader) {
+          if (!userStats[uploader]) {
+            userStats[uploader] = { submitted: 0, pending: 0, approved: 0, rejected: 0, lastActivity: null };
+          }
+
+          userStats[uploader].submitted += 1;
+          if (status === 'approved' || status === 'locked') userStats[uploader].approved += 1;
+          else if (status === 'rejected') userStats[uploader].rejected += 1;
+          else userStats[uploader].pending += 1;
+
+          if (
+            updatedAt &&
+            (!userStats[uploader].lastActivity ||
+              new Date(updatedAt).getTime() > new Date(userStats[uploader].lastActivity as string).getTime())
+          ) {
+            userStats[uploader].lastActivity = updatedAt;
+          }
+        }
+      });
+
+      if (isMounted) {
+        setDepartmentPaperStats(deptStats);
+        setUserPaperStats(userStats);
+      }
+    };
+
+    fetchDepartmentAnalytics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [departments]);
+
+  useEffect(() => {
     if (location.pathname === '/dashboard') {
       setActiveTab('overview');
     } else if (location.pathname.startsWith('/admin/users')) {
@@ -196,6 +317,15 @@ export function AdminDashboard() {
     } catch {
       toast({ title: 'Error', description: 'Cannot delete department with linked users or subjects.', variant: 'destructive' });
     }
+  };
+
+  const handleDepartmentAction = (action: 'add_teacher' | 'change_hod' | 'view_papers') => {
+    const labels: Record<typeof action, string> = {
+      add_teacher: 'Add Teacher',
+      change_hod: 'Change HOD',
+      view_papers: 'View Papers',
+    };
+    toast({ title: labels[action], description: 'This workflow will be connected next.' });
   };
 
   const handleCreateUser = async () => {
@@ -564,52 +694,266 @@ export function AdminDashboard() {
                 <Loader2 className="w-6 h-6 animate-spin text-accent" />
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {departments?.map((dept) => (
-                  <div key={dept.id} className="p-5 rounded-xl border bg-secondary/30 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold">{dept.name}</h3>
-                        <Badge variant="outline" className="mt-1">{dept.code}</Badge>
-                      </div>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Delete {dept.name}?</DialogTitle>
-                          </DialogHeader>
-                          <p className="text-muted-foreground">
-                            This will remove the department. Users and subjects linked to it must be reassigned first.
-                          </p>
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button variant="outline">Cancel</Button>
-                            </DialogClose>
-                            <DialogClose asChild>
-                              <Button variant="destructive" onClick={() => handleDeleteDepartment(dept.id, dept.name)}>
-                                Delete
+              <div className="grid lg:grid-cols-12 gap-5">
+                <div className="lg:col-span-5 space-y-3">
+                  {departments && departments.length > 0 ? (
+                    departments.map((dept) => {
+                      const deptUsers = (users || []).filter((u) => u.department_id === dept.id);
+                      const hod = deptUsers.find((u) => u.role === 'hod');
+                      const teachers = deptUsers.filter((u) => u.role === 'teacher');
+                      const isSelected = selectedDepartmentId === dept.id;
+                      const paperStats = departmentPaperStats[dept.id] || {
+                        approved: 0,
+                        pending: 0,
+                        rejected: 0,
+                        total: 0,
+                        lastActivity: null,
+                      };
+
+                      return (
+                        <div
+                          key={dept.id}
+                          className={cn(
+                            'rounded-xl border p-3.5 transition-colors',
+                            isSelected
+                              ? 'bg-secondary/30 border-border border-l-[3px] border-l-primary'
+                              : 'bg-secondary/20 hover:bg-secondary/30 border-border/70'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-left flex-1"
+                                  onClick={() => setSelectedDepartmentId(dept.id)}
+                                >
+                                  <h3 className="font-semibold leading-tight">{dept.name}</h3>
+                                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline">{dept.code}</Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {hod ? `HOD: ${hod.full_name}` : 'HOD: Not assigned'}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {teachers.length} Teachers - {paperStats.total} Papers
+                                  </p>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                <p>Total Teachers: {teachers.length}</p>
+                                <p>Active Papers: {paperStats.total}</p>
+                                <p>
+                                  Last Activity:{' '}
+                                  {paperStats.lastActivity
+                                    ? formatDistanceToNow(new Date(paperStats.lastActivity), { addSuffix: true })
+                                    : 'No activity'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <div className="flex items-center gap-1">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Delete {dept.name}?</DialogTitle>
+                                  </DialogHeader>
+                                  <p className="text-muted-foreground">
+                                    This will remove the department. Users and subjects linked to it must be reassigned first.
+                                  </p>
+                                  <DialogFooter>
+                                    <DialogClose asChild>
+                                      <Button variant="outline">Cancel</Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                      <Button variant="destructive" onClick={() => handleDeleteDepartment(dept.id, dept.name)}>
+                                        Delete
+                                      </Button>
+                                    </DialogClose>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No departments available.</p>
+                  )}
+                </div>
+
+                <div className="lg:col-span-7 rounded-xl border bg-card p-5">
+                  {selectedDepartmentId ? (
+                    (() => {
+                      const selectedDept = departments?.find((dept) => dept.id === selectedDepartmentId);
+                      const selectedUsers = (users || []).filter((u) => u.department_id === selectedDepartmentId);
+                      const selectedHod = selectedUsers.find((u) => u.role === 'hod');
+                      const selectedTeachers = selectedUsers.filter((u) => u.role === 'teacher');
+                      const selectedDeptStats = departmentPaperStats[selectedDepartmentId] || {
+                        approved: 0,
+                        pending: 0,
+                        rejected: 0,
+                        total: 0,
+                        lastActivity: null,
+                      };
+                      const selectedMax = Math.max(selectedDeptStats.approved, selectedDeptStats.pending, selectedDeptStats.rejected, 1);
+
+                      return (
+                        <div className="space-y-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                            <h3 className="text-lg font-semibold">{selectedDept?.name || 'Department'}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {selectedDept?.code || '--'} - {selectedTeachers.length} teachers
+                            </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {selectedDeptStats.approved} Approved - {selectedDeptStats.pending} Pending - {selectedDeptStats.rejected} Rejected
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDepartmentAction('add_teacher')}>
+                                Add Teacher
                               </Button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                    <div className="flex gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" />
-                        {dept.teachers_count} users
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        {dept.subjects_count} subjects
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDepartmentAction('change_hod')}>
+                                Change HOD
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDepartmentAction('view_papers')}>
+                                View Papers
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg border-2 border-accent/20 bg-accent/5 p-3.5">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Head of Department</p>
+                            {selectedHod ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-medium">{selectedHod.full_name}</p>
+                                      <Badge variant="outline" className={cn('text-[10px]', roleBadgeClass.hod)}>
+                                        HOD
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{selectedHod.email}</p>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-xs">
+                                  <p>Joined: {format(new Date(selectedHod.created_at), 'MMM d, yyyy')}</p>
+                                  <p>Papers Approved: {userPaperStats[selectedHod.id]?.approved || 0}</p>
+                                  <p>Papers Rejected: {userPaperStats[selectedHod.id]?.rejected || 0}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">No HOD assigned</p>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleDepartmentAction('change_hod')}>
+                                  Assign HOD
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Teachers</p>
+                              <Badge variant="secondary" className="text-xs">
+                                {selectedTeachers.length}
+                              </Badge>
+                            </div>
+                            {usersLoading ? (
+                              <p className="text-sm text-muted-foreground">Loading users...</p>
+                            ) : selectedTeachers.length > 0 ? (
+                              <div className="divide-y divide-border/50 rounded-lg border">
+                                {selectedTeachers.map((teacher) => (
+                                  <Tooltip key={teacher.id}>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-secondary/20 transition-colors text-left"
+                                      >
+                                        <div className="min-w-0">
+                                          <p className="text-sm truncate">{teacher.full_name}</p>
+                                          <p className="text-xs text-muted-foreground truncate">{teacher.email}</p>
+                                        </div>
+                                        <Badge variant="outline" className={cn('text-[10px]', roleBadgeClass.teacher)}>
+                                          Teacher
+                                        </Badge>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="text-xs">
+                                      <p>Papers Submitted: {userPaperStats[teacher.id]?.submitted || 0}</p>
+                                      <p>Pending Review: {userPaperStats[teacher.id]?.pending || 0}</p>
+                                      <p>
+                                        Last Activity:{' '}
+                                        {userPaperStats[teacher.id]?.lastActivity
+                                          ? formatDistanceToNow(new Date(userPaperStats[teacher.id].lastActivity as string), {
+                                              addSuffix: true,
+                                            })
+                                          : 'No activity'}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No teachers assigned to this department.</p>
+                            )}
+                          </div>
+
+                          <div className="rounded-lg border bg-secondary/20 p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Department Analytics</p>
+                              <Badge variant="outline" className="text-[10px]">
+                                Total: {selectedDeptStats.total}
+                              </Badge>
+                            </div>
+                            {[
+                              { label: 'Approved', value: selectedDeptStats.approved, bar: 'bg-success' },
+                              { label: 'Pending', value: selectedDeptStats.pending, bar: 'bg-warning' },
+                              { label: 'Rejected', value: selectedDeptStats.rejected, bar: 'bg-destructive' },
+                            ].map((item) => (
+                              <div key={item.label}>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">{item.label}</span>
+                                  <span className="font-medium">
+                                    {item.value} ({selectedDeptStats.total > 0 ? Math.round((item.value / selectedDeptStats.total) * 100) : 0}%)
+                                  </span>
+                                </div>
+                                <div className="mt-1 h-1.5 rounded-full bg-secondary/70">
+                                  <div
+                                    className={cn('h-1.5 rounded-full', item.bar)}
+                                    style={{
+                                      width: `${Math.max((item.value / selectedMax) * 100, item.value > 0 ? 8 : 0)}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                            <p className="text-xs text-muted-foreground">
+                              Last Activity:{' '}
+                              {selectedDeptStats.lastActivity
+                                ? formatDistanceToNow(new Date(selectedDeptStats.lastActivity), { addSuffix: true })
+                                : 'No activity'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select a department to view role mapping.</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
