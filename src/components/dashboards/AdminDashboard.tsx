@@ -154,6 +154,8 @@ export function AdminDashboard() {
   const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'success'>('info');
   const [broadcastRoles, setBroadcastRoles] = useState<AppRole[]>([]);
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
+  const [broadcastFeedTypeFilter, setBroadcastFeedTypeFilter] = useState<'all' | 'info' | 'warning' | 'critical' | 'success'>('all');
+  const [broadcastFeedDeptFilter, setBroadcastFeedDeptFilter] = useState<string>('all');
   const [auditFilter, setAuditFilter] = useState<'all' | 'approve' | 'reject' | 'upload' | 'select'>('all');
 
   const filteredUsers = users?.filter(
@@ -177,6 +179,46 @@ export function AdminDashboard() {
       return broadcastDepartments.includes(user.department_id);
     }).length;
   }, [users, broadcastRoles, broadcastDepartments]);
+
+  const targetedUsers = useMemo(() => {
+    if (!users || broadcastRoles.length === 0) return [];
+    return users.filter((user) => {
+      if (!user.role || !broadcastRoles.includes(user.role)) return false;
+      if (broadcastDepartments.length === 0) return true;
+      if (!user.department_id) return false;
+      return broadcastDepartments.includes(user.department_id);
+    });
+  }, [users, broadcastRoles, broadcastDepartments]);
+
+  const recipientByRole = useMemo(() => {
+    const map = new Map<AppRole, number>();
+    targetedUsers.forEach((user) => {
+      if (!user.role) return;
+      map.set(user.role, (map.get(user.role) || 0) + 1);
+    });
+    return map;
+  }, [targetedUsers]);
+
+  const filteredRecentNotifications = useMemo(() => {
+    const items = recentNotifications || [];
+    return items.filter((notification) => {
+      const typeMatch = broadcastFeedTypeFilter === 'all' || (notification.type || 'info') === broadcastFeedTypeFilter;
+      const deptMatch =
+        broadcastFeedDeptFilter === 'all' ||
+        (notification.target_departments || []).includes(broadcastFeedDeptFilter);
+      return typeMatch && deptMatch;
+    });
+  }, [recentNotifications, broadcastFeedTypeFilter, broadcastFeedDeptFilter]);
+
+  const isBroadcastValid = useMemo(() => {
+    return Boolean(
+      profile?.id &&
+      broadcastTitle.trim() &&
+      broadcastMessage.trim() &&
+      broadcastRoles.length > 0 &&
+      recipientCount > 0
+    );
+  }, [profile?.id, broadcastTitle, broadcastMessage, broadcastRoles, recipientCount]);
 
   const maxRoleCount = useMemo(() => {
     if (!stats?.usersByRole || stats.usersByRole.length === 0) return 0;
@@ -1060,17 +1102,15 @@ export function AdminDashboard() {
             <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold">Broadcast Notification</h2>
+                  <h2 className="text-xl font-semibold tracking-tight">Compose Alert</h2>
                   <p className="text-sm text-muted-foreground">
-                    Send role-based or department-based alerts to staff.
+                    Notify selected roles across departments with clear instructions.
                   </p>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Recipients: {users ? recipientCount : 'N/A'}
-                </Badge>
+                <Badge variant="outline" className="text-[11px] uppercase">{broadcastType}</Badge>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label>Title</Label>
                   <Input
@@ -1085,37 +1125,44 @@ export function AdminDashboard() {
                     placeholder="Write a clear instruction or alert for the selected recipients..."
                     value={broadcastMessage}
                     onChange={(e) => setBroadcastMessage(e.target.value)}
-                    rows={5}
+                    rows={4}
                   />
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Keep it clear and actionable.</span>
+                    <span>{broadcastMessage.length}/500</span>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Alert Type</Label>
-                  <Select value={broadcastType} onValueChange={(value) => setBroadcastType(value as typeof broadcastType)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select alert type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {notificationTypeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {notificationTypeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={cn(
+                          'h-8 rounded-md border text-xs font-medium transition-colors',
+                          option.value === 'info' && (broadcastType === option.value ? 'bg-accent text-accent-foreground border-accent' : 'border-accent/40 text-accent hover:bg-accent/10'),
+                          option.value === 'warning' && (broadcastType === option.value ? 'bg-warning text-warning-foreground border-warning' : 'border-warning/40 text-warning hover:bg-warning/10'),
+                          option.value === 'critical' && (broadcastType === option.value ? 'bg-destructive text-destructive-foreground border-destructive' : 'border-destructive/40 text-destructive hover:bg-destructive/10'),
+                          option.value === 'success' && (broadcastType === option.value ? 'bg-success text-success-foreground border-success' : 'border-success/40 text-success hover:bg-success/10')
+                        )}
+                        onClick={() => setBroadcastType(option.value as typeof broadcastType)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <Label>Target Roles</Label>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="grid sm:grid-cols-2 gap-2">
                     {broadcastRoleOptions.map((option) => (
-                      <label key={option.value} className="flex items-start gap-3 rounded-xl border bg-secondary/30 p-3">
+                      <label key={option.value} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-1.5">
                         <Checkbox
                           checked={broadcastRoles.includes(option.value)}
                           onCheckedChange={(checked) => handleRoleToggle(option.value, checked)}
                         />
-                        <div>
-                          <p className="text-sm font-medium">{roleLabels[option.value]}</p>
-                          <p className="text-xs text-muted-foreground">{option.description}</p>
-                        </div>
+                        <p className="text-sm font-medium">{roleLabels[option.value]}</p>
                       </label>
                     ))}
                   </div>
@@ -1126,7 +1173,7 @@ export function AdminDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs"
+                      className="h-7 text-xs text-muted-foreground"
                       onClick={() => setBroadcastDepartments([])}
                       disabled={broadcastDepartments.length === 0}
                     >
@@ -1136,17 +1183,15 @@ export function AdminDashboard() {
                   {deptsLoading ? (
                     <p className="text-sm text-muted-foreground">Loading departments...</p>
                   ) : departments && departments.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="grid sm:grid-cols-2 gap-2">
                       {departments.map((dept) => (
-                        <label key={dept.id} className="flex items-start gap-3 rounded-xl border bg-secondary/30 p-3">
+                        <label key={dept.id} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-1.5">
                           <Checkbox
                             checked={broadcastDepartments.includes(dept.id)}
                             onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
                           />
-                          <div>
-                            <p className="text-sm font-medium">{dept.name}</p>
-                            <p className="text-xs text-muted-foreground">{dept.code}</p>
-                          </div>
+                          <p className="text-sm font-medium">{dept.name}</p>
+                          <span className="text-[10px] text-muted-foreground">({dept.code})</span>
                         </label>
                       ))}
                     </div>
@@ -1157,17 +1202,53 @@ export function AdminDashboard() {
                     Leave empty to notify all departments. Exam cell users are not department-scoped.
                   </p>
                 </div>
+
+                <div className="rounded-lg border bg-accent/5 p-3 space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Target Summary</p>
+                  <div className="text-sm space-y-2">
+                    {broadcastRoles.length === 0 ? (
+                      <p className="text-muted-foreground">Select at least one role.</p>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-foreground/80">Roles:</p>
+                          {broadcastRoleOptions.map((option) => {
+                            const count = recipientByRole.get(option.value) || 0;
+                            if (count === 0) return null;
+                            return <p key={option.value} className="text-muted-foreground">- {count} {roleLabels[option.value]}</p>;
+                          })}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-foreground/80">Departments:</p>
+                          {broadcastDepartments.length > 0 ? (
+                            broadcastDepartments.map((deptId) => (
+                              <p key={deptId} className="text-muted-foreground">
+                                - {departmentNameMap.get(deptId) || deptId}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-muted-foreground">- All departments</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    <p className="font-semibold">Total recipients: {recipientCount}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Logic: selected roles + selected departments. If no departments are selected, matching roles from all departments are notified.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
-                  {broadcastRoles.length === 0 ? 'Select at least one role.' : 'Ready to broadcast.'}
+                  {isBroadcastValid ? 'Ready to broadcast.' : 'Complete title, message, role, and valid recipients.'}
                 </div>
                 <Button
                   variant="hero"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                   onClick={handleBroadcast}
-                  disabled={createNotification.isPending}
+                  disabled={createNotification.isPending || !isBroadcastValid}
                 >
                   <Bell className="w-4 h-4" />
                   {createNotification.isPending ? 'Sending...' : 'Send Notification'}
@@ -1178,39 +1259,75 @@ export function AdminDashboard() {
             <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Recent Broadcasts</h2>
-                <Badge variant="outline" className="text-xs">
-                  {recentNotifications?.length || 0} latest
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Select value={broadcastFeedTypeFilter} onValueChange={(value) => setBroadcastFeedTypeFilter(value as typeof broadcastFeedTypeFilter)}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="info">Info</SelectItem>
+                      <SelectItem value="warning">Warning</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="success">Success</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={broadcastFeedDeptFilter} onValueChange={setBroadcastFeedDeptFilter}>
+                    <SelectTrigger className="h-8 w-[150px] text-xs">
+                      <SelectValue placeholder="Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All departments</SelectItem>
+                      {(departments || []).map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {recentNotifications && recentNotifications.length > 0 ? (
+              {filteredRecentNotifications.length > 0 ? (
                 <div className="space-y-3">
-                  {recentNotifications.map((notification) => (
-                    <div key={notification.id} className="flex items-start gap-4 rounded-xl border bg-secondary/30 p-4">
-                      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                        <Bell className="w-5 h-5 text-accent" />
+                  {filteredRecentNotifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={cn(
+                        'rounded-lg border bg-card p-3.5 border-l-4',
+                        notification.type === 'critical'
+                          ? 'border-l-destructive'
+                          : notification.type === 'warning'
+                            ? 'border-l-warning'
+                            : notification.type === 'success'
+                              ? 'border-l-success'
+                              : 'border-l-accent'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-medium truncate">{notification.title}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'} className="text-[10px] uppercase">
+                              {notification.type || 'info'}
+                            </Badge>
+                            <span>
+                              {notification.created_at
+                                ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                                : 'Just now'}
+                            </span>
+                          </div>
+                        </div>
+                        <Bell className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                       </div>
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{notification.title}</span>
-                          <Badge variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'} className="text-[10px] uppercase">
-                            {notification.type || 'info'}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {notification.message.length > 140 ? `${notification.message.slice(0, 140)}...` : notification.message}
+                      <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                        <p>
+                          Target: {notification.target_roles.map((role) => roleLabels[role] || role).join(', ')}
+                          {' '}({formatDepartmentTargets(notification.target_departments)})
                         </p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span>
-                            Roles: {notification.target_roles.map((role) => roleLabels[role] || role).join(', ')}
-                          </span>
-                          <span>Departments: {formatDepartmentTargets(notification.target_departments)}</span>
-                          <span>
-                            {notification.created_at
-                              ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
-                              : 'Just now'}
-                          </span>
-                        </div>
+                        <p>
+                          Message: {notification.message.length > 90 ? `${notification.message.slice(0, 90)}...` : notification.message}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1218,7 +1335,7 @@ export function AdminDashboard() {
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No broadcasts sent yet</p>
+                  <p>{recentNotifications && recentNotifications.length > 0 ? 'No broadcasts match filters' : 'No broadcasts sent yet'}</p>
                   <p className="text-sm mt-1">Send a notification to see it logged here.</p>
                 </div>
               )}
