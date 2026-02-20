@@ -5,7 +5,7 @@ import { useAdminUsers, AdminUser } from '@/hooks/useAdminUsers';
 import { useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useAdminUserActions';
 import { useAdminDepartments, useCreateDepartment, useDeleteDepartment } from '@/hooks/useAdminDepartments';
 import { useAdminNotifications, useCreateNotification } from '@/hooks/useAdminNotifications';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +33,6 @@ import {
   Bell,
   Building,
   FileText,
-  ShieldCheck,
   Activity,
   Plus,
   Search,
@@ -351,29 +350,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="space-y-6">
-        <TabsList className="bg-card border flex flex-wrap gap-2">
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="w-4 h-4" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="gap-2">
-            <Building className="w-4 h-4" />
-            Departments
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="gap-2">
-            <Activity className="w-4 h-4" />
-            Audit Logs
-          </TabsTrigger>
-          <TabsTrigger value="broadcast" className="gap-2">
-            <Bell className="w-4 h-4" />
-            Broadcasts
-          </TabsTrigger>
-          <TabsTrigger value="overview" className="gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            Overview
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} className="space-y-6">
 
         {/* Users Tab */}
         <TabsContent value="users">
