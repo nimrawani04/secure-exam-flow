@@ -112,7 +112,7 @@ export function AdminDashboard() {
   const [userSearch, setUserSearch] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptCode, setNewDeptCode] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'audit' | 'overview' | 'broadcast'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'audit' | 'overview' | 'broadcast' | 'security'>('users');
 
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -160,7 +160,7 @@ export function AdminDashboard() {
     } else if (location.pathname.startsWith('/admin/broadcasts')) {
       setActiveTab('broadcast');
     } else if (location.pathname.startsWith('/admin/security')) {
-      setActiveTab('overview');
+      setActiveTab('security');
     } else {
       setActiveTab('overview');
     }
@@ -860,30 +860,33 @@ export function AdminDashboard() {
               )}
             </div>
 
-            {/* System Settings */}
-            <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4 md:col-span-2">
-              <div className="flex items-center gap-3 mb-2">
-                <AlertTriangle className="w-5 h-5 text-warning" />
-                <h3 className="text-lg font-semibold">Security Reminder</h3>
+          </div>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security">
+          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <h3 className="text-lg font-semibold">Security Reminder</h3>
+            </div>
+            <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
+              <p className="text-sm text-muted-foreground">
+                As an Admin, you have system-wide management access but are <strong>cryptographically restricted from viewing, previewing, or downloading exam paper content</strong> to maintain academic confidentiality and separation of duties.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4 mt-4">
+              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+                <p className="text-2xl font-bold">10 MB</p>
+                <p className="text-sm text-muted-foreground">Max File Size</p>
               </div>
-              <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
-                <p className="text-sm text-muted-foreground">
-                  As an Admin, you have system-wide management access but are <strong>cryptographically restricted from viewing, previewing, or downloading exam paper content</strong> to maintain academic confidentiality and separation of duties.
-                </p>
+              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+                <p className="text-2xl font-bold">30 min</p>
+                <p className="text-sm text-muted-foreground">Session Timeout</p>
               </div>
-              <div className="grid sm:grid-cols-3 gap-4 mt-4">
-                <div className="p-4 rounded-xl border bg-secondary/30 text-center">
-                  <p className="text-2xl font-bold">10 MB</p>
-                  <p className="text-sm text-muted-foreground">Max File Size</p>
-                </div>
-                <div className="p-4 rounded-xl border bg-secondary/30 text-center">
-                  <p className="text-2xl font-bold">30 min</p>
-                  <p className="text-sm text-muted-foreground">Session Timeout</p>
-                </div>
-                <div className="p-4 rounded-xl border bg-secondary/30 text-center">
-                  <p className="text-2xl font-bold">PDF Only</p>
-                  <p className="text-sm text-muted-foreground">Allowed Files</p>
-                </div>
+              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+                <p className="text-2xl font-bold">PDF Only</p>
+                <p className="text-sm text-muted-foreground">Allowed Files</p>
               </div>
             </div>
           </div>
