@@ -154,6 +154,7 @@ export function AdminDashboard() {
   const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'success'>('info');
   const [broadcastRoles, setBroadcastRoles] = useState<AppRole[]>([]);
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
+  const [auditFilter, setAuditFilter] = useState<'all' | 'approve' | 'reject' | 'upload' | 'select'>('all');
 
   const filteredUsers = users?.filter(
     (u) =>
@@ -186,6 +187,39 @@ export function AdminDashboard() {
     if (!stats?.papersByStatus || stats.papersByStatus.length === 0) return 0;
     return Math.max(...stats.papersByStatus.map((item) => item.count));
   }, [stats?.papersByStatus]);
+
+  const filteredAuditLogs = useMemo(() => {
+    const logs = stats?.recentAuditLogs || [];
+    if (auditFilter === 'all') return logs;
+    return logs.filter((log) => log.action.toLowerCase().includes(auditFilter));
+  }, [stats?.recentAuditLogs, auditFilter]);
+
+  const getAuditKind = (action: string) => {
+    const normalized = action.toLowerCase();
+    if (normalized.includes('approve')) return 'approve';
+    if (normalized.includes('reject')) return 'reject';
+    if (normalized.includes('upload')) return 'upload';
+    if (normalized.includes('select')) return 'select';
+    return 'other';
+  };
+
+  const getAuditVerb = (action: string) => {
+    const kind = getAuditKind(action);
+    if (kind === 'approve') return 'approved';
+    if (kind === 'reject') return 'rejected';
+    if (kind === 'upload') return 'uploaded';
+    if (kind === 'select') return 'selected';
+    return action.toLowerCase();
+  };
+
+  const getAuditAccent = (action: string) => {
+    const kind = getAuditKind(action);
+    if (kind === 'approve') return 'border-l-success text-success';
+    if (kind === 'reject') return 'border-l-destructive text-destructive';
+    if (kind === 'upload') return 'border-l-accent text-accent';
+    if (kind === 'select') return 'border-l-warning text-warning';
+    return 'border-l-border text-muted-foreground';
+  };
 
   useEffect(() => {
     if (!departments || departments.length === 0) {
@@ -964,37 +998,57 @@ export function AdminDashboard() {
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Recent Audit Logs</h2>
-              <Badge variant="outline" className="gap-1.5">
-                <Clock className="w-3 h-3" />
-                Last 20 entries
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Select value={auditFilter} onValueChange={(value) => setAuditFilter(value as typeof auditFilter)}>
+                  <SelectTrigger className="h-8 w-[150px] text-xs">
+                    <SelectValue placeholder="All actions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All actions</SelectItem>
+                    <SelectItem value="approve">Approvals</SelectItem>
+                    <SelectItem value="reject">Rejections</SelectItem>
+                    <SelectItem value="upload">Uploads</SelectItem>
+                    <SelectItem value="select">Selections</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className="gap-1.5">
+                  <Clock className="w-3 h-3" />
+                  Last 20 entries
+                </Badge>
+              </div>
             </div>
 
-            {stats?.recentAuditLogs && stats.recentAuditLogs.length > 0 ? (
-              <div className="space-y-3">
-                {stats.recentAuditLogs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-4 p-4 rounded-xl border bg-secondary/30">
-                    <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <Activity className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{log.user_name}</span>
-                        <Badge variant="outline" className="text-xs">{log.action}</Badge>
-                        <Badge variant="secondary" className="text-xs">{log.entity_type}</Badge>
+            {filteredAuditLogs.length > 0 ? (
+              <div className="rounded-xl border overflow-hidden">
+                {filteredAuditLogs.map((log) => {
+                  const verb = getAuditVerb(log.action);
+                  const accent = getAuditAccent(log.action);
+                  const object = log.entity_type.toLowerCase() === 'paper' ? 'a paper' : `a ${log.entity_type}`;
+                  return (
+                    <div
+                      key={log.id}
+                      className={cn(
+                        'flex items-center justify-between gap-3 px-4 py-3 border-b last:border-b-0 border-border/60 border-l-2 bg-card',
+                        accent
+                      )}
+                    >
+                      <div className="min-w-0 text-sm">
+                        <span className="font-medium text-foreground">{log.user_name}</span>{' '}
+                        <span className="font-medium">{verb}</span>{' '}
+                        <span className="text-foreground/90">{object}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-                      </p>
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No audit logs recorded yet</p>
-                <p className="text-sm mt-1">Actions like paper uploads, reviews, and approvals will appear here</p>
+                <p>{auditFilter === 'all' ? 'No audit logs recorded yet' : 'No logs match this filter'}</p>
+                <p className="text-sm mt-1">Actions like uploads, reviews, and approvals will appear here</p>
               </div>
             )}
           </div>
