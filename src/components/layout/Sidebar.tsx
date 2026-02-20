@@ -14,7 +14,6 @@ import {
   ClipboardList,
   Building,
   Activity,
-  ShieldCheck,
   User,
   Bell,
   ChevronLeft,
@@ -51,7 +50,6 @@ const roleNavItems = {
     { icon: Building, label: 'Departments', path: '/admin/departments' },
     { icon: Activity, label: 'Audit Logs', path: '/admin/audit' },
     { icon: Bell, label: 'Broadcasts', path: '/admin/broadcasts' },
-    { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
   ],
 };
 
