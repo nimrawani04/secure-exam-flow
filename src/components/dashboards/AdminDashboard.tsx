@@ -13,6 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -41,10 +47,12 @@ import {
   BookOpen,
   Clock,
   AlertTriangle,
+  MoreHorizontal,
+  Pencil,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -63,13 +71,6 @@ const broadcastRoleOptions: { value: AppRole; description: string }[] = [
   { value: 'exam_cell', description: 'Exam cell operations' },
   { value: 'admin', description: 'System administrators' },
 ];
-
-const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  teacher: 'secondary',
-  hod: 'default',
-  exam_cell: 'outline',
-  admin: 'destructive',
-};
 
 const statusLabels: Record<string, string> = {
   draft: 'Draft',
@@ -473,15 +474,15 @@ export function AdminDashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[840px]">
+                <table className="w-full min-w-[900px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Email</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Role</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Department</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">Joined</th>
-                      <th className="text-right py-3 px-4 font-medium text-muted-foreground text-sm">Actions</th>
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-sm">Name</th>
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-sm">Email</th>
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-sm">Role</th>
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-sm">Department</th>
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-sm">Joined</th>
+                      <th className="text-right py-2.5 px-4 font-medium text-muted-foreground text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -497,7 +498,7 @@ export function AdminDashboard() {
                     ))}
                     {filteredUsers?.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <td colSpan={6} className="text-center py-8 text-muted-foreground">
                           No users found
                         </td>
                       </tr>
@@ -973,6 +974,23 @@ function UserRow({
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<AppRole>((user.role as AppRole) || 'teacher');
   const [departmentId, setDepartmentId] = useState<string>(user.department_id || '');
+  const initials = useMemo(() => {
+    return user.full_name
+      .trim()
+      .split(/\s+/)
+      .map((name) => name[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }, [user.full_name]);
+  const joinedDate = useMemo(() => {
+    const date = new Date(user.created_at);
+    return Number.isNaN(date.getTime()) ? 'Unknown' : format(date, 'MMM d, yyyy');
+  }, [user.created_at]);
+  const joinedRelative = useMemo(() => {
+    const date = new Date(user.created_at);
+    return Number.isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true });
+  }, [user.created_at]);
 
   useEffect(() => {
     if (open) {
@@ -1011,28 +1029,28 @@ function UserRow({
   };
 
   return (
-    <tr className="border-b hover:bg-secondary/50 transition-colors">
-      <td className="py-3 px-4 font-medium text-sm">{user.full_name}</td>
-      <td className="py-3 px-4 text-sm text-muted-foreground">{user.email}</td>
-      <td className="py-3 px-4 text-sm">
-        <Badge variant={user.role ? roleBadgeVariant[user.role] : 'secondary'}>
+    <tr className="border-b hover:bg-secondary/20 transition-colors">
+      <td className="py-2.5 px-4 text-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-full bg-secondary/70 text-xs font-semibold text-foreground/80 flex items-center justify-center">
+            {initials || 'U'}
+          </div>
+          <span className="font-medium">{user.full_name}</span>
+        </div>
+      </td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{user.email}</td>
+      <td className="py-2.5 px-4 text-sm">
+        <Badge variant="outline" className="bg-secondary/40 text-foreground border-border/60">
           {roleLabels[user.role || 'teacher'] || 'Unknown'}
         </Badge>
       </td>
-      <td className="py-3 px-4 text-sm text-muted-foreground">
-        {user.department_name || '—'}
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{user.department_name || '--'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground" title={joinedRelative}>
+        {joinedDate}
       </td>
-      <td className="py-3 px-4 text-sm text-muted-foreground">
-        {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
-      </td>
-      <td className="py-3 px-4 text-right">
-        <div className="flex items-center justify-end gap-2">
+      <td className="py-2.5 px-4 text-right">
+        <div className="flex items-center justify-end">
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                Edit
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
@@ -1088,11 +1106,6 @@ function UserRow({
           </Dialog>
 
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={isSelf}>
-                Delete
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Delete user?</DialogTitle>
@@ -1110,6 +1123,27 @@ function UserRow({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => setOpen(true)} className="gap-2">
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setConfirmOpen(true)}
+                disabled={isSelf}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </td>
     </tr>
