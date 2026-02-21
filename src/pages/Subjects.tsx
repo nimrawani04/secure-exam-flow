@@ -38,7 +38,7 @@ export default function Subjects() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         <div>
           <h1 className="text-3xl font-bold">Assigned Subjects</h1>
           <p className="text-muted-foreground mt-1">
@@ -66,58 +66,43 @@ export default function Subjects() {
         ) : (
           <>
             <div className="space-y-3">
-              <div className="md:hidden sticky top-0 z-10 -mx-4 border-y bg-background/95 px-4 py-3 backdrop-blur">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSemester('all')}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selectedSemester === 'all'
-                        ? 'border-accent/40 bg-accent/10 text-accent'
-                        : 'border-border/60 bg-background text-muted-foreground'
-                    }`}
+              <div className="md:hidden mt-1 space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    value={selectedSemester === 'all' ? 'all' : String(selectedSemester)}
+                    onValueChange={(value) =>
+                      setSelectedSemester(value === 'all' ? 'all' : Number(value))
+                    }
                   >
-                    All
-                  </button>
-                  {SEMESTER_OPTIONS.map((semester) => (
-                    <button
-                      key={semester}
-                      type="button"
-                      onClick={() => setSelectedSemester(semester)}
-                      className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        selectedSemester === semester
-                          ? 'border-accent/40 bg-accent/10 text-accent'
-                          : 'border-border/60 bg-background text-muted-foreground'
-                      }`}
-                    >
-                      Sem {semester}
-                    </button>
-                  ))}
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue placeholder="Semester" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Semesters</SelectItem>
+                      {SEMESTER_OPTIONS.map((semester) => (
+                        <SelectItem key={semester} value={String(semester)}>
+                          Semester {semester}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={sortOrder}
+                    onValueChange={(value) => setSortOrder(value as SortOrder)}
+                  >
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desc">Newest First</SelectItem>
+                      <SelectItem value="asc">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder('desc')}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      sortOrder === 'desc'
-                        ? 'border-accent/40 bg-accent/10 text-accent'
-                        : 'border-border/60 bg-background text-muted-foreground'
-                    }`}
-                  >
-                    Newest First
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder('asc')}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      sortOrder === 'asc'
-                        ? 'border-accent/40 bg-accent/10 text-accent'
-                        : 'border-border/60 bg-background text-muted-foreground'
-                    }`}
-                  >
-                    Oldest First
-                  </button>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Showing {filteredAndSortedSubjects.length} subjects
+                </p>
               </div>
 
               <div className="hidden md:flex items-center gap-3">
@@ -164,11 +149,11 @@ export default function Subjects() {
               </div>
             ) : (
               <>
-                <div className="md:hidden divide-y divide-border/60 rounded-lg border border-border/60 bg-card px-4">
+                <div className="md:hidden divide-y divide-border/60">
                   {filteredAndSortedSubjects.map((subject) => (
                     <div
                       key={subject.id}
-                      className="py-4 transition-colors active:bg-muted/30"
+                      className="py-4 transition-colors active:bg-muted/20"
                     >
                       <h3 className="text-base font-semibold leading-tight">{subject.name}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
