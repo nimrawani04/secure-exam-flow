@@ -480,24 +480,25 @@ export default function Department() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="w-full sm:max-w-xs">
+                <div className="rounded-2xl border bg-muted/30 p-4">
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end md:gap-6">
+                    <div className="w-full md:max-w-xl">
                     <Label htmlFor="teacher-search">Search teachers</Label>
                     <Input
                       id="teacher-search"
                       value={teacherSearch}
                       onChange={(event) => setTeacherSearch(event.target.value)}
                       placeholder="Search by name or email"
-                      className="mt-2"
+                      className="mt-1 h-11 rounded-xl border-border bg-background px-4 text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
                     />
                   </div>
-                  <div className="w-full sm:w-56">
+                    <div className="w-full md:w-48 md:justify-self-end">
                     <Label htmlFor="teacher-sort">Sort by</Label>
                     <select
                       id="teacher-sort"
                       value={teacherSort}
                       onChange={(event) => setTeacherSort(event.target.value as 'name' | 'subjects')}
-                      className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
                     >
                       <option value="name">Name</option>
                       <option value="subjects">Subject count</option>
