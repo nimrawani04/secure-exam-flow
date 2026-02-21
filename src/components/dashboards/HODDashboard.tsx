@@ -91,21 +91,6 @@ export function HODDashboard() {
       year: 'numeric',
     });
 
-  const getPaperStatus = (paper: (typeof papersForReview)[number]) => {
-    const now = Date.now();
-    const deadline = paper.deadline.getTime();
-    if (paper.status === 'approved') {
-      return { label: 'Reviewed', className: 'bg-emerald-100 text-emerald-700' };
-    }
-    if (paper.status === 'rejected') {
-      return { label: 'Submitted', className: 'bg-sky-100 text-sky-700' };
-    }
-    if (deadline < now) {
-      return { label: 'Overdue', className: 'bg-rose-100 text-rose-700' };
-    }
-    return { label: 'Upcoming', className: 'bg-amber-100 text-amber-700' };
-  };
-
   const visiblePapers = papersForReview
     .filter((paper) => (selectedSubject ? paper.subjectId === selectedSubject : true))
     .filter((paper) => {
@@ -258,20 +243,20 @@ export function HODDashboard() {
 
         {/* Pending Papers */}
         <section className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Pending Papers</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {papersForReview.length} {papersForReview.length === 1 ? 'paper requires' : 'papers require'} selection
               </p>
             </div>
-            <Badge variant="secondary" className="text-sm">
+            <Badge variant="secondary">
               {papersForReview.length} Pending
             </Badge>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3 md:flex md:gap-6">
+            <div className="space-y-1 md:w-64">
               <label htmlFor="pending-sort" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Sort by
               </label>
@@ -287,7 +272,7 @@ export function HODDashboard() {
               </select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 md:w-48">
               <label htmlFor="pending-filter" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Filter
               </label>
@@ -335,56 +320,36 @@ export function HODDashboard() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {visiblePapers.map((paper) => {
-                const statusInfo = getPaperStatus(paper);
-                return (
-                  <div
-                    key={paper.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleRowClick(paper.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        handleRowClick(paper.id);
-                      }
-                    }}
-                    className={`group cursor-pointer rounded-xl border border-border/70 bg-muted/30 p-4 transition-all duration-150 ${
-                      selectedPaperId === paper.id
-                        ? 'border-accent/40 bg-accent/10'
-                        : 'hover:bg-muted/40'
-                    }`}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-sm font-medium text-foreground sm:text-base">{paper.subjectName}</h3>
-                          <p className="mt-1 text-xs text-muted-foreground">Due {formatDueDate(paper.deadline)}</p>
-                        </div>
-                        <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:text-xs ${statusInfo.className}`}>
-                          {statusInfo.label}
-                        </span>
-                      </div>
-
-                      <div className="w-full">
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="h-10 w-full rounded-lg px-4 text-sm font-medium transition active:scale-95 sm:h-9 sm:w-auto"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleRowClick(paper.id);
-                          }}
-                        >
-                          <FileCheck className="h-4 w-4" />
-                          Review
-                        </Button>
+            <div className="border rounded-lg divide-y bg-card">
+              {visiblePapers.map((paper) => (
+                <div
+                  key={paper.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleRowClick(paper.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleRowClick(paper.id);
+                    }
+                  }}
+                  className={`group cursor-pointer px-4 py-3 transition-all duration-150 ${
+                    selectedPaperId === paper.id
+                      ? 'bg-accent/10 border-l-4 border-accent'
+                      : 'hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{paper.subjectName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Due {formatDueDate(paper.deadline)}
                       </div>
                     </div>
+                    <Badge variant="pending">1</Badge>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </section>
