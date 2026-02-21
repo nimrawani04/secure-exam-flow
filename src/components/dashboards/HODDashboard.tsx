@@ -335,7 +335,7 @@ export function HODDashboard() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="border rounded-lg divide-y bg-card">
               {visiblePapers.map((paper) => {
                 const statusInfo = getPaperStatus(paper);
                 return (
@@ -350,20 +350,14 @@ export function HODDashboard() {
                         handleRowClick(paper.id);
                       }
                     }}
-                    className={`group cursor-pointer rounded-xl border border-border/70 bg-muted/30 p-4 transition-all duration-200 ${
+                    className={`group cursor-pointer px-4 py-3 transition-all duration-150 ${
                       selectedPaperId === paper.id
-                        ? 'border-accent/30 bg-accent/10'
-                        : 'hover:border-border/90 hover:bg-muted/40'
+                        ? 'bg-accent/10 border-l-4 border-accent'
+                        : 'hover:bg-muted/40'
                     }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 flex-1 items-center gap-3">
-                        {isNearDeadline(paper.deadline) ? (
-                          <div className="h-10 w-1 shrink-0 rounded-full bg-amber-500/90" />
-                        ) : (
-                          <div className="h-10 w-1 shrink-0 rounded-full bg-muted-foreground/20" />
-                        )}
-
                         <div className="min-w-0">
                           <h3 className="truncate text-base font-medium text-foreground">{paper.subjectName}</h3>
                           <p className="mt-1 text-xs text-muted-foreground">
