@@ -12,7 +12,6 @@ import {
   Eye,
   Lock,
   AlertTriangle,
-  FileText,
 } from 'lucide-react';
 
 export function HODDashboard() {
@@ -76,12 +75,6 @@ export function HODDashboard() {
 
   const handleSelectPaper = (paperId: string) => {
     setSelectedPaperId(selectedPaperId === paperId ? null : paperId);
-  };
-
-  const formatExamType = (examType: string) => {
-    if (examType === 'mid_term') return 'Mid Term';
-    if (examType === 'final_term') return 'Final Term';
-    return examType.replace('_', ' ');
   };
 
   const isNearDeadline = (date: Date) => {
@@ -265,51 +258,49 @@ export function HODDashboard() {
 
         {/* Pending Papers */}
         <section className="space-y-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">Pending Papers</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Nearest deadlines first. Select a row to review.
-                </p>
-              </div>
-              <span className="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
-                {papersForReview.length} Pending
-              </span>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Pending Papers</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {papersForReview.length} {papersForReview.length === 1 ? 'paper requires' : 'papers require'} selection
+              </p>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              {papersForReview.length} Pending
+            </Badge>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="w-full space-y-1 sm:w-44">
+              <label htmlFor="pending-sort" className="mb-1 block text-xs font-medium text-muted-foreground">
+                Sort by
+              </label>
+              <select
+                id="pending-sort"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                className="h-10 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
+              >
+                <option value="deadline">Nearest deadline</option>
+                <option value="subject">Subject</option>
+                <option value="status">Status</option>
+              </select>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="w-full space-y-1 sm:w-52">
-                <label htmlFor="pending-sort" className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Sort by
-                </label>
-                <select
-                  id="pending-sort"
-                  value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
-                >
-                  <option value="deadline">Nearest deadline</option>
-                  <option value="subject">Subject</option>
-                  <option value="status">Status</option>
-                </select>
-              </div>
-
-              <div className="w-full space-y-1 sm:w-52">
-                <label htmlFor="pending-filter" className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Filter
-                </label>
-                <select
-                  id="pending-filter"
-                  value={filterBy}
-                  onChange={(event) => setFilterBy(event.target.value as typeof filterBy)}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
-                >
-                  <option value="all">All</option>
-                  <option value="pending">Pending only</option>
-                  <option value="selected">Selected</option>
-                </select>
-              </div>
+            <div className="w-full space-y-1 sm:w-44">
+              <label htmlFor="pending-filter" className="mb-1 block text-xs font-medium text-muted-foreground">
+                Filter
+              </label>
+              <select
+                id="pending-filter"
+                value={filterBy}
+                onChange={(event) => setFilterBy(event.target.value as typeof filterBy)}
+                className="h-10 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending only</option>
+                <option value="selected">Selected</option>
+              </select>
             </div>
           </div>
 
@@ -348,70 +339,58 @@ export function HODDashboard() {
               {visiblePapers.map((paper) => {
                 const statusInfo = getPaperStatus(paper);
                 return (
-                <div
-                  key={paper.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleRowClick(paper.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleRowClick(paper.id);
-                    }
-                  }}
-                  className={`group cursor-pointer rounded-2xl border bg-background/90 px-4 py-4 transition-all duration-200 sm:px-5 sm:py-5 ${
-                    selectedPaperId === paper.id
-                      ? 'border-accent/30 bg-accent/10'
-                      : 'hover:-translate-y-0.5 hover:border-border/80 hover:shadow-lg'
-                  }`}
-                >
                   <div
-                    className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between ${
-                      isNearDeadline(paper.deadline) ? 'border-l-[3px] border-l-amber-400/60 pl-3 sm:pl-4' : ''
+                    key={paper.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleRowClick(paper.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleRowClick(paper.id);
+                      }
+                    }}
+                    className={`group cursor-pointer rounded-xl border border-border/70 bg-muted/30 p-4 transition-all duration-200 ${
+                      selectedPaperId === paper.id
+                        ? 'border-accent/30 bg-accent/10'
+                        : 'hover:border-border/90 hover:bg-muted/40'
                     }`}
                   >
-                    <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0 space-y-1">
-                        <div className="truncate text-lg font-semibold">{paper.subjectName}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {paper.anonymousId} | {formatExamType(paper.examType)} | {paper.subjectCode}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        {isNearDeadline(paper.deadline) ? (
+                          <div className="h-10 w-1 shrink-0 rounded-full bg-amber-500/90" />
+                        ) : (
+                          <div className="h-10 w-1 shrink-0 rounded-full bg-muted-foreground/20" />
+                        )}
+
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-medium text-foreground">{paper.subjectName}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Due {formatDueDate(paper.deadline)}
+                          </p>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2 text-sm md:mx-6 md:min-w-[170px] md:text-right">
-                      <div className="text-sm">
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Due</span>
-                        <span className="mx-1 text-muted-foreground">|</span>
-                        <span className={`font-semibold ${isNearDeadline(paper.deadline) ? 'text-warning' : 'text-foreground'}`}>
-                          {formatDueDate(paper.deadline)}
+                      <div className="flex w-full items-center gap-3 sm:w-auto">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusInfo.className}`}>
+                          {statusInfo.label}
                         </span>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-9 w-full rounded-xl px-4 text-sm font-medium sm:w-auto"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleRowClick(paper.id);
+                          }}
+                        >
+                          <FileCheck className="h-4 w-4" />
+                          Review
+                        </Button>
                       </div>
-                      <div className="text-xs text-muted-foreground">Submission deadline</div>
-                      <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium md:ml-auto ${statusInfo.className}`}>
-                        {statusInfo.label}
-                      </span>
-                    </div>
-
-                    <div className="w-full md:w-auto">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-10 w-full rounded-xl px-5 text-sm font-medium shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md md:w-auto"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleRowClick(paper.id);
-                        }}
-                      >
-                        <FileCheck className="h-4 w-4" />
-                        Review
-                      </Button>
                     </div>
                   </div>
-                </div>
                 );
               })}
             </div>
