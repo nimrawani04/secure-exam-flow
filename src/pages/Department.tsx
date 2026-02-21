@@ -505,6 +505,7 @@ export default function Department() {
                     </select>
                   </div>
                 </div>
+                </div>
 
                 <div className="space-y-2">
                   {filteredTeachers.map((teacher) => {
