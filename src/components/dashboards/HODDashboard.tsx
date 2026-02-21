@@ -270,8 +270,8 @@ export function HODDashboard() {
             </Badge>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="w-full space-y-1 sm:w-44">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
               <label htmlFor="pending-sort" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Sort by
               </label>
@@ -287,7 +287,7 @@ export function HODDashboard() {
               </select>
             </div>
 
-            <div className="w-full space-y-1 sm:w-44">
+            <div className="space-y-1">
               <label htmlFor="pending-filter" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Filter
               </label>
@@ -335,7 +335,7 @@ export function HODDashboard() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg divide-y bg-card">
+            <div className="space-y-3">
               {visiblePapers.map((paper) => {
                 const statusInfo = getPaperStatus(paper);
                 return (
@@ -350,30 +350,28 @@ export function HODDashboard() {
                         handleRowClick(paper.id);
                       }
                     }}
-                    className={`group cursor-pointer px-4 py-3 transition-all duration-150 ${
+                    className={`group cursor-pointer rounded-xl border border-border/70 bg-muted/30 p-4 transition-all duration-150 ${
                       selectedPaperId === paper.id
-                        ? 'bg-accent/10 border-l-4 border-accent'
+                        ? 'border-accent/40 bg-accent/10'
                         : 'hover:bg-muted/40'
                     }`}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="truncate text-base font-medium text-foreground">{paper.subjectName}</h3>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Due {formatDueDate(paper.deadline)}
-                          </p>
+                          <h3 className="truncate text-sm font-medium text-foreground sm:text-base">{paper.subjectName}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">Due {formatDueDate(paper.deadline)}</p>
                         </div>
-                      </div>
-
-                      <div className="flex w-full items-center gap-3 sm:w-auto">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusInfo.className}`}>
+                        <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:text-xs ${statusInfo.className}`}>
                           {statusInfo.label}
                         </span>
+                      </div>
+
+                      <div className="w-full">
                         <Button
                           size="sm"
                           variant="default"
-                          className="h-9 w-full rounded-xl px-4 text-sm font-medium sm:w-auto"
+                          className="h-10 w-full rounded-lg px-4 text-sm font-medium transition active:scale-95 sm:h-9 sm:w-auto"
                           onClick={(event) => {
                             event.stopPropagation();
                             handleRowClick(paper.id);
