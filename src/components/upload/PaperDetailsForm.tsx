@@ -52,8 +52,8 @@ export function PaperDetailsForm({
   return (
     <div className="space-y-3.5 sm:space-y-4 sm:bg-card sm:rounded-lg sm:border sm:p-5">
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold sm:text-lg">Paper Details</h2>
-        <div className="h-px bg-border/60 sm:hidden" />
+        <h2 className="text-lg font-semibold sm:text-lg">Paper Details</h2>
+        <div className="h-px bg-border/60 sm:hidden mt-2" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -63,7 +63,7 @@ export function PaperDetailsForm({
             value={selectedSemester ? String(selectedSemester) : ''}
             onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
           >
-            <SelectTrigger id="semester" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
+            <SelectTrigger id="semester" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
               <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
             </SelectTrigger>
             <SelectContent>
@@ -88,7 +88,7 @@ export function PaperDetailsForm({
             value={selectedExamType} 
             onValueChange={(v) => setSelectedExamType(v as ExamType)}
           >
-            <SelectTrigger id="examType" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
+            <SelectTrigger id="examType" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
@@ -105,7 +105,7 @@ export function PaperDetailsForm({
       <div className="space-y-1.5 sm:space-y-2.5">
         <Label htmlFor="subject">Subject *</Label>
         <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-          <SelectTrigger id="subject" className="h-11 rounded-[10px] border-border/70 sm:h-10 sm:rounded-md">
+          <SelectTrigger id="subject" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
             <SelectValue 
               placeholder={isLoadingSubjects ? 'Loading subjects...' : 'Select subject'} 
             />
@@ -136,9 +136,9 @@ export function PaperDetailsForm({
         <RadioGroup
           value={paperOption}
           onValueChange={(value) => setPaperOption(value as PaperOption)}
-          className="-mx-4 flex gap-2 overflow-x-auto rounded-full bg-muted/30 p-1 px-4 pb-1 sm:mx-0 sm:overflow-visible sm:bg-transparent sm:p-0 sm:px-0"
+          className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:mt-0 sm:overflow-visible"
         >
-          <div>
+          <div className="shrink-0">
             <RadioGroupItem
               value="single"
               id="paper-option-single"
@@ -147,12 +147,13 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-single"
-              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
+              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
             >
-              Single Paper
+              <span className="sm:hidden">Single</span>
+              <span className="hidden sm:inline">Single Paper</span>
             </Label>
           </div>
-          <div>
+          <div className="shrink-0">
             <RadioGroupItem
               value="paper1"
               id="paper-option-1"
@@ -161,12 +162,12 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-1"
-              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
+              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
             >
               Paper 1
             </Label>
           </div>
-          <div>
+          <div className="shrink-0">
             <RadioGroupItem
               value="paper2"
               id="paper-option-2"
@@ -175,7 +176,7 @@ export function PaperDetailsForm({
             />
             <Label
               htmlFor="paper-option-2"
-              className="flex h-10 min-w-[96px] items-center justify-center rounded-full border border-border/60 bg-background px-4 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent"
+              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
             >
               Paper 2
             </Label>

@@ -292,10 +292,53 @@ export default function UploadPaper() {
           </p>
         </div>
 
-      <div className="flex flex-col gap-5 sm:gap-6 lg:flex-row lg:items-stretch">
-        {/* Main Form */}
-        <div className="space-y-5 sm:space-y-6 flex flex-col lg:flex-[2.2] lg:self-stretch">
-          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 flex flex-col h-full">
+        <div className="md:hidden space-y-5 pb-28">
+          <form
+            id="upload-paper-form-mobile"
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
+            <PaperDetailsForm
+              subjects={filteredSubjects}
+              semesters={semesters}
+              selectedSemester={selectedSemester}
+              setSelectedSemester={setSelectedSemester}
+              isLoadingSubjects={isLoadingSubjects}
+              selectedSubject={selectedSubject}
+              setSelectedSubject={setSelectedSubject}
+              selectedExamType={selectedExamType}
+              setSelectedExamType={setSelectedExamType}
+              paperOption={paperOption}
+              setPaperOption={setPaperOption}
+              paperOptionDisabled={{
+                single: !allowSingle,
+                paper1: !allowPaper1,
+                paper2: !allowPaper2,
+              }}
+            />
+
+            <FileUploadZone
+              file={file}
+              setFile={setFile}
+            />
+
+            {isUploading && (
+              <div className="rounded-md border border-border/60 p-3 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Uploading...</span>
+                  <span className="font-medium">{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="h-2" />
+              </div>
+            )}
+          </form>
+
+          <UploadSidebar deadline={deadline} />
+        </div>
+
+        <div className="hidden md:flex flex-col gap-5 sm:gap-6 lg:flex-row lg:items-stretch">
+          <div className="space-y-5 sm:space-y-6 flex flex-col lg:flex-[2.2] lg:self-stretch">
+            <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 flex flex-col h-full">
               <PaperDetailsForm
                 subjects={filteredSubjects}
                 semesters={semesters}
@@ -340,7 +383,6 @@ export default function UploadPaper() {
                 }
               />
 
-              {/* Upload Progress */}
               {isUploading && (
                 <div className="rounded-md border border-border/60 p-3 sm:p-5 sm:bg-card sm:rounded-lg space-y-3">
                   <div className="flex items-center justify-between text-sm">
@@ -353,39 +395,60 @@ export default function UploadPaper() {
             </form>
           </div>
 
-        {/* Sidebar */}
-        <div className="flex flex-col gap-4 lg:flex-1 lg:self-stretch">
-          <UploadSidebar deadline={deadline} />
-          <div className="bg-card rounded-lg border p-5 space-y-3">
-            <h3 className="text-base font-semibold">Date Sheet</h3>
-            {dateSheet.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No exam dates available yet. Please check back later.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {dateSheet.map((item) => (
-                  <div
-                    key={`${item.subjectId}-${item.scheduledDate.toISOString()}`}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {item.subject?.name} ({item.subject?.code})
-                      </p>
-                      <p className="text-muted-foreground">Semester {item.subject?.semester}</p>
+          <div className="flex flex-col gap-4 lg:flex-1 lg:self-stretch">
+            <UploadSidebar deadline={deadline} />
+            <div className="bg-card rounded-lg border p-5 space-y-3">
+              <h3 className="text-base font-semibold">Date Sheet</h3>
+              {dateSheet.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No exam dates available yet. Please check back later.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {dateSheet.map((item) => (
+                    <div
+                      key={`${item.subjectId}-${item.scheduledDate.toISOString()}`}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {item.subject?.name} ({item.subject?.code})
+                        </p>
+                        <p className="text-muted-foreground">Semester {item.subject?.semester}</p>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {item.scheduledDate.toLocaleDateString()}
+                      </span>
                     </div>
-                    <span className="text-muted-foreground">
-                      {item.scheduledDate.toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex-1" />
           </div>
-          <div className="flex-1" />
         </div>
       </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-4 backdrop-blur md:hidden">
+        <Button
+          type="submit"
+          form="upload-paper-form-mobile"
+          variant="hero"
+          className="h-11 w-full rounded-xl text-sm font-medium shadow-none"
+          disabled={!isFormValid || isUploading}
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4 mr-2" />
+              Submit Paper for Review
+            </>
+          )}
+        </Button>
       </div>
     </DashboardLayout>
   );

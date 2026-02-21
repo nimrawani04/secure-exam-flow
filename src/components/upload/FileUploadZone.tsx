@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, X, AlertCircle } from 'lucide-react';
+import { FileText, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -63,8 +63,8 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   return (
     <div className="space-y-4 sm:bg-card sm:rounded-lg sm:border sm:p-5">
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold sm:text-lg">Upload File</h2>
-        <div className="h-px bg-border/60 sm:hidden" />
+        <h2 className="text-lg font-semibold sm:text-lg">Upload File</h2>
+        <div className="h-px bg-border/60 mt-2 sm:hidden" />
         <p className="text-xs text-muted-foreground/70">
           Upload one PDF for the selected paper option.
         </p>
@@ -80,7 +80,7 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
           }
         }}
         className={cn(
-          'relative border border-dashed rounded-xl p-4 transition-colors duration-200 bg-muted/20 focus-within:border-accent focus-within:bg-accent/5 min-h-[72px]',
+          'relative min-h-[124px] rounded-xl border-2 border-dashed border-border/70 bg-muted/40 p-6 transition-colors duration-200 focus-within:border-accent focus-within:bg-accent/5 sm:min-h-[72px] sm:border sm:bg-muted/20 sm:p-4',
           !file && 'cursor-pointer',
           isDragging && 'border-accent bg-accent/5',
           file && !error && 'border-success/40 bg-transparent',
@@ -89,14 +89,18 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
       >
         {file ? (
           <div className="flex items-center justify-center gap-4">
-            <div className={cn(
-              'w-11 h-11 rounded-md flex items-center justify-center',
-              error ? 'bg-destructive/10' : 'bg-success/10'
-            )}>
-              <FileText className={cn(
-                'w-5 h-5',
-                error ? 'text-destructive' : 'text-success'
-              )} />
+            <div
+              className={cn(
+                'w-11 h-11 rounded-md flex items-center justify-center',
+                error ? 'bg-destructive/10' : 'bg-success/10'
+              )}
+            >
+              <FileText
+                className={cn(
+                  'w-5 h-5',
+                  error ? 'text-destructive' : 'text-success'
+                )}
+              />
             </div>
             <div className="text-left">
               <p className="font-medium">{file.name}</p>
@@ -114,11 +118,11 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-start sm:text-left">
               <div className="w-9 h-9 rounded-lg bg-background/70 flex items-center justify-center border border-border/60">
                 <FileText className="w-4 h-4 text-muted-foreground" />
               </div>
-              <div className="text-left">
+              <div>
                 <p className="text-sm font-medium">Upload PDF</p>
                 <p className="text-xs text-muted-foreground/70">
                   Tap to select or drag file
@@ -145,11 +149,11 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
 
       <div className="mt-2 flex items-start gap-2 text-[11px] text-muted-foreground/70">
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <p>PDF only · Max 50MB</p>
+        <p>PDF only - Max 50MB</p>
       </div>
 
       {action && (
-        <div className="mt-4 sm:mt-4 sm:pt-4 sm:border-t sm:border-border/60 flex justify-end">
+        <div className="mt-4 hidden justify-end sm:flex sm:border-t sm:border-border/60 sm:pt-4">
           {action}
         </div>
       )}
