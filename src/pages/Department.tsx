@@ -52,6 +52,8 @@ export default function Department() {
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherSort, setTeacherSort] = useState<'name' | 'subjects'>('name');
   const [teacherToRemove, setTeacherToRemove] = useState<Teacher | null>(null);
+  const [semesterFilter, setSemesterFilter] = useState<'all' | number>('all');
+  const [semesterSort, setSemesterSort] = useState<'newest' | 'oldest' | 'most-subjects' | 'least-subjects'>('newest');
 
   const teacherAssignments = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -82,6 +84,38 @@ export default function Department() {
     });
     return map;
   }, [subjects]);
+
+  const semesterOptions = useMemo(
+    () => Array.from(subjectsBySemester.keys()).sort((a, b) => a - b),
+    [subjectsBySemester]
+  );
+
+  const visibleSemesterEntries = useMemo(() => {
+    let entries = Array.from(subjectsBySemester.entries());
+
+    if (semesterFilter !== 'all') {
+      entries = entries.filter(([semester]) => semester === semesterFilter);
+    }
+
+    return entries.sort((a, b) => {
+      if (semesterSort === 'oldest') return a[0] - b[0];
+      if (semesterSort === 'most-subjects') {
+        if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+        return b[0] - a[0];
+      }
+      if (semesterSort === 'least-subjects') {
+        if (a[1].length !== b[1].length) return a[1].length - b[1].length;
+        return a[0] - b[0];
+      }
+      return b[0] - a[0];
+    });
+  }, [subjectsBySemester, semesterFilter, semesterSort]);
+
+  useEffect(() => {
+    if (semesterFilter !== 'all' && !semesterOptions.includes(semesterFilter)) {
+      setSemesterFilter('all');
+    }
+  }, [semesterFilter, semesterOptions]);
 
   const loadData = useCallback(async () => {
     if (!profile?.department_id) {
@@ -654,90 +688,134 @@ export default function Department() {
               No subjects found for this department.
             </div>
           ) : (
-            Array.from(subjectsBySemester.entries()).map(([semester, semesterSubjects]) => (
-              <div key={semester} className="rounded-2xl border bg-card p-6 shadow-card">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Semester {semester}</h3>
-                  <Badge variant="secondary">{semesterSubjects.length} subjects</Badge>
+            <>
+              <div className="rounded-xl border bg-card p-4 sm:p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="semester-filter">Semester</Label>
+                    <select
+                      id="semester-filter"
+                      value={semesterFilter === 'all' ? 'all' : String(semesterFilter)}
+                      onChange={(event) =>
+                        setSemesterFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))
+                      }
+                      className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="all">All Semesters</option>
+                      {semesterOptions.map((semester) => (
+                        <option key={semester} value={semester}>
+                          Semester {semester}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="semester-sort">Sort</Label>
+                    <select
+                      id="semester-sort"
+                      value={semesterSort}
+                      onChange={(event) =>
+                        setSemesterSort(
+                          event.target.value as 'newest' | 'oldest' | 'most-subjects' | 'least-subjects'
+                        )
+                      }
+                      className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                      <option value="most-subjects">Most Subjects First</option>
+                      <option value="least-subjects">Least Subjects First</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {semesterSubjects.map((subject) => {
-                    const assignedTeachers = (subjectAssignments.get(subject.id) || [])
-                      .map((teacherId) => teachers.find((t) => t.id === teacherId))
-                      .filter(Boolean) as Teacher[];
-
-                    return (
-                      <div key={subject.id} className="rounded-xl border bg-background p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{subject.name}</p>
-                            <p className="text-xs text-muted-foreground">{subject.code}</p>
-                          </div>
-                          <Dialog open={activeSubject?.id === subject.id} onOpenChange={(open) => !open && setActiveSubject(null)}>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" onClick={() => openSubjectAssignDialog(subject)}>
-                                Assign
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Assign Teachers</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-3">
-                                {teachers.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground">No teachers available.</p>
-                                ) : (
-                                  teachers.map((teacher) => (
-                                    <label key={teacher.id} className="flex items-center gap-3 text-sm">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedTeachers.has(teacher.id)}
-                                        onChange={() => toggleTeacher(teacher.id)}
-                                        className="h-4 w-4"
-                                      />
-                                      <span>{teacher.full_name} ({teacher.email})</span>
-                                    </label>
-                                  ))
-                                )}
-                              </div>
-                              <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setActiveSubject(null)}
-                                  className="w-full sm:w-auto"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  onClick={handleSaveSubjectAssignments}
-                                  disabled={saving}
-                                  className="w-full sm:w-auto"
-                                >
-                                  {saving ? 'Saving...' : 'Save Assignments'}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {assignedTeachers.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">No teachers assigned.</span>
-                          ) : (
-                            assignedTeachers.map((teacher) => (
-                              <Badge key={teacher.id} variant="secondary">
-                                {teacher.full_name}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
-            ))
+
+              {visibleSemesterEntries.map(([semester, semesterSubjects]) => (
+                <div key={semester} id={`semester-${semester}`} className="rounded-2xl border bg-card p-4 sm:p-6 shadow-card">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Semester {semester}</h3>
+                    <Badge variant="secondary">{semesterSubjects.length} subjects</Badge>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {semesterSubjects.map((subject) => {
+                      const assignedTeachers = (subjectAssignments.get(subject.id) || [])
+                        .map((teacherId) => teachers.find((t) => t.id === teacherId))
+                        .filter(Boolean) as Teacher[];
+
+                      return (
+                        <div key={subject.id} className="rounded-xl border bg-background p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold">{subject.name}</p>
+                              <p className="text-xs text-muted-foreground">{subject.code}</p>
+                            </div>
+                            <Dialog open={activeSubject?.id === subject.id} onOpenChange={(open) => !open && setActiveSubject(null)}>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" onClick={() => openSubjectAssignDialog(subject)}>
+                                  Assign
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Assign Teachers</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-3">
+                                  {teachers.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No teachers available.</p>
+                                  ) : (
+                                    teachers.map((teacher) => (
+                                      <label key={teacher.id} className="flex items-center gap-3 text-sm">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedTeachers.has(teacher.id)}
+                                          onChange={() => toggleTeacher(teacher.id)}
+                                          className="h-4 w-4"
+                                        />
+                                        <span>{teacher.full_name} ({teacher.email})</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                                <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setActiveSubject(null)}
+                                    className="w-full sm:w-auto"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={handleSaveSubjectAssignments}
+                                    disabled={saving}
+                                    className="w-full sm:w-auto"
+                                  >
+                                    {saving ? 'Saving...' : 'Save Assignments'}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {assignedTeachers.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">No teachers assigned.</span>
+                            ) : (
+                              assignedTeachers.map((teacher) => (
+                                <Badge key={teacher.id} variant="secondary">
+                                  {teacher.full_name}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
