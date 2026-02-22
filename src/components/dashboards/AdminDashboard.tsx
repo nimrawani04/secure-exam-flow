@@ -886,10 +886,19 @@ export function AdminDashboard() {
                           <div
                             className={cn(
                               'md:hidden overflow-hidden transition-all duration-300',
-                              isMobileExpanded ? 'max-h-72 mt-3' : 'max-h-0'
+                              isMobileExpanded ? 'max-h-[520px] mt-3' : 'max-h-0'
                             )}
                           >
-                            <div className="border-t border-border/60 pt-3 space-y-2">
+                            <div className="border-t border-border/60 pt-3 space-y-3">
+                              <div className="rounded-lg border border-border/60 bg-secondary/10 p-2.5">
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Paper Status
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {paperStats.approved} Approved - {paperStats.pending} Pending - {paperStats.rejected} Rejected
+                                </p>
+                              </div>
+
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -914,6 +923,41 @@ export function AdminDashboard() {
                               >
                                 View Papers
                               </Button>
+
+                              <div className="rounded-lg border border-border/60 p-2.5">
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  Head of Department
+                                </p>
+                                {hod ? (
+                                  <div className="mt-1">
+                                    <p className="text-sm font-medium leading-tight">{hod.full_name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{hod.email}</p>
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-xs text-muted-foreground">No HOD assigned</p>
+                                )}
+                              </div>
+
+                              <div className="rounded-lg border border-border/60 p-2.5">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Teachers</p>
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    {teachers.length}
+                                  </Badge>
+                                </div>
+                                {teachers.length > 0 ? (
+                                  <div className="mt-2 max-h-32 overflow-y-auto divide-y divide-border/50">
+                                    {teachers.map((teacher) => (
+                                      <div key={teacher.id} className="py-1.5">
+                                        <p className="text-sm leading-tight">{teacher.full_name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{teacher.email}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-xs text-muted-foreground">No teachers in this department</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
