@@ -887,7 +887,7 @@ export function AdminDashboard() {
                           <div
                             className={cn(
                               'md:hidden overflow-hidden transition-all duration-300',
-                              isMobileExpanded ? 'max-h-[520px] mt-3' : 'max-h-0'
+                              isMobileExpanded ? 'max-h-[780px] mt-3' : 'max-h-0'
                             )}
                           >
                             <div className="border-t border-border/60 pt-3 space-y-3">
@@ -975,11 +975,11 @@ export function AdminDashboard() {
                                   </Badge>
                                 </div>
                                 {teachers.length > 0 ? (
-                                  <div className="mt-2 max-h-32 overflow-y-auto divide-y divide-border/50">
+                                  <div className="mt-2 max-h-56 overflow-y-auto divide-y divide-border/50 pr-1 pb-2">
                                     {teachers.map((teacher) => (
-                                      <div key={teacher.id} className="py-1.5">
+                                      <div key={teacher.id} className="py-2">
                                         <p className="text-sm leading-tight">{teacher.full_name}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{teacher.email}</p>
+                                        <p className="text-xs text-muted-foreground break-all">{teacher.email}</p>
                                       </div>
                                     ))}
                                   </div>
