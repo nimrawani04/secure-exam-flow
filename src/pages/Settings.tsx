@@ -25,19 +25,19 @@ export default function Settings() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Name</p>
-              <p className="font-medium">{profile?.full_name || '—'}</p>
+              <p className="font-medium">{profile?.full_name || 'â€”'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{profile?.email || '—'}</p>
+              <p className="font-medium">{profile?.email || 'â€”'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Role</p>
-              <p className="font-medium">{profile?.role || '—'}</p>
+              <p className="font-medium">{profile?.role || 'â€”'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Department</p>
-              <p className="font-medium">{profile?.department_name || profile?.department_id || '—'}</p>
+              <p className="font-medium">{profile?.department_name || profile?.department_id || 'â€”'}</p>
             </div>
           </div>
         </div>

@@ -377,7 +377,7 @@ export default function Review() {
         </div>
 
         {/* Stats */}
-        <div className="bg-card rounded-2xl border overflow-hidden">
+        <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border overflow-hidden shadow-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border/60">
             <div className="divide-y divide-border/60">
               <div className="flex items-center justify-between gap-4 p-4 sm:p-5">

@@ -39,12 +39,12 @@ export default function ApprovedPapers() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <div className="rounded-xl border bg-card p-6">
+          <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-6 shadow-sm">
             <p className="text-sm font-medium text-destructive">Failed to load approved papers</p>
             <p className="text-sm text-muted-foreground mt-1">{error}</p>
           </div>
         ) : approvedPapers.length === 0 ? (
-          <div className="rounded-xl border bg-card p-10 text-center">
+          <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-10 text-center shadow-sm">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-lg font-medium">No approved papers yet</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -54,7 +54,7 @@ export default function ApprovedPapers() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {approvedPapers.map((paper) => (
-              <div key={paper.id} className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.05)]">
+              <div key={paper.id} className="rounded-2xl border border-border/60 bg-white/70 dark:bg-card/70 backdrop-blur-md px-5 py-4 shadow-lg transition-all duration-200 hover:shadow-xl">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-foreground truncate">{paper.subjectName}</h3>

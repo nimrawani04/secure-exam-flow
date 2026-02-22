@@ -51,7 +51,7 @@ export function PaperCard({
   return (
     <div
       className={cn(
-        'group rounded-xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]',
+        'group rounded-xl glass-card glass-card-hover px-5 py-4',
         isSelected && 'ring-2 ring-accent border-accent'
       )}
     >

@@ -79,6 +79,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showRead, setShowRead] = useState(false);
   const lastKey = useRef<{ key: string; time: number } | null>(null);
+  
+  // Fetch notifications for display (respects showRead toggle)
   const { data: notifications, isLoading: notificationsLoading } = useNotifications({
     userId: profile?.id,
     role: profile?.role ?? null,
@@ -86,8 +88,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     limit: 6,
     includeRead: showRead,
   });
+  
+  // Always fetch unread notifications for accurate count
+  const { data: unreadNotifications } = useNotifications({
+    userId: profile?.id,
+    role: profile?.role ?? null,
+    departmentId: profile?.department_id ?? null,
+    limit: 100, // Higher limit to get accurate count
+    includeRead: false,
+  });
+  
   const { updateReadState } = useNotificationActions();
-  const notificationCount = notifications?.filter((notification) => !notification.is_read).length || 0;
+  const notificationCount = unreadNotifications?.length || 0;
 
   const title = useMemo(() => {
     return routeTitles[location.pathname] || { section: 'Dashboard', page: 'Overview' };
@@ -297,7 +309,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         collapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
       />
-      <main className={cn('min-h-screen', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
+      <main className={cn('min-h-screen relative', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
         <div className="hidden lg:block sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div>
