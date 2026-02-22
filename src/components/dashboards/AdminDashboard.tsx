@@ -46,7 +46,6 @@ import {
   Trash2,
   Loader2,
   BookOpen,
-  Clock,
   AlertTriangle,
   ChevronDown,
   MoreHorizontal,
@@ -1167,9 +1166,14 @@ export function AdminDashboard() {
         {/* Audit Logs Tab */}
         <TabsContent value="audit">
           <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-xl font-semibold">Recent Audit Logs</h2>
-              <div className="flex items-center gap-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold">Recent Audit Logs</h2>
+                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                  Showing {filteredAuditLogs.length} entries
+                </span>
+              </div>
+              <div>
                 <Select value={auditFilter} onValueChange={(value) => setAuditFilter(value as typeof auditFilter)}>
                   <SelectTrigger className="h-8 w-[150px] text-xs">
                     <SelectValue placeholder="All actions" />
@@ -1182,10 +1186,6 @@ export function AdminDashboard() {
                     <SelectItem value="select">Selections</SelectItem>
                   </SelectContent>
                 </Select>
-                <Badge variant="outline" className="gap-1.5">
-                  <Clock className="w-3 h-3" />
-                  Last 20 entries
-                </Badge>
               </div>
             </div>
 
