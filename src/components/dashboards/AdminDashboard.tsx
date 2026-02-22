@@ -797,6 +797,7 @@ export function AdminDashboard() {
                         total: 0,
                         lastActivity: null,
                       };
+                      const mobileMax = Math.max(paperStats.approved, paperStats.pending, paperStats.rejected, 1);
 
                       return (
                         <div
@@ -890,12 +891,40 @@ export function AdminDashboard() {
                             )}
                           >
                             <div className="border-t border-border/60 pt-3 space-y-3">
-                              <div className="rounded-lg border border-border/60 bg-secondary/10 p-2.5">
-                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                                  Paper Status
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {paperStats.approved} Approved - {paperStats.pending} Pending - {paperStats.rejected} Rejected
+                              <div className="rounded-lg border bg-secondary/20 p-2.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Department Analytics</p>
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Total: {paperStats.total}
+                                  </Badge>
+                                </div>
+                                {[
+                                  { label: 'Approved', value: paperStats.approved, bar: 'bg-success' },
+                                  { label: 'Pending', value: paperStats.pending, bar: 'bg-warning' },
+                                  { label: 'Rejected', value: paperStats.rejected, bar: 'bg-destructive' },
+                                ].map((item) => (
+                                  <div key={item.label}>
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="text-muted-foreground">{item.label}</span>
+                                      <span className="font-medium">
+                                        {item.value} ({paperStats.total > 0 ? Math.round((item.value / paperStats.total) * 100) : 0}%)
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 h-1.5 rounded-full bg-secondary/70">
+                                      <div
+                                        className={cn('h-1.5 rounded-full', item.bar)}
+                                        style={{
+                                          width: `${Math.max((item.value / mobileMax) * 100, item.value > 0 ? 8 : 0)}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                                <p className="text-xs text-muted-foreground">
+                                  Last Activity:{' '}
+                                  {paperStats.lastActivity
+                                    ? formatDistanceToNow(new Date(paperStats.lastActivity), { addSuffix: true })
+                                    : 'No activity'}
                                 </p>
                               </div>
 
