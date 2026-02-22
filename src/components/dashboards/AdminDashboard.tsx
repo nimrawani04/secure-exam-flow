@@ -48,6 +48,7 @@ import {
   BookOpen,
   Clock,
   AlertTriangle,
+  ChevronDown,
   MoreHorizontal,
   Pencil,
 } from 'lucide-react';
@@ -139,6 +140,7 @@ export function AdminDashboard() {
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptCode, setNewDeptCode] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [openMobileDepartmentId, setOpenMobileDepartmentId] = useState<string | null>(null);
   const [departmentPaperStats, setDepartmentPaperStats] = useState<Record<string, DepartmentPaperSummary>>({});
   const [userPaperStats, setUserPaperStats] = useState<Record<string, UserPaperSummary>>({});
   const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'audit' | 'overview' | 'broadcast' | 'security'>('users');
@@ -266,12 +268,16 @@ export function AdminDashboard() {
   useEffect(() => {
     if (!departments || departments.length === 0) {
       setSelectedDepartmentId('');
+      setOpenMobileDepartmentId(null);
       return;
     }
     if (!selectedDepartmentId || !departments.some((dept) => dept.id === selectedDepartmentId)) {
       setSelectedDepartmentId(departments[0].id);
     }
-  }, [departments, selectedDepartmentId]);
+    if (openMobileDepartmentId && !departments.some((dept) => dept.id === openMobileDepartmentId)) {
+      setOpenMobileDepartmentId(null);
+    }
+  }, [departments, selectedDepartmentId, openMobileDepartmentId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -402,6 +408,11 @@ export function AdminDashboard() {
       view_papers: 'View Papers',
     };
     toast({ title: labels[action], description: 'This workflow will be connected next.' });
+  };
+
+  const toggleMobileDepartment = (departmentId: string) => {
+    setSelectedDepartmentId(departmentId);
+    setOpenMobileDepartmentId((prev) => (prev === departmentId ? null : departmentId));
   };
 
   const handleCreateUser = async () => {
@@ -778,6 +789,7 @@ export function AdminDashboard() {
                       const hod = deptUsers.find((u) => u.role === 'hod');
                       const teachers = deptUsers.filter((u) => u.role === 'teacher');
                       const isSelected = selectedDepartmentId === dept.id;
+                      const isMobileExpanded = openMobileDepartmentId === dept.id;
                       const paperStats = departmentPaperStats[dept.id] || {
                         approved: 0,
                         pending: 0,
@@ -793,7 +805,8 @@ export function AdminDashboard() {
                             'rounded-xl border p-3.5 transition-colors',
                             isSelected
                               ? 'bg-secondary/30 border-border border-l-[3px] border-l-primary'
-                              : 'bg-secondary/20 hover:bg-secondary/30 border-border/70'
+                              : 'bg-secondary/20 hover:bg-secondary/30 border-border/70',
+                            isMobileExpanded && 'border-accent/30 bg-secondary/30'
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -802,9 +815,17 @@ export function AdminDashboard() {
                                 <button
                                   type="button"
                                   className="text-left flex-1"
-                                  onClick={() => setSelectedDepartmentId(dept.id)}
+                                  onClick={() => toggleMobileDepartment(dept.id)}
                                 >
-                                  <h3 className="font-semibold leading-tight">{dept.name}</h3>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <h3 className="font-semibold leading-tight">{dept.name}</h3>
+                                    <ChevronDown
+                                      className={cn(
+                                        'h-4 w-4 text-muted-foreground transition-transform md:hidden',
+                                        isMobileExpanded && 'rotate-180'
+                                      )}
+                                    />
+                                  </div>
                                   <div className="mt-1 flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline">{dept.code}</Badge>
                                     <span className="text-xs text-muted-foreground">
@@ -835,6 +856,7 @@ export function AdminDashboard() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -860,6 +882,40 @@ export function AdminDashboard() {
                               </Dialog>
                             </div>
                           </div>
+
+                          <div
+                            className={cn(
+                              'md:hidden overflow-hidden transition-all duration-300',
+                              isMobileExpanded ? 'max-h-72 mt-3' : 'max-h-0'
+                            )}
+                          >
+                            <div className="border-t border-border/60 pt-3 space-y-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 w-full justify-center"
+                                onClick={() => handleDepartmentAction('add_teacher')}
+                              >
+                                Add Teacher
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 w-full justify-center"
+                                onClick={() => handleDepartmentAction('change_hod')}
+                              >
+                                Change HOD
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 w-full justify-center"
+                                onClick={() => handleDepartmentAction('view_papers')}
+                              >
+                                View Papers
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       );
                     })
@@ -868,7 +924,7 @@ export function AdminDashboard() {
                   )}
                 </div>
 
-                <div className="lg:col-span-7 rounded-xl border bg-card p-5">
+                <div className="hidden md:block lg:col-span-7 rounded-xl border bg-card p-5">
                   {selectedDepartmentId ? (
                     (() => {
                       const selectedDept = departments?.find((dept) => dept.id === selectedDepartmentId);
