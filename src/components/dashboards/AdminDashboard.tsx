@@ -1227,8 +1227,8 @@ export function AdminDashboard() {
 
         {/* Broadcasts Tab */}
         <TabsContent value="broadcast">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="w-full lg:flex-1 bg-card rounded-2xl border p-4 sm:p-6 shadow-card space-y-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight">Compose Alert</h2>
@@ -1263,13 +1263,13 @@ export function AdminDashboard() {
                 </div>
                 <div className="space-y-2">
                   <Label>Alert Type</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {notificationTypeOptions.map((option) => (
                       <button
                         key={option.value}
                         type="button"
                         className={cn(
-                          'h-8 rounded-md border text-xs font-medium transition-colors',
+                          'rounded-md border text-xs font-medium transition-colors py-3',
                           option.value === 'info' && (broadcastType === option.value ? 'bg-accent text-accent-foreground border-accent' : 'border-accent/40 text-accent hover:bg-accent/10'),
                           option.value === 'warning' && (broadcastType === option.value ? 'bg-warning text-warning-foreground border-warning' : 'border-warning/40 text-warning hover:bg-warning/10'),
                           option.value === 'critical' && (broadcastType === option.value ? 'bg-destructive text-destructive-foreground border-destructive' : 'border-destructive/40 text-destructive hover:bg-destructive/10'),
@@ -1284,9 +1284,9 @@ export function AdminDashboard() {
                 </div>
                 <div className="space-y-3">
                   <Label>Target Roles</Label>
-                  <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {broadcastRoleOptions.map((option) => (
-                      <label key={option.value} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-1.5">
+                      <label key={option.value} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-3">
                         <Checkbox
                           checked={broadcastRoles.includes(option.value)}
                           onCheckedChange={(checked) => handleRoleToggle(option.value, checked)}
@@ -1312,9 +1312,9 @@ export function AdminDashboard() {
                   {deptsLoading ? (
                     <p className="text-sm text-muted-foreground">Loading departments...</p>
                   ) : departments && departments.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {departments.map((dept) => (
-                        <label key={dept.id} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-1.5">
+                        <label key={dept.id} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-3">
                           <Checkbox
                             checked={broadcastDepartments.includes(dept.id)}
                             onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
@@ -1385,12 +1385,12 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="w-full lg:flex-1 bg-card rounded-2xl border p-4 sm:p-6 shadow-card space-y-4">
+              <div className="space-y-3">
                 <h2 className="text-xl font-semibold">Recent Broadcasts</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Select value={broadcastFeedTypeFilter} onValueChange={(value) => setBroadcastFeedTypeFilter(value as typeof broadcastFeedTypeFilter)}>
-                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <SelectTrigger className="h-9 w-full sm:w-[120px] text-xs">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1402,7 +1402,7 @@ export function AdminDashboard() {
                     </SelectContent>
                   </Select>
                   <Select value={broadcastFeedDeptFilter} onValueChange={setBroadcastFeedDeptFilter}>
-                    <SelectTrigger className="h-8 w-[150px] text-xs">
+                    <SelectTrigger className="h-9 w-full sm:w-[150px] text-xs">
                       <SelectValue placeholder="Department" />
                     </SelectTrigger>
                     <SelectContent>
