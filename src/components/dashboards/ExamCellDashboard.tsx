@@ -700,7 +700,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const headerCopy = examCellViewCopy[view];
 
   const sessionsSection = (
-    <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
+    <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">Exam Sessions</h2>
@@ -849,7 +849,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     <div className="space-y-6">
       <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
-          <div className="bg-card rounded-lg border p-4 sm:p-5 space-y-4">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
             <div className="flex items-start gap-4">
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold">Compose Alert</h2>
@@ -989,7 +989,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         </div>
 
         <div className="space-y-3 lg:self-start">
-          <div className="bg-card rounded-lg border p-4 sm:p-5 space-y-4">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
@@ -1014,7 +1014,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 ))}
               </div>
             ) : hodNotifications.length > 0 ? (
-              <div className="divide-y border rounded-lg">
+              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm">
                 {hodNotifications.map((notification) => (
                   <div key={notification.id} className="flex items-start gap-3 p-3 sm:p-4">
                     <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -1070,7 +1070,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const calendarSection = (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <div className="rounded-2xl border bg-card p-4 sm:p-5">
+        <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-lg">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold">Exam Calendar</h2>
             <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
@@ -1152,7 +1152,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border bg-card p-5">
+        <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-5 shadow-lg">
           <h3 className="text-lg font-semibold mb-4">
             {(selectedDate ?? currentMonth)?.toLocaleDateString('en-US', {
               weekday: 'long',
@@ -1176,7 +1176,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               {selectedExams.map((exam) => (
                 <div
                   key={exam.id}
-                  className="rounded-xl border border-border/60 bg-card px-[18px] py-4"
+                  className="rounded-xl border border-border/60 bg-white/70 dark:bg-card/70 backdrop-blur-sm px-[18px] py-4 shadow-sm"
                 >
                   {(() => {
                     const badge = getPaperBadge(exam);
@@ -1255,7 +1255,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           )}
         </div>
 
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 backdrop-blur-sm p-4">
           <div className="flex items-center gap-3 mb-3">
             <AlertTriangle className="w-5 h-5 text-destructive" />
             <h4 className="font-semibold">Emergency Actions</h4>
@@ -1273,7 +1273,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const inboxSection = (
-    <div className="bg-card rounded-2xl border p-6 shadow-card">
+    <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold">Approved Papers Inbox</h2>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -1380,7 +1380,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const archiveSection = (
-    <div className="bg-card rounded-2xl border p-6 shadow-card">
+    <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h2 className="text-xl font-semibold">Exam Archive</h2>
         <Badge variant="outline" className="text-xs">Past sessions</Badge>
@@ -1406,7 +1406,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       {view === 'overview' && (
         <>
-          <div className="rounded-[12px] border border-border/40 bg-card">
+          <div className="rounded-[12px] border border-border/40 bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-lg">
             <div className="grid grid-cols-1 sm:grid-cols-2">
               <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-r sm:px-5 sm:py-4">
                 <div className="flex items-center gap-3">
@@ -1458,7 +1458,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border bg-card p-5">
+          <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-5 shadow-lg">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-base font-semibold">Latest Papers</h3>
               <div className="flex items-center gap-2">
@@ -1485,7 +1485,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 {latestInboxExams.map((exam) => {
                   const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
                   return (
-                    <div key={exam.id} className="rounded-xl border border-border/60 bg-secondary/20 px-3.5 py-3">
+                    <div key={exam.id} className="rounded-xl border border-border/60 bg-white/70 dark:bg-secondary/20 backdrop-blur-sm px-3.5 py-3 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-medium leading-tight">
@@ -1636,7 +1636,7 @@ function SessionCard({
   };
 
   return (
-    <div className="rounded-2xl border bg-secondary/30 p-5 space-y-4">
+    <div className="rounded-2xl border bg-white/70 dark:bg-secondary/30 backdrop-blur-md p-5 space-y-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -1777,19 +1777,19 @@ function SessionCard({
       </div>
 
       <div className="grid md:grid-cols-4 gap-4 text-sm">
-        <div className="rounded-xl border bg-background/60 p-4 space-y-1">
+        <div className="rounded-xl border bg-white/70 dark:bg-background/60 backdrop-blur-sm p-4 space-y-1 shadow-sm">
           <p className="text-xs text-muted-foreground">Submission Window</p>
           <p className="font-medium">{formatWindow(session.submission_start, session.submission_end)}</p>
         </div>
-        <div className="rounded-xl border bg-background/60 p-4 space-y-1">
+        <div className="rounded-xl border bg-white/70 dark:bg-background/60 backdrop-blur-sm p-4 space-y-1 shadow-sm">
           <p className="text-xs text-muted-foreground">Review Window</p>
           <p className="font-medium">{formatWindow(session.review_start, session.review_end)}</p>
         </div>
-        <div className="rounded-xl border bg-background/60 p-4 space-y-1">
+        <div className="rounded-xl border bg-white/70 dark:bg-background/60 backdrop-blur-sm p-4 space-y-1 shadow-sm">
           <p className="text-xs text-muted-foreground">Access Window</p>
           <p className="font-medium">{formatWindow(session.access_start, session.access_end)}</p>
         </div>
-        <div className="rounded-xl border bg-background/60 p-4 space-y-1">
+        <div className="rounded-xl border bg-white/70 dark:bg-background/60 backdrop-blur-sm p-4 space-y-1 shadow-sm">
           <p className="text-xs text-muted-foreground">Exam Date</p>
           <p className="font-medium">{formatSingleDate(session.exam_date)}</p>
         </div>

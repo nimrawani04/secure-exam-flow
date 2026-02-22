@@ -40,7 +40,7 @@ export function DeadlineTimer({ deadline, label = 'Deadline' }: DeadlineTimerPro
 
   if (timeLeft.expired) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 backdrop-blur-sm p-5">
         <div className="flex items-center gap-2 text-destructive">
           <Clock className="h-4 w-4" />
           <span className="text-sm font-semibold">Deadline Passed</span>
@@ -51,7 +51,7 @@ export function DeadlineTimer({ deadline, label = 'Deadline' }: DeadlineTimerPro
 
   return (
     <div className={cn(
-      'rounded-lg border p-5 transition-colors',
+      'rounded-lg border p-5 transition-colors backdrop-blur-sm',
       isUrgent ? 'border-destructive/30 bg-destructive/5' :
       isWarning ? 'border-warning/30 bg-warning/5' :
       'border-accent/20 bg-accent/5'

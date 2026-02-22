@@ -74,7 +74,7 @@ export default function Subjects() {
                       setSelectedSemester(value === 'all' ? 'all' : Number(value))
                     }
                   >
-                    <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectTrigger>
                       <SelectValue placeholder="Semester" />
                     </SelectTrigger>
                     <SelectContent>
@@ -91,7 +91,7 @@ export default function Subjects() {
                     value={sortOrder}
                     onValueChange={(value) => setSortOrder(value as SortOrder)}
                   >
-                    <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectTrigger>
                       <SelectValue placeholder="Sort" />
                     </SelectTrigger>
                     <SelectContent>

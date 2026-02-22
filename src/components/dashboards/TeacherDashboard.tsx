@@ -67,7 +67,7 @@ export function TeacherDashboard() {
       </div>
 
       {/* Stats Bar */}
-      <div className="rounded-[12px] border border-border/40 bg-card">
+      <div className="rounded-[12px] border border-border/40 bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-lg">
         <div className="flex flex-col divide-y divide-border/40 sm:flex-row sm:divide-y-0 sm:divide-x">
           <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:flex-1 sm:p-5">
             <div className="flex items-center gap-3">
@@ -176,7 +176,7 @@ export function TeacherDashboard() {
           </div>
 
           {/* Tips */}
-          <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
+          <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 backdrop-blur-sm">
             <h4 className="font-semibold text-accent mb-2">Pro Tip</h4>
             <p className="text-sm text-muted-foreground">
               Upload either a Single paper or two papers as Paper 1 and Paper 2.

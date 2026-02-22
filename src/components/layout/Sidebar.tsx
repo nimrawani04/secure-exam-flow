@@ -101,12 +101,12 @@ export function Sidebar({
         'bg-sidebar text-sidebar-foreground flex flex-col',
         isMobile
           ? 'w-full h-full'
-          : cn('fixed left-0 top-0 h-screen transition-all duration-200', collapsed ? 'w-20' : 'w-64'),
+          : cn('fixed left-0 top-0 h-screen z-40 transition-all duration-200', collapsed ? 'w-20' : 'w-64'),
         className
       )}
     >
       {/* Logo */}
-      <div className="p-6 relative">
+      <div className="p-6 relative z-50">
         {!isMobile && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -114,8 +114,8 @@ export function Sidebar({
                 type="button"
                 onClick={onToggleCollapse}
                 className={cn(
-                  'absolute -right-3 top-6 z-10 h-7 w-7 rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm transition',
-                  'hover:bg-sidebar-accent'
+                  'absolute -right-3.5 top-6 z-50 h-8 w-8 rounded-full border-2 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl transition-all',
+                  'hover:bg-sidebar-accent hover:scale-110 hover:border-sidebar-primary'
                 )}
                 aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >

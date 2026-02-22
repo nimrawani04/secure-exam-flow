@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHODPapers } from '@/hooks/useHODPapers';
 import {
   FileCheck,
@@ -126,7 +127,7 @@ export function HODDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="rounded-[12px] border border-border/40 bg-card">
+      <div className="rounded-[12px] border border-border/40 bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-lg">
         <div className="grid grid-cols-1 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/40 sm:border-r sm:px-5 sm:py-4">
             <div className="flex items-center gap-3">
@@ -178,7 +179,7 @@ export function HODDashboard() {
       </div>
 
       {/* Anonymous Review Notice */}
-      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col sm:flex-row items-start gap-3">
+      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 backdrop-blur-sm flex flex-col sm:flex-row items-start gap-3">
         <div className="w-9 h-9 rounded-md gradient-accent flex items-center justify-center flex-shrink-0">
           <Eye className="w-5 h-5 text-accent-foreground" />
         </div>
@@ -205,11 +206,11 @@ export function HODDashboard() {
             <Badge variant="secondary">{subjectsNeedingReview.length} Total</Badge>
           </div>
           {error ? (
-            <div className="border rounded-lg bg-card p-4 text-sm text-destructive">
+            <div className="border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 text-sm text-destructive">
               {error}
             </div>
           ) : (
-            <div className="border rounded-lg divide-y bg-card">
+            <div className="border rounded-lg divide-y bg-white/70 dark:bg-card/70 backdrop-blur-md">
               {subjectsNeedingReview.length > 0 ? (
                 subjectsNeedingReview.map((subject) => (
                   <button
@@ -260,37 +261,43 @@ export function HODDashboard() {
               <label htmlFor="pending-sort" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Sort by
               </label>
-              <select
-                id="pending-sort"
+              <Select
                 value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
-                className="h-10 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
+                onValueChange={(value) => setSortBy(value as typeof sortBy)}
               >
-                <option value="deadline">Nearest deadline</option>
-                <option value="subject">Subject</option>
-                <option value="status">Status</option>
-              </select>
+                <SelectTrigger id="pending-sort">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deadline">Nearest deadline</SelectItem>
+                  <SelectItem value="subject">Subject</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1 md:w-48">
               <label htmlFor="pending-filter" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Filter
               </label>
-              <select
-                id="pending-filter"
+              <Select
                 value={filterBy}
-                onChange={(event) => setFilterBy(event.target.value as typeof filterBy)}
-                className="h-10 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm outline-none focus:outline-none focus:ring-1 focus:ring-primary/40"
+                onValueChange={(value) => setFilterBy(value as typeof filterBy)}
               >
-                <option value="all">All</option>
-                <option value="pending">Pending only</option>
-                <option value="selected">Selected</option>
-              </select>
+                <SelectTrigger id="pending-filter">
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="pending">Pending only</SelectItem>
+                  <SelectItem value="selected">Selected</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {isLoadingPapers ? (
-              <div className="border rounded-lg divide-y bg-card">
+              <div className="border rounded-lg divide-y bg-white/70 dark:bg-card/70 backdrop-blur-md">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div key={`skeleton-${index}`} className="px-4 py-3 animate-pulse">
                     <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[40px_1.6fr_1fr_auto_auto] sm:gap-4 sm:items-center">
@@ -310,7 +317,7 @@ export function HODDashboard() {
               ))}
             </div>
           ) : visiblePapers.length === 0 ? (
-            <div className="border rounded-lg bg-card px-6 py-10 text-center">
+            <div className="border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-md px-6 py-10 text-center">
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                 <FileCheck className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -320,7 +327,7 @@ export function HODDashboard() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg divide-y bg-card">
+            <div className="border rounded-lg divide-y bg-white/70 dark:bg-card/70 backdrop-blur-md">
               {visiblePapers.map((paper) => (
                 <div
                   key={paper.id}
@@ -356,7 +363,7 @@ export function HODDashboard() {
 
         {/* Selection Confirmation */}
         {selectedPaperId && (
-          <div className="p-3 rounded-lg bg-success/10 border border-success/20 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="p-3 rounded-lg bg-success/10 border border-success/20 backdrop-blur-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-success" />
               <span className="font-medium">
@@ -383,7 +390,7 @@ export function HODDashboard() {
         )}
 
         {/* Warning */}
-        <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-start gap-3">
+        <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 backdrop-blur-sm flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-warning">Important</h4>
