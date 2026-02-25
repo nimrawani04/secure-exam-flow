@@ -303,7 +303,7 @@ export default function Auth() {
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
                     <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                      <SelectTrigger className="h-12">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select your department" />
                       </SelectTrigger>
                       <SelectContent>

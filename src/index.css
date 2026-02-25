@@ -50,8 +50,8 @@
     --ring: 175 70% 40%;
 
     /* Dashboard background tint */
-    --dashboard-bg: 175 20% 98%;
-    --dashboard-bg-dark: 175 20% 10%;
+    --dashboard-bg: 175 70% 96%;
+    --dashboard-bg-dark: 175 70% 12%;
 
     --radius: 0.625rem;
 
@@ -150,11 +150,19 @@
 
 @layer utilities {
   .glass {
-    @apply bg-white/80 backdrop-blur-md border border-white/20;
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
   }
 
   .glass-dark {
-    @apply bg-primary/90 backdrop-blur-md border border-white/10;
+    @apply bg-primary/90 backdrop-blur-md border border-white/10 shadow-lg;
+  }
+
+  .glass-card {
+    @apply bg-white/70 dark:bg-card/70 backdrop-blur-sm border border-border/60 shadow-card;
+  }
+
+  .glass-card-hover {
+    @apply hover:bg-white/80 dark:hover:bg-card/80 hover:shadow-card-hover transition-all duration-200;
   }
 
   .gradient-primary {

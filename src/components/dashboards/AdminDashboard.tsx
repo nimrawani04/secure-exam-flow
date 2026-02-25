@@ -524,7 +524,7 @@ export function AdminDashboard() {
       </div>
 
       {activeTab === 'overview' && (
-        <div className="rounded-[12px] border border-border/40 bg-card">
+        <div className="rounded-[12px] border border-border/40 bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-lg">
           <div className="grid grid-cols-1 sm:grid-cols-2">
             <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 sm:border-r sm:px-5 sm:py-4">
               <div className="flex items-center gap-3">
@@ -586,7 +586,7 @@ export function AdminDashboard() {
 
         {/* Users Tab */}
         <TabsContent value="users">
-          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <h2 className="text-xl font-semibold">User Management</h2>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -728,7 +728,7 @@ export function AdminDashboard() {
 
         {/* Departments Tab */}
         <TabsContent value="departments">
-          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Department Management</h2>
               <Dialog>
@@ -802,11 +802,11 @@ export function AdminDashboard() {
                         <div
                           key={dept.id}
                           className={cn(
-                            'rounded-xl border p-3.5 transition-colors',
+                            'rounded-xl border p-3.5 transition-colors backdrop-blur-sm',
                             isSelected
-                              ? 'bg-secondary/30 border-border border-l-[3px] border-l-primary'
-                              : 'bg-secondary/20 hover:bg-secondary/30 border-border/70',
-                            isMobileExpanded && 'border-accent/30 bg-secondary/30'
+                              ? 'bg-white/70 dark:bg-secondary/30 border-border border-l-[3px] border-l-primary shadow-sm'
+                              : 'bg-white/60 dark:bg-secondary/20 hover:bg-white/80 dark:hover:bg-secondary/30 border-border/70',
+                            isMobileExpanded && 'border-accent/30 bg-white/70 dark:bg-secondary/30'
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -890,7 +890,7 @@ export function AdminDashboard() {
                             )}
                           >
                             <div className="border-t border-border/60 pt-3 space-y-3">
-                              <div className="rounded-lg border bg-secondary/20 p-2.5 space-y-2">
+                              <div className="rounded-lg border bg-white/60 dark:bg-secondary/20 backdrop-blur-sm p-2.5 space-y-2">
                                 <div className="flex items-center justify-between">
                                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Department Analytics</p>
                                   <Badge variant="outline" className="text-[10px]">
@@ -996,7 +996,7 @@ export function AdminDashboard() {
                   )}
                 </div>
 
-                <div className="hidden md:block lg:col-span-7 rounded-xl border bg-card p-5">
+                <div className="hidden md:block lg:col-span-7 rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-5 shadow-sm">
                   {selectedDepartmentId ? (
                     (() => {
                       const selectedDept = departments?.find((dept) => dept.id === selectedDepartmentId);
@@ -1037,7 +1037,7 @@ export function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="rounded-lg border-2 border-accent/20 bg-accent/5 p-3.5">
+                          <div className="rounded-lg border-2 border-accent/20 bg-accent/5 backdrop-blur-sm p-3.5">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Head of Department</p>
                             {selectedHod ? (
                               <Tooltip>
@@ -1115,7 +1115,7 @@ export function AdminDashboard() {
                             )}
                           </div>
 
-                          <div className="rounded-lg border bg-secondary/20 p-4 space-y-2">
+                          <div className="rounded-lg border bg-white/60 dark:bg-secondary/20 backdrop-blur-sm p-4 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Department Analytics</p>
                               <Badge variant="outline" className="text-[10px]">
@@ -1165,7 +1165,7 @@ export function AdminDashboard() {
 
         {/* Audit Logs Tab */}
         <TabsContent value="audit">
-          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-6">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">Recent Audit Logs</h2>
@@ -1199,7 +1199,7 @@ export function AdminDashboard() {
                     <div
                       key={log.id}
                       className={cn(
-                        'flex items-center justify-between gap-3 px-4 py-3 border-b last:border-b-0 border-border/60 border-l-2 bg-card',
+                        'flex items-center justify-between gap-3 px-4 py-3 border-b last:border-b-0 border-border/60 border-l-2 bg-white/70 dark:bg-card/70 backdrop-blur-sm',
                         accent
                       )}
                     >
@@ -1228,7 +1228,7 @@ export function AdminDashboard() {
         {/* Broadcasts Tab */}
         <TabsContent value="broadcast">
           <div className="flex flex-col lg:flex-row gap-6">
-            <div className="w-full lg:flex-1 bg-card rounded-2xl border p-4 sm:p-6 shadow-card space-y-6">
+            <div className="w-full lg:flex-1 bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-4 sm:p-6 shadow-card space-y-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight">Compose Alert</h2>
@@ -1286,7 +1286,7 @@ export function AdminDashboard() {
                   <Label>Target Roles</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {broadcastRoleOptions.map((option) => (
-                      <label key={option.value} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-3">
+                      <label key={option.value} className="flex items-center gap-2.5 rounded-lg border bg-white/60 dark:bg-secondary/20 backdrop-blur-sm px-3 py-3">
                         <Checkbox
                           checked={broadcastRoles.includes(option.value)}
                           onCheckedChange={(checked) => handleRoleToggle(option.value, checked)}
@@ -1314,7 +1314,7 @@ export function AdminDashboard() {
                   ) : departments && departments.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {departments.map((dept) => (
-                        <label key={dept.id} className="flex items-center gap-2.5 rounded-lg border bg-secondary/20 px-3 py-3">
+                        <label key={dept.id} className="flex items-center gap-2.5 rounded-lg border bg-white/60 dark:bg-secondary/20 backdrop-blur-sm px-3 py-3">
                           <Checkbox
                             checked={broadcastDepartments.includes(dept.id)}
                             onCheckedChange={(checked) => handleDepartmentToggle(dept.id, checked)}
@@ -1332,7 +1332,7 @@ export function AdminDashboard() {
                   </p>
                 </div>
 
-                <div className="rounded-lg border bg-accent/5 p-3 space-y-2">
+                <div className="rounded-lg border bg-accent/5 backdrop-blur-sm p-3 space-y-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Target Summary</p>
                   <div className="text-sm space-y-2">
                     {broadcastRoles.length === 0 ? (
@@ -1385,7 +1385,7 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            <div className="w-full lg:flex-1 bg-card rounded-2xl border p-4 sm:p-6 shadow-card space-y-4">
+            <div className="w-full lg:flex-1 bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-4 sm:p-6 shadow-card space-y-4">
               <div className="space-y-3">
                 <h2 className="text-xl font-semibold">Recent Broadcasts</h2>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -1423,7 +1423,7 @@ export function AdminDashboard() {
                     <div
                       key={notification.id}
                       className={cn(
-                        'rounded-lg border bg-card p-3.5 border-l-4',
+                        'rounded-lg border bg-white/70 dark:bg-card/70 backdrop-blur-md p-3.5 border-l-4 shadow-sm',
                         notification.type === 'critical'
                           ? 'border-l-destructive'
                           : notification.type === 'warning'
@@ -1476,7 +1476,7 @@ export function AdminDashboard() {
         <TabsContent value="overview">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Roles Distribution */}
-            <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
+            <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-4">
               <h3 className="text-lg font-semibold">Users by Role</h3>
               {stats?.usersByRole && stats.usersByRole.length > 0 ? (
                 <div className="divide-y divide-border/50">
@@ -1526,7 +1526,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Papers by Status */}
-            <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
+            <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-4">
               <h3 className="text-lg font-semibold">Papers by Status</h3>
               {stats?.papersByStatus && stats.papersByStatus.length > 0 ? (
                 <div className="divide-y divide-border/50">
@@ -1566,7 +1566,7 @@ export function AdminDashboard() {
 
         {/* Security Tab */}
         <TabsContent value="security">
-          <div className="bg-card rounded-2xl border p-6 shadow-card space-y-4">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-2xl border p-6 shadow-card space-y-4">
             <div className="flex items-center gap-3 mb-2">
               <AlertTriangle className="w-5 h-5 text-warning" />
               <h3 className="text-lg font-semibold">Security Reminder</h3>
@@ -1577,15 +1577,15 @@ export function AdminDashboard() {
               </p>
             </div>
             <div className="grid sm:grid-cols-3 gap-4 mt-4">
-              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+              <div className="p-4 rounded-xl border bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-center shadow-sm">
                 <p className="text-2xl font-bold">10 MB</p>
                 <p className="text-sm text-muted-foreground">Max File Size</p>
               </div>
-              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+              <div className="p-4 rounded-xl border bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-center shadow-sm">
                 <p className="text-2xl font-bold">30 min</p>
                 <p className="text-sm text-muted-foreground">Session Timeout</p>
               </div>
-              <div className="p-4 rounded-xl border bg-secondary/30 text-center">
+              <div className="p-4 rounded-xl border bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-center shadow-sm">
                 <p className="text-2xl font-bold">PDF Only</p>
                 <p className="text-sm text-muted-foreground">Allowed Files</p>
               </div>

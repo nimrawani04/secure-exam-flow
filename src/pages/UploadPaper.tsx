@@ -397,7 +397,7 @@ export default function UploadPaper() {
 
           <div className="flex flex-col gap-4 lg:flex-1 lg:self-stretch">
             <UploadSidebar deadline={deadline} />
-            <div className="bg-card rounded-lg border p-5 space-y-3">
+            <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-5 space-y-3 shadow-lg">
               <h3 className="text-base font-semibold">Date Sheet</h3>
               {dateSheet.length === 0 ? (
                 <p className="text-sm text-muted-foreground">

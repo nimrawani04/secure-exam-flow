@@ -257,7 +257,7 @@ export function HODAlerts() {
 
       <div className="grid gap-6 lg:grid-cols-[2.2fr_1fr]">
         <div className="space-y-4">
-          <div className="bg-card rounded-lg border p-5 space-y-5">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-5 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold">Compose Alert</h2>
@@ -402,7 +402,7 @@ export function HODAlerts() {
         </div>
 
         <div className="space-y-4 lg:h-full">
-          <div className="bg-card rounded-lg border p-5 space-y-4 h-full flex flex-col">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-5 space-y-4 h-full flex flex-col">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent Alerts</h3>

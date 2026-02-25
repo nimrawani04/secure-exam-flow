@@ -63,7 +63,7 @@ export function PaperDetailsForm({
             value={selectedSemester ? String(selectedSemester) : ''}
             onValueChange={(value) => setSelectedSemester(value ? Number(value) : '')}
           >
-            <SelectTrigger id="semester" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
+            <SelectTrigger id="semester">
               <SelectValue placeholder={isLoadingSubjects ? 'Loading semesters...' : 'Select semester'} />
             </SelectTrigger>
             <SelectContent>
@@ -88,7 +88,7 @@ export function PaperDetailsForm({
             value={selectedExamType} 
             onValueChange={(v) => setSelectedExamType(v as ExamType)}
           >
-            <SelectTrigger id="examType" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
+            <SelectTrigger id="examType">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
@@ -105,7 +105,7 @@ export function PaperDetailsForm({
       <div className="space-y-1.5 sm:space-y-2.5">
         <Label htmlFor="subject">Subject *</Label>
         <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-          <SelectTrigger id="subject" className="h-10 rounded-[10px] border-border/70 text-sm sm:h-10 sm:rounded-md">
+          <SelectTrigger id="subject">
             <SelectValue 
               placeholder={isLoadingSubjects ? 'Loading subjects...' : 'Select subject'} 
             />

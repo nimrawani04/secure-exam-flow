@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -475,12 +476,12 @@ export default function Department() {
         ) : (
           <div className="grid gap-6">
             {teachers.length === 0 ? (
-              <div className="rounded-xl border bg-card p-6 text-muted-foreground">
+              <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-6 text-muted-foreground shadow-sm">
                 No teachers found in this department.
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-2xl border bg-muted/30 p-4">
+                <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 shadow-sm">
                   <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end md:gap-6">
                     <div className="w-full md:max-w-xl">
                     <Label htmlFor="teacher-search">Search teachers</Label>
@@ -492,17 +493,20 @@ export default function Department() {
                       className="mt-1 h-11 rounded-xl border-border bg-background px-4 text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
                     />
                   </div>
-                    <div className="w-full md:w-48 md:justify-self-end">
+                  <div className="w-full md:w-48 md:justify-self-end">
                     <Label htmlFor="teacher-sort">Sort by</Label>
-                    <select
-                      id="teacher-sort"
+                    <Select
                       value={teacherSort}
-                      onChange={(event) => setTeacherSort(event.target.value as 'name' | 'subjects')}
-                      className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+                      onValueChange={(value) => setTeacherSort(value as 'name' | 'subjects')}
                     >
-                      <option value="name">Name</option>
-                      <option value="subjects">Subject count</option>
-                    </select>
+                      <SelectTrigger id="teacher-sort" className="mt-1">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="subjects">Subject count</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 </div>
@@ -517,7 +521,7 @@ export default function Department() {
                 const hiddenCount = Math.max(assigned.length - visibleSubjects.length, 0);
 
                 return (
-                  <div key={teacher.id} className="rounded-lg border bg-card">
+                  <div key={teacher.id} className="rounded-lg border bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-sm">
                     <div
                       className="group flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
                       onClick={() => toggleExpandedTeacher(teacher.id)}
@@ -686,55 +690,61 @@ export default function Department() {
               Loading subjects...
             </div>
           ) : subjects.length === 0 ? (
-            <div className="rounded-xl border bg-card p-6 text-muted-foreground">
+            <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-6 text-muted-foreground shadow-sm">
               No subjects found for this department.
             </div>
           ) : (
             <>
-              <div className="rounded-xl border bg-card p-4 sm:p-5">
+              <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="semester-filter">Semester</Label>
-                    <select
-                      id="semester-filter"
+                    <Select
                       value={semesterFilter === 'all' ? 'all' : String(semesterFilter)}
-                      onChange={(event) =>
-                        setSemesterFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))
+                      onValueChange={(value) =>
+                        setSemesterFilter(value === 'all' ? 'all' : Number(value))
                       }
-                      className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                     >
-                      <option value="all">All Semesters</option>
-                      {semesterOptions.map((semester) => (
-                        <option key={semester} value={semester}>
-                          Semester {semester}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="semester-filter">
+                        <SelectValue placeholder="All Semesters" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Semesters</SelectItem>
+                        {semesterOptions.map((semester) => (
+                          <SelectItem key={semester} value={String(semester)}>
+                            Semester {semester}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="semester-sort">Sort</Label>
-                    <select
-                      id="semester-sort"
+                    <Select
                       value={semesterSort}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         setSemesterSort(
-                          event.target.value as 'newest' | 'oldest' | 'most-subjects' | 'least-subjects'
+                          value as 'newest' | 'oldest' | 'most-subjects' | 'least-subjects'
                         )
                       }
-                      className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                     >
-                      <option value="newest">Newest First</option>
-                      <option value="oldest">Oldest First</option>
-                      <option value="most-subjects">Most Subjects First</option>
-                      <option value="least-subjects">Least Subjects First</option>
-                    </select>
+                      <SelectTrigger id="semester-sort">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">Newest First</SelectItem>
+                        <SelectItem value="oldest">Oldest First</SelectItem>
+                        <SelectItem value="most-subjects">Most Subjects First</SelectItem>
+                        <SelectItem value="least-subjects">Least Subjects First</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
               </div>
 
               {visibleSemesterEntries.map(([semester, semesterSubjects]) => (
-                <div key={semester} id={`semester-${semester}`} className="rounded-2xl border bg-card p-4 sm:p-6 shadow-card">
+                <div key={semester} id={`semester-${semester}`} className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-6 shadow-lg">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Semester {semester}</h3>
                     <Badge variant="secondary">{semesterSubjects.length} subjects</Badge>
