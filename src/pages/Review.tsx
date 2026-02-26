@@ -6,9 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useHODPapers, HODPaper } from '@/hooks/useHODPapers';
 import { 
   FileText, 
@@ -289,6 +291,9 @@ export default function Review() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [selectDialogOpen, setSelectDialogOpen] = useState(false);
+  const [selectedPaperForSend, setSelectedPaperForSend] = useState<HODPaper | null>(null);
+  const [hodRemark, setHodRemark] = useState('');
 
   const handleApprove = async (paper: HODPaper) => {
     setIsProcessing(true);
@@ -303,9 +308,28 @@ export default function Review() {
   };
 
   const handleSelect = async (paper: HODPaper) => {
+    setSelectedPaperForSend(paper);
+    setHodRemark('');
+    setSelectDialogOpen(true);
+  };
+
+  const handleConfirmSelect = async () => {
+    if (!selectedPaperForSend) return;
+
     setIsProcessing(true);
-    await selectPaper(paper.id, paper.subjectId, paper.examType);
+    const success = await selectPaper(
+      selectedPaperForSend.id,
+      selectedPaperForSend.subjectId,
+      selectedPaperForSend.examType,
+      hodRemark
+    );
     setIsProcessing(false);
+
+    if (success) {
+      setSelectDialogOpen(false);
+      setSelectedPaperForSend(null);
+      setHodRemark('');
+    }
   };
 
   const handlePreview = async (paper: HODPaper) => {
@@ -501,6 +525,59 @@ export default function Review() {
             ) : (
               <p className="text-sm text-muted-foreground">No preview available.</p>
             )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={selectDialogOpen}
+          onOpenChange={(open) => {
+            setSelectDialogOpen(open);
+            if (!open && !isProcessing) {
+              setSelectedPaperForSend(null);
+              setHodRemark('');
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Send Selected Paper to Exam Cell</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {selectedPaperForSend
+                  ? `${selectedPaperForSend.anonymousId} will be locked and sent to Exam Cell.`
+                  : 'This paper will be locked and sent to Exam Cell.'}
+              </p>
+
+              <div className="space-y-2">
+                <label htmlFor="hod-remark" className="text-sm font-medium">
+                  HOD Remark (Optional)
+                </label>
+                <Textarea
+                  id="hod-remark"
+                  value={hodRemark}
+                  onChange={(event) => setHodRemark(event.target.value)}
+                  placeholder="Add any note for Exam Cell..."
+                  rows={4}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectDialogOpen(false)}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button type="button" variant="hero" onClick={handleConfirmSelect} disabled={isProcessing}>
+                {isProcessing ? 'Sending...' : 'Lock & Send to Exam Cell'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

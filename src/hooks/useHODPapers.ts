@@ -187,7 +187,12 @@ export function useHODPapers() {
     }
   };
 
-  const selectPaper = async (paperId: string, subjectId: string, examType: ExamType): Promise<boolean> => {
+  const selectPaper = async (
+    paperId: string,
+    subjectId: string,
+    examType: ExamType,
+    remark?: string
+  ): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -204,6 +209,7 @@ export function useHODPapers() {
         .update({
           is_selected: true,
           status: 'locked',
+          feedback: remark?.trim() || null,
         })
         .eq('id', paperId);
 
@@ -228,7 +234,24 @@ export function useHODPapers() {
         action: 'select',
         entity_type: 'paper',
         entity_id: paperId,
-        details: { action: 'Paper selected and locked by HOD' },
+        details: {
+          action: 'Paper selected and locked by HOD',
+          remark: remark?.trim() || null,
+        },
+      });
+
+      // Notify Exam Cell that a paper is locked and ready, including optional HOD remark.
+      const normalizedRemark = remark?.trim();
+      await supabase.from('notifications').insert({
+        created_by: user.id,
+        title: 'Paper Locked by HOD',
+        message: normalizedRemark
+          ? `A paper has been locked and sent to Exam Cell. HOD remark: ${normalizedRemark}`
+          : 'A paper has been locked and sent to Exam Cell.',
+        target_roles: ['exam_cell'],
+        target_departments: null,
+        type: 'info',
+        user_id: null,
       });
 
       toast.success('Paper selected and locked');

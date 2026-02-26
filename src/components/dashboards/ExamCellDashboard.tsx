@@ -49,6 +49,7 @@ type ExamWithMeta = Exam & {
   departmentId?: string | null;
   paperStatus?: PaperStatus | null;
   paperFilePath?: string | null;
+  hodRemark?: string | null;
 };
 
 const examTypeLabels: Record<ExamType, string> = {
@@ -255,7 +256,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           status,
           selected_paper_id,
           subjects ( id, name, code, department_id ),
-          exam_papers:exam_papers!exams_selected_paper_id_fkey ( id, status, file_path )`
+          exam_papers:exam_papers!exams_selected_paper_id_fkey ( id, status, file_path, feedback )`
         )
         .order('scheduled_date', { ascending: true });
 
@@ -271,7 +272,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       const { data: selectedPapers, error: selectedPapersError } = await supabase
         .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected, file_path')
+        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback')
         .eq('is_selected', true)
         .in('status', ['approved', 'locked']);
 
@@ -279,7 +280,10 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         console.error('Error fetching selected papers:', selectedPapersError);
       }
 
-      const selectedPaperByExamKey = new Map<string, { id: string; status: PaperStatus; filePath: string | null }>();
+      const selectedPaperByExamKey = new Map<
+        string,
+        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null }
+      >();
       (selectedPapers || []).forEach((paper: any) => {
         const key = `${paper.subject_id}-${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
@@ -287,6 +291,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             id: paper.id,
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
+            hodRemark: paper.feedback ?? null,
           });
         }
       });
@@ -304,6 +309,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
           const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
           const resolvedPaperFilePath = row.exam_papers?.file_path ?? fallbackSelectedPaper?.filePath ?? null;
+          const resolvedHodRemark = row.exam_papers?.feedback ?? fallbackSelectedPaper?.hodRemark ?? null;
 
           return {
             id: row.id,
@@ -317,6 +323,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             paperId: resolvedPaperId ?? undefined,
             paperStatus: resolvedPaperStatus,
             paperFilePath: resolvedPaperFilePath,
+            hodRemark: resolvedHodRemark,
             status: row.status,
           } as ExamWithMeta;
         })
@@ -1318,6 +1325,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Exam Type</th>
                 <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Department</th>
                 <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Exam Date</th>
+                <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">HOD Remark</th>
                 <th className="px-3 py-2.5 text-left text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Status</th>
                 <th className="px-3 py-2.5 text-right text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">Actions</th>
               </tr>
@@ -1337,6 +1345,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     </td>
                     <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-3.5 text-muted-foreground/80">
+                      {exam.hodRemark?.trim() ? exam.hodRemark : 'No remark'}
                     </td>
                     <td className="px-3 py-3.5">
                       <Badge
@@ -1494,6 +1505,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {(departmentName ?? 'Unknown Department')} • {exam.examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            HOD Remark: {exam.hodRemark?.trim() ? exam.hodRemark : 'No remark'}
                           </p>
                         </div>
                         <Badge variant="success" className="text-[10px]">
