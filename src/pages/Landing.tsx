@@ -19,6 +19,9 @@ const roleOptions: { value: AppRole; label: string }[] = [
   { value: 'exam_cell', label: 'Examination Cell' },
 ];
 
+const INSTITUTION_NAME = 'Central University of Kashmir';
+const PLATFORM_NAME = 'Examination Management Platform';
+
 export default function Landing() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -122,13 +125,17 @@ export default function Landing() {
 
         <div className="relative z-10 grid h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left panel */}
-          <div className="flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16">
+          <div
+            className={`flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16 ${
+              isSignUp ? 'lg:pb-28' : ''
+            }`}
+          >
             <div className="max-w-2xl">
               <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/70 mb-2">
-                Central University of Kashmir
+                {INSTITUTION_NAME}
               </p>
               <h1 className="text-base sm:text-xl lg:text-4xl font-semibold leading-tight uppercase">
-                Examination Management Platform
+                {PLATFORM_NAME}
               </h1>
             </div>
           </div>
