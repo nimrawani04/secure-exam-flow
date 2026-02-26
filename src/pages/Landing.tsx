@@ -152,6 +152,27 @@ export default function Landing() {
                 </p>
               </div>
 
+              <div className="mt-4 grid grid-cols-2 rounded-lg border border-white/20 bg-slate-900/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(false)}
+                  className={`rounded-md py-2 text-sm font-semibold transition ${
+                    !isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(true)}
+                  className={`rounded-md py-2 text-sm font-semibold transition ${
+                    isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </div>
+
               <form
                 onSubmit={handleSubmit}
                 className="mt-3 sm:mt-4 space-y-3 sm:space-y-4"
@@ -267,16 +288,6 @@ export default function Landing() {
                   </div>
                 )}
 
-                {!isSignUp && (
-                  <label className="flex items-center gap-2 text-sm text-white/80">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-white/40 bg-transparent"
-                    />
-                    Keep me signed in
-                  </label>
-                )}
-
                 <Button
                   className="w-full bg-white text-slate-900 hover:bg-white/90"
                   size="lg"
@@ -285,17 +296,6 @@ export default function Landing() {
                 >
                   {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
                 </Button>
-
-                <p className="text-center text-sm text-white/80">
-                  {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}{' '}
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp((prev) => !prev)}
-                    className="underline"
-                  >
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                  </button>
-                </p>
               </form>
             </div>
           </div>
