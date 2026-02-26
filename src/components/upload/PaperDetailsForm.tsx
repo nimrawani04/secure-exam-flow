@@ -7,17 +7,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TeacherSubject } from '@/hooks/useTeacherSubjects';
-import type { Database } from '@/integrations/supabase/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-type ExamType = Database['public']['Enums']['exam_type'];
 type PaperOption = 'single' | 'paper1' | 'paper2';
+export type UploadExamTypeOption =
+  | 'cia_1'
+  | 'cia_2'
+  | 'end_semester'
+  | 'external_practical'
+  | 'internal_practical';
 
-const examTypes: { id: ExamType; name: string }[] = [
-  { id: 'mid_term', name: 'Mid Term Examination' },
-  { id: 'end_term', name: 'End Term Examination' },
-  { id: 'practical', name: 'Practical Examination' },
-  { id: 'internal', name: 'Internal Assessment' },
+const examTypes: { id: UploadExamTypeOption; name: string }[] = [
+  { id: 'cia_1', name: 'CIA 1' },
+  { id: 'cia_2', name: 'CIA 2' },
+  { id: 'end_semester', name: 'END SEMSTER' },
+  { id: 'external_practical', name: 'EXTERNAL PRACTICAL' },
+  { id: 'internal_practical', name: 'INTERNAL PRACTICAL' },
 ];
 
 interface PaperDetailsFormProps {
@@ -28,8 +33,8 @@ interface PaperDetailsFormProps {
   isLoadingSubjects: boolean;
   selectedSubject: string;
   setSelectedSubject: (value: string) => void;
-  selectedExamType: ExamType | '';
-  setSelectedExamType: (value: ExamType | '') => void;
+  selectedExamType: UploadExamTypeOption | '';
+  setSelectedExamType: (value: UploadExamTypeOption | '') => void;
   paperOption: PaperOption;
   setPaperOption: (value: PaperOption) => void;
   paperOptionDisabled?: Partial<Record<PaperOption, boolean>>;
@@ -86,7 +91,7 @@ export function PaperDetailsForm({
           <Label htmlFor="examType">Exam Type *</Label>
           <Select 
             value={selectedExamType} 
-            onValueChange={(v) => setSelectedExamType(v as ExamType)}
+            onValueChange={(v) => setSelectedExamType(v as UploadExamTypeOption)}
           >
             <SelectTrigger id="examType">
               <SelectValue placeholder="Select type" />
