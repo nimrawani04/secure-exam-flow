@@ -254,6 +254,17 @@ export function useHODPapers() {
         user_id: null,
       });
 
+      // Also send email to registered Exam Cell addresses.
+      await supabase.functions.invoke('send-registered-email', {
+        body: {
+          subject: 'Paper Locked by HOD',
+          message: normalizedRemark
+            ? `A paper has been locked and sent to Exam Cell.\n\nHOD remark: ${normalizedRemark}`
+            : 'A paper has been locked and sent to Exam Cell.',
+          targetRoles: ['exam_cell'],
+        },
+      });
+
       toast.success('Paper selected and locked');
       await fetchPapers();
       return true;

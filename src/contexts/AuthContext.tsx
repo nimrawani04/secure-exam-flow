@@ -19,7 +19,13 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: AppRole, departmentId?: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: AppRole,
+    departmentId?: string
+  ) => Promise<{ error: Error | null; needsEmailVerification?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
@@ -132,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fullName: string,
     role: AppRole,
     departmentId?: string
-  ): Promise<{ error: Error | null }> => {
+  ): Promise<{ error: Error | null; needsEmailVerification?: boolean }> => {
     try {
       const redirectUrl = `${window.location.origin}/`;
 
@@ -150,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        return { error };
+        return { error, needsEmailVerification: false };
       }
 
       if (data.session?.user) {
@@ -158,10 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(completeProfile);
       }
 
-      return { error: null };
+      // If session is missing, Supabase is waiting for email verification.
+      return { error: null, needsEmailVerification: !data.session };
     } catch (error) {
       console.error('SignUp error:', error);
-      return { error: error as Error };
+      return { error: error as Error, needsEmailVerification: false };
     }
   };
 

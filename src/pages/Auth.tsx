@@ -103,7 +103,7 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signUp(
+        const { error, needsEmailVerification } = await signUp(
           email,
           password,
           fullName,
@@ -118,8 +118,16 @@ export default function Auth() {
             toast({ title: 'Sign up failed', description: error.message, variant: 'destructive' });
           }
         } else {
-          toast({ title: 'Account created!', description: 'Welcome to ExamSecure.' });
-          navigate('/dashboard');
+          if (needsEmailVerification) {
+            toast({
+              title: 'Check your email',
+              description: 'We sent a verification link to your registered email address.',
+            });
+            setIsSignUp(false);
+          } else {
+            toast({ title: 'Account created!', description: 'Welcome to ExamSecure.' });
+            navigate('/dashboard');
+          }
         }
       } else {
         const { error } = await signIn(email, password);
