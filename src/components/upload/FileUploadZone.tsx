@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { FileText, X, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, X, AlertCircle, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -58,6 +59,21 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const removeFile = () => {
     setFile(null);
     setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const replaceFile = () => {
+    setError(null);
+    fileInputRef.current?.click();
+  };
+
+  const previewFile = () => {
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    window.open(previewUrl, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
   };
 
   return (
@@ -88,33 +104,49 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
         )}
       >
         {file ? (
-          <div className="flex items-center justify-center gap-4">
-            <div
-              className={cn(
-                'w-11 h-11 rounded-md flex items-center justify-center',
-                error ? 'bg-destructive/10' : 'bg-success/10'
-              )}
-            >
-              <FileText
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-4">
+              <div
                 className={cn(
-                  'w-5 h-5',
-                  error ? 'text-destructive' : 'text-success'
+                  'w-11 h-11 rounded-md flex items-center justify-center',
+                  error ? 'bg-destructive/10' : 'bg-success/10'
                 )}
-              />
+              >
+                <FileText
+                  className={cn(
+                    'w-5 h-5',
+                    error ? 'text-destructive' : 'text-success'
+                  )}
+                />
+              </div>
+              <div className="text-left">
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={removeFile}
+                className="p-2 rounded-lg hover:bg-destructive/10 text-destructive"
+                title="Cancel paper"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="text-left">
-              <p className="font-medium">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(2)} MB
-              </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={previewFile}>
+                <Eye className="w-4 h-4" />
+                Preview PDF
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={replaceFile}>
+                Replace
+              </Button>
+              <Button type="button" variant="destructive" size="sm" onClick={removeFile}>
+                Cancel Paper
+              </Button>
             </div>
-            <button
-              type="button"
-              onClick={removeFile}
-              className="p-2 rounded-lg hover:bg-destructive/10 text-destructive"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         ) : (
           <>
@@ -129,15 +161,17 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
                 </p>
               </div>
             </div>
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={handleFileChange}
-              className="absolute inset-0 opacity-0 cursor-pointer z-10"
-            />
           </>
         )}
+        <Input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          onChange={handleFileChange}
+          className={cn(
+            file ? 'hidden' : 'absolute inset-0 opacity-0 cursor-pointer z-10'
+          )}
+        />
       </div>
 
       {error && (
