@@ -35,7 +35,10 @@ export default function Auth() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('reset') === 'true';
+  });
   
   const { signIn, signUp, isAuthenticated } = useAuth();
   const navigate = useNavigate();
