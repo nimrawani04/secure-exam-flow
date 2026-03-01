@@ -178,7 +178,7 @@ export function HODAlerts() {
         title: title.trim(),
         message: message.trim(),
         type: alertType,
-        target_roles: ['teacher'],
+        target_roles: ['teacher'] as ('teacher' | 'hod' | 'exam_cell' | 'admin')[],
         target_departments: [profile.department_id],
         user_id: teacherId,
       }));

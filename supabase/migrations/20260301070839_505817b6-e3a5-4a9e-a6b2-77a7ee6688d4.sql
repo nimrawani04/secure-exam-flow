@@ -1,0 +1,1 @@
+ALTER TABLE public.exam_sessions ADD COLUMN IF NOT EXISTS exam_date timestamptz;

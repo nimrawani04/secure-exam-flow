@@ -15,7 +15,15 @@ import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 
 type ExamType = Database['public']['Enums']['exam_type'];
-type ExamSession = Database['public']['Tables']['exam_sessions']['Row'];
+type ExamSession = {
+  id: string;
+  name: string;
+  exam_type: ExamType;
+  submission_start: string;
+  submission_end: string;
+  is_active: boolean | null;
+  exam_date: string | null;
+};
 const uploadExamTypeToDbExamType: Record<UploadExamTypeOption, ExamType> = {
   cia_1: 'mid_term',
   cia_2: 'internal',
