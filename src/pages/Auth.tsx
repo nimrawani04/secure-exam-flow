@@ -37,7 +37,9 @@ export default function Auth() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('reset') === 'true';
+    const hash = window.location.hash;
+    // Detect reset from query param OR from Supabase recovery hash fragment
+    return params.get('reset') === 'true' || hash.includes('type=recovery');
   });
   
   const { signIn, signUp, isAuthenticated } = useAuth();
@@ -53,11 +55,14 @@ export default function Auth() {
       }
     });
 
+    // Check hash fragment for recovery type (Supabase appends #type=recovery)
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setIsPasswordReset(true);
+    }
+
     // Also check if we arrived via reset link (URL has ?reset=true)
     if (searchParams.get('reset') === 'true') {
-      // The hash fragment contains the recovery token; Supabase processes it
-      // and fires PASSWORD_RECOVERY. We wait for that event above.
-      // But also set the flag in case the event already fired before this component mounted.
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           setIsPasswordReset(true);
