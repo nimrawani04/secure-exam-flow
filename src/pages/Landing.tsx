@@ -123,15 +123,15 @@ export default function Landing() {
   };
 
   return (
-    <div className="h-screen overflow-hidden">
-      <section className="relative h-screen bg-slate-900 text-white">
+    <div className="min-h-screen overflow-x-hidden sm:h-screen sm:overflow-hidden">
+      <section className="relative min-h-screen sm:h-screen bg-slate-900 text-white">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/cuk.png')" }}
         />
         <div className="absolute inset-0 bg-black/45" />
 
-        <div className="relative z-10 grid h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid min-h-screen sm:h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left panel */}
           <div
             className={`flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16 ${
@@ -150,7 +150,7 @@ export default function Landing() {
 
           {/* Right panel */}
           <div className="flex items-start lg:items-center justify-center p-4 sm:p-6 lg:p-12">
-            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-4 sm:p-6 lg:p-8 backdrop-blur max-h-[92vh] overflow-y-auto">
+            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-4 sm:p-6 lg:p-8 max-h-none overflow-visible sm:max-h-[92vh] sm:overflow-y-auto sm:backdrop-blur">
               <div className="flex flex-col items-center text-center">
                 <img
                   src="/cuk-favicon.png"
