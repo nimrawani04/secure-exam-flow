@@ -2,19 +2,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PaperCard } from '@/components/dashboard/PaperCard';
 import { DeadlineTimer } from '@/components/dashboard/DeadlineTimer';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useTeacherPapers } from '@/hooks/useTeacherPapers';
+import { useDatesheetEntries } from '@/hooks/useDatesheetEntries';
 import type { ExamPaper } from '@/types';
 import {
   FileText,
   Upload,
   Clock,
   Plus,
+  Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
 
 export function TeacherDashboard() {
   const { profile } = useAuth();
   const { papers, isLoading, error } = useTeacherPapers();
+  const { entries: datesheetEntries } = useDatesheetEntries();
 
   const stats = {
     total: papers.length,
@@ -138,6 +144,56 @@ export function TeacherDashboard() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Upcoming Exams from Datesheet */}
+          {datesheetEntries.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Upcoming Exams</h3>
+              <div className="space-y-3">
+                {datesheetEntries
+                  .filter((e) => new Date(e.exam_date) >= new Date())
+                  .slice(0, 5)
+                  .map((entry) => {
+                    const examDate = new Date(entry.exam_date);
+                    const deadline = new Date(entry.deadline);
+                    const now = new Date();
+                    const isDeadlinePassed = deadline < now;
+                    const daysUntilDeadline = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="rounded-xl border border-border/60 bg-white/70 dark:bg-card/70 backdrop-blur-sm p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-medium text-sm">
+                            {entry.subject_name || entry.course_name || entry.course_code}
+                          </h4>
+                          <span className="font-mono text-xs text-muted-foreground">{entry.course_code}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {format(examDate, 'dd MMM')} · {entry.exam_time}
+                          </div>
+                          {entry.semester && <span>Sem {entry.semester}</span>}
+                        </div>
+                        <div className="mt-2 flex items-center gap-1.5 text-xs">
+                          {isDeadlinePassed ? (
+                            <Badge variant="destructive" className="text-xs">Deadline passed</Badge>
+                          ) : (
+                            <Badge variant="warning" className="text-xs gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              {daysUntilDeadline}d left to submit
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           {/* Upcoming Deadline */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Next Deadline</h3>
