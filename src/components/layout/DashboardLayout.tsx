@@ -42,6 +42,7 @@ const routeTitles: Record<string, { section: string; page: string }> = {
   '/department': { section: 'HOD', page: 'Department' },
   '/approved': { section: 'HOD', page: 'Approved Papers' },
   '/hod/alerts': { section: 'HOD', page: 'Teacher Alerts' },
+  '/exam-cell/datesheet': { section: 'Exam Cell', page: 'Upload Datesheet' },
   '/calendar': { section: 'Exam Cell', page: 'Exam Calendar' },
   '/exam-cell/sessions': { section: 'Exam Cell', page: 'Exam Sessions' },
   '/exam-cell/alerts': { section: 'Exam Cell', page: 'HOD Alerts' },

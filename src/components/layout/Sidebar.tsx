@@ -38,6 +38,7 @@ const roleNavItems = {
   ],
   exam_cell: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Upload, label: 'Upload Datesheet', path: '/exam-cell/datesheet' },
     { icon: Calendar, label: 'Exam Calendar', path: '/calendar' },
     { icon: Clock, label: 'Exam Sessions', path: '/exam-cell/sessions' },
     { icon: Bell, label: 'HOD Alerts', path: '/exam-cell/alerts' },
