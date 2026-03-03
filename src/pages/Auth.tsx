@@ -203,7 +203,7 @@ export default function Auth() {
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-8 bg-background overflow-y-auto">
         <div className="w-full max-w-md space-y-6">
           <div className="lg:hidden flex justify-center mb-8">
             <Link to="/" className="flex items-center gap-3">
