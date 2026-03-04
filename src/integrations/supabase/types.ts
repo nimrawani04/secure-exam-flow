@@ -47,6 +47,56 @@ export type Database = {
         }
         Relationships: []
       }
+      datesheet_entries: {
+        Row: {
+          course_code: string
+          course_name: string | null
+          created_at: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id: string
+          semester: number | null
+          subject_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          course_code: string
+          course_name?: string | null
+          created_at?: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          course_code?: string
+          course_name?: string | null
+          created_at?: string
+          created_by?: string
+          deadline?: string
+          exam_date?: string
+          exam_time?: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "datesheet_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
