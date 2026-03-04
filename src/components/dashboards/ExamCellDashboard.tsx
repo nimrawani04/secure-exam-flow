@@ -39,7 +39,6 @@ import {
 import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useDatesheetEntries, type DatesheetEntry } from '@/hooks/useDatesheetEntries';
 import { useNavigate } from 'react-router-dom';
 
 type ExamType = Database['public']['Enums']['exam_type'];
@@ -193,7 +192,6 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const deleteSession = useDeleteExamSession();
   const createNotification = useCreateNotification();
   const { data: recentNotifications, isLoading: notificationsLoading } = useAdminNotifications(profile?.id);
-  const { entries: datesheetEntries, isLoading: datesheetLoading } = useDatesheetEntries();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -395,29 +393,15 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     });
   }, [currentMonth]);
 
-  const datesheetDates = useMemo(
-    () => new Set(datesheetEntries.map((e) => new Date(e.exam_date).toDateString())),
-    [datesheetEntries]
-  );
-
   const examDates = useMemo(
-    () => {
-      const dates = new Set(exams.map((exam) => exam.scheduledDate.toDateString()));
-      datesheetEntries.forEach((e) => dates.add(new Date(e.exam_date).toDateString()));
-      return dates;
-    },
-    [exams, datesheetEntries]
+    () => new Set(exams.map((exam) => exam.scheduledDate.toDateString())),
+    [exams]
   );
 
   const selectedExams = useMemo(() => {
     if (!selectedDate) return [];
     return exams.filter((exam) => exam.scheduledDate.toDateString() === selectedDate.toDateString());
   }, [exams, selectedDate]);
-
-  const selectedDatesheetEntries = useMemo(() => {
-    if (!selectedDate) return [];
-    return datesheetEntries.filter((e) => new Date(e.exam_date).toDateString() === selectedDate.toDateString());
-  }, [datesheetEntries, selectedDate]);
 
   const upcomingExamsCount = useMemo(() => {
     const now = Date.now();
@@ -1194,41 +1178,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>{examsError}</p>
             </div>
-          ) : (selectedExams.length > 0 || selectedDatesheetEntries.length > 0) ? (
+          ) : selectedExams.length > 0 ? (
             <div className="space-y-4">
-              {/* Datesheet entries for this date */}
-              {selectedDatesheetEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="rounded-xl border border-border/60 bg-white/70 dark:bg-card/70 backdrop-blur-sm px-[18px] py-4 shadow-sm"
-                >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <h4 className="font-medium">{entry.subject_name || entry.course_name || entry.course_code}</h4>
-                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-accent/10 text-accent">
-                        Datesheet
-                      </span>
-                    </div>
-                    <p className="text-sm font-mono text-muted-foreground">{entry.course_code}</p>
-                    <div className="flex flex-wrap items-center gap-3.5 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {entry.exam_time}
-                      </div>
-                      {entry.semester && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          Sem {entry.semester}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5 text-warning">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Deadline: {format(new Date(entry.deadline), 'dd MMM')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {/* Existing exam entries */}
               {selectedExams.map((exam) => (
                 <div
                   key={exam.id}

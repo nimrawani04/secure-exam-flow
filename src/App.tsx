@@ -16,7 +16,6 @@ import Profile from "./pages/Profile";
 import Department from "./pages/Department";
 import Subjects from "./pages/Subjects";
 import ApprovedPapers from "./pages/ApprovedPapers";
-import DatesheetUpload from "./pages/DatesheetUpload";
 import { applyStoredAccent } from "./lib/theme";
 
 const queryClient = new QueryClient();
@@ -47,7 +46,6 @@ const App = () => {
               <Route path="/hod/alerts" element={<Dashboard />} />
               <Route path="/approved" element={<ApprovedPapers />} />
               <Route path="/calendar" element={<Dashboard />} />
-              <Route path="/exam-cell/datesheet" element={<DatesheetUpload />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
               <Route path="/exam-cell/alerts" element={<Dashboard />} />
               <Route path="/inbox" element={<Dashboard />} />
