@@ -66,17 +66,13 @@ export function PasswordResetForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-center">
-        <img src="/cuk-favicon.png" alt="CUK Logo" className="w-16 h-16 rounded-full object-contain" />
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">Set new password</h2>
+        <p className="text-muted-foreground mt-3 text-base">Enter your new password below</p>
       </div>
 
-      <div className="text-center lg:text-left">
-        <h2 className="text-3xl font-bold">Set new password</h2>
-        <p className="text-muted-foreground mt-2">Enter your new password below</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="newPassword">New Password</Label>
           <Input
@@ -106,7 +102,7 @@ export function PasswordResetForm() {
           />
         </div>
 
-        <Button type="submit" className="w-full h-12" disabled={isUpdating}>
+        <Button type="submit" className="w-full h-13 rounded-xl shadow-md text-base font-medium" disabled={isUpdating}>
           {isUpdating ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin mr-2" />

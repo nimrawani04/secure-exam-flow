@@ -160,27 +160,21 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[62%] relative overflow-hidden">
         <img
           src="/cuk.png"
           alt="Central University of Kashmir"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-6">
-          <div className="lg:hidden flex justify-center mb-8">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center">
-                <Shield className="w-7 h-7 text-accent-foreground" />
-              </div>
-              <div>
-                <h1 className="font-bold text-xl">ExamSecure</h1>
-                <p className="text-xs text-muted-foreground">Paper Management System</p>
-              </div>
+      <div className="flex-1 flex items-start sm:items-center justify-end p-4 sm:p-8 lg:pr-16 lg:pl-12 bg-muted/30 overflow-y-auto">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex justify-center mb-6 lg:mb-8">
+            <Link to="/">
+              <img src="/cuk-favicon.png" alt="CUK Logo" className="w-20 h-20 lg:w-24 lg:h-24 object-contain drop-shadow-md" />
             </Link>
           </div>
 
@@ -188,9 +182,9 @@ export default function Auth() {
             <PasswordResetForm />
           ) : (
             <>
-              <div className="text-center lg:text-left">
-                <h2 className="text-3xl font-bold">{isSignUp ? 'Create account' : 'Welcome back'}</h2>
-                <p className="text-muted-foreground mt-2">
+              <div className="text-center">
+                <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">{isSignUp ? 'Create account' : 'Welcome back'}</h2>
+                <p className="text-muted-foreground mt-3 text-base">
                   {isSignUp ? 'Sign up to get started' : 'Sign in to access your dashboard'}
                 </p>
               </div>
@@ -227,7 +221,7 @@ export default function Auth() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 {isSignUp && (
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Full Name</Label>
@@ -300,7 +294,7 @@ export default function Auth() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full h-12" disabled={isLoading}>
+                <Button type="submit" className="w-full h-13 rounded-xl shadow-md text-base font-medium" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
