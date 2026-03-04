@@ -40,13 +40,15 @@ export default function Landing() {
   // Detect any auth-related hash fragments and redirect to /auth
   useEffect(() => {
     const hash = window.location.hash;
+    const search = window.location.search;
     if (
       hash.includes('type=recovery') ||
       hash.includes('type=signup') ||
       hash.includes('error=') ||
       hash.includes('access_token=')
     ) {
-      navigate('/auth' + hash, { replace: true });
+      // Preserve both query params and hash fragment
+      navigate('/auth' + search + hash, { replace: true });
     }
   }, [navigate]);
 
