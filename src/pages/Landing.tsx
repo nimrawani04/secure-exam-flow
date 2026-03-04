@@ -37,6 +37,15 @@ export default function Landing() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Detect password recovery hash and redirect to /auth
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') || hash.includes('type=signup')) {
+      // Preserve the hash fragment so Auth page can process the token
+      navigate('/auth' + hash, { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     const fetchDepartments = async () => {
       const { data, error } = await supabase
