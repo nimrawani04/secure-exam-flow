@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,8 +40,15 @@ export default function Auth() {
   const [isPasswordReset, setIsPasswordReset] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
-    // Detect reset from query param OR from Supabase recovery hash fragment
     return params.get('reset') === 'true' || hash.includes('type=recovery');
+  });
+  const [authError, setAuthError] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.includes('error=')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      return hashParams.get('error_description')?.replace(/\+/g, ' ') || 'Authentication error occurred';
+    }
+    return null;
   });
   
   const { signIn, signUp, isAuthenticated } = useAuth();
@@ -182,6 +191,12 @@ export default function Auth() {
             <PasswordResetForm />
           ) : (
             <>
+              {authError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{authError}</AlertDescription>
+                </Alert>
+              )}
               <div className="text-center">
                 <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">{isSignUp ? 'Create account' : 'Welcome back'}</h2>
                 <p className="text-muted-foreground mt-3 text-base">

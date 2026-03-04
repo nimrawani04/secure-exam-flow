@@ -37,11 +37,15 @@ export default function Landing() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Detect password recovery hash and redirect to /auth
+  // Detect any auth-related hash fragments and redirect to /auth
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes('type=recovery') || hash.includes('type=signup')) {
-      // Preserve the hash fragment so Auth page can process the token
+    if (
+      hash.includes('type=recovery') ||
+      hash.includes('type=signup') ||
+      hash.includes('error=') ||
+      hash.includes('access_token=')
+    ) {
       navigate('/auth' + hash, { replace: true });
     }
   }, [navigate]);
