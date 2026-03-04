@@ -160,46 +160,13 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero text-primary-foreground p-12 flex-col justify-between">
-        <div>
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center shadow-glow">
-              <Shield className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="font-bold text-xl">ExamSecure</h1>
-              <p className="text-xs opacity-70">Paper Management System</p>
-            </div>
-          </Link>
-        </div>
-
-        <div className="space-y-8">
-          <div>
-            <h2 className="text-4xl font-bold mb-4">
-              Secure. Transparent.
-              <br />
-              <span className="text-accent">Compliant.</span>
-            </h2>
-            <p className="text-lg text-primary-foreground/70 max-w-md">
-              The complete solution for managing exam papers with end-to-end security and full audit trails.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { value: '100%', label: 'Encrypted' },
-              { value: '24/7', label: 'Monitoring' },
-              { value: 'NAAC', label: 'Compliant' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center p-4 rounded-xl bg-primary-foreground/5 border border-primary-foreground/10">
-                <div className="text-2xl font-bold text-accent">{stat.value}</div>
-                <div className="text-sm opacity-70">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-sm opacity-50">© 2024 ExamSecure. All rights reserved.</p>
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <img
+          src="/cuk.png"
+          alt="Central University of Kashmir"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       {/* Right Panel */}

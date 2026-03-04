@@ -68,9 +68,7 @@ export function PasswordResetForm() {
   return (
     <div className="space-y-6">
       <div className="flex justify-center">
-        <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
-          <KeyRound className="w-8 h-8 text-accent" />
-        </div>
+        <img src="/cuk-favicon.png" alt="CUK Logo" className="w-16 h-16 rounded-full object-contain" />
       </div>
 
       <div className="text-center lg:text-left">
