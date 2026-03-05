@@ -37,17 +37,24 @@ export default function Landing() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Detect any auth-related hash fragments and redirect to /auth
+  // Detect any auth-related hash fragments or query params and redirect to /auth
   useEffect(() => {
     const hash = window.location.hash;
     const search = window.location.search;
-    if (
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    const hasAuthHash = 
       hash.includes('type=recovery') ||
       hash.includes('type=signup') ||
       hash.includes('error=') ||
-      hash.includes('access_token=')
-    ) {
-      // Preserve both query params and hash fragment
+      hash.includes('access_token=');
+    
+    // PKCE flow uses ?code= query param for token exchange
+    const hasAuthCode = searchParams.has('code');
+    const hasResetParam = searchParams.get('reset') === 'true';
+    
+    if (hasAuthHash || hasAuthCode || hasResetParam) {
+      // Preserve both query params and hash fragment, redirect to /auth
       navigate('/auth' + search + hash, { replace: true });
     }
   }, [navigate]);
