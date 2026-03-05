@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHODPapers } from '@/hooks/useHODPapers';
+import { useHODPaperRequests } from '@/hooks/useHODPaperRequests';
 import {
   FileCheck,
   Clock,
@@ -13,6 +14,9 @@ import {
   Eye,
   Lock,
   AlertTriangle,
+  ShieldAlert,
+  Loader2,
+  MessageSquareWarning,
 } from 'lucide-react';
 
 export function HODDashboard() {
@@ -20,9 +24,11 @@ export function HODDashboard() {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const { papers, isLoading: isLoadingPapers, error } = useHODPapers();
+  const { requests: paperRequests, isLoading: isLoadingRequests, acknowledgeRequest } = useHODPaperRequests();
   const [departmentName, setDepartmentName] = useState<string>('your department');
   const [sortBy, setSortBy] = useState<'deadline' | 'subject' | 'status'>('deadline');
   const [filterBy, setFilterBy] = useState<'all' | 'pending' | 'selected'>('all');
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -387,6 +393,82 @@ export function HODDashboard() {
               </Button>
             </div>
           </div>
+        )}
+
+        {/* Paper Requests from Exam Cell */}
+        {paperRequests.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquareWarning className="h-5 w-5 text-destructive" />
+              <h2 className="text-lg font-semibold">Paper Requests from Exam Cell</h2>
+              <Badge variant="destructive" className="ml-1">{paperRequests.length}</Badge>
+            </div>
+            <div className="space-y-3">
+              {paperRequests.map((req) => {
+                const urgencyStyles =
+                  req.urgency === 'critical'
+                    ? 'border-destructive/40 bg-destructive/5'
+                    : req.urgency === 'urgent'
+                    ? 'border-warning/40 bg-warning/5'
+                    : 'border-border/60 bg-white/70 dark:bg-card/70';
+                const urgencyBadge =
+                  req.urgency === 'critical'
+                    ? { label: '🚨 Critical', className: 'bg-destructive/15 text-destructive border-destructive/20' }
+                    : req.urgency === 'urgent'
+                    ? { label: '⚠️ Urgent', className: 'bg-warning/15 text-warning border-warning/20' }
+                    : { label: 'Normal', className: 'bg-muted text-muted-foreground' };
+                const examTypeLabel = req.examType.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+                return (
+                  <div
+                    key={req.id}
+                    className={`rounded-xl border ${urgencyStyles} backdrop-blur-md p-4 shadow-sm`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-foreground">{req.subjectName}</h3>
+                          <span className="text-xs text-muted-foreground">({req.subjectCode})</span>
+                          <Badge variant="outline" className={urgencyBadge.className}>
+                            {urgencyBadge.label}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          <span>{examTypeLabel}</span>
+                          <span>•</span>
+                          <span>Reason: <strong className="text-foreground">{req.reason}</strong></span>
+                        </div>
+                        <p className="text-sm text-foreground/80 bg-muted/30 rounded-md px-3 py-2 border border-border/30">
+                          {req.remarks}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Requested {req.createdAt.toLocaleDateString()} at {req.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        disabled={acknowledgingId === req.id}
+                        onClick={async () => {
+                          setAcknowledgingId(req.id);
+                          await acknowledgeRequest(req.id);
+                          setAcknowledgingId(null);
+                        }}
+                      >
+                        {acknowledgingId === req.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4" />
+                        )}
+                        Acknowledge
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {/* Warning */}
