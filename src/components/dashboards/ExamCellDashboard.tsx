@@ -40,6 +40,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { RequestNewPaperDialog } from '@/components/examcell/RequestNewPaperDialog';
 
 type ExamType = Database['public']['Enums']['exam_type'];
 type PaperStatus = Database['public']['Enums']['paper_status'];
@@ -1378,6 +1379,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         >
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
+                        <RequestNewPaperDialog
+                          examId={exam.id}
+                          subjectId={exam.subjectId}
+                          subjectName={exam.subjectName}
+                          examType={exam.examType}
+                          departmentId={exam.departmentId ?? ''}
+                          departmentName={departmentName ?? 'Unknown'}
+                        />
                       </div>
                     </td>
                   </tr>
