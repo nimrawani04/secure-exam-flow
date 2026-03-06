@@ -34,7 +34,7 @@ export function useHODPaperRequests() {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('paper_requests' as any)
+        .from('paper_requests')
         .select(`
           id,
           exam_id,
@@ -94,7 +94,7 @@ export function useHODPaperRequests() {
 
     try {
       const { error } = await supabase
-        .from('paper_requests' as any)
+        .from('paper_requests')
         .update({
           status: 'acknowledged',
           resolved_by: user.id,

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Loader2, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -76,11 +77,11 @@ export function RequestNewPaperDialog({
     try {
       // Insert paper request
       const { error: insertError } = await supabase
-        .from('paper_requests' as any)
+        .from('paper_requests')
         .insert({
           exam_id: examId,
           subject_id: subjectId,
-          exam_type: examType,
+          exam_type: examType as Database['public']['Enums']['exam_type'],
           department_id: departmentId,
           reason,
           remarks: remarks.trim(),
