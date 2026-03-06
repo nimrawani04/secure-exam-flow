@@ -225,6 +225,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
   const [latestPapersSort, setLatestPapersSort] = useState<'latest' | 'oldest'>('latest');
   const [inboxSort, setInboxSort] = useState<'latest' | 'oldest'>('latest');
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewDialogUrl, setPreviewDialogUrl] = useState('');
+  const [previewDialogTitle, setPreviewDialogTitle] = useState('');
   const seenInboxPaperKeysRef = useRef<Set<string>>(new Set());
   const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
@@ -486,7 +489,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       return;
     }
 
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    setPreviewDialogTitle(`${exam.subjectName} (${exam.subjectCode})`);
+    setPreviewDialogUrl(data.signedUrl);
+    setPreviewDialogOpen(true);
   };
 
   const handleDownloadPaper = async (exam: ExamWithMeta) => {
@@ -1537,6 +1542,26 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       {view === 'calendar' && calendarSection}
       {view === 'inbox' && inboxSection}
       {view === 'archive' && archiveSection}
+
+      {/* Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewDialogTitle}</DialogTitle>
+          </DialogHeader>
+          {previewDialogUrl ? (
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+              <iframe
+                src={previewDialogUrl}
+                title="Paper preview"
+                className="h-full w-full"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No preview available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

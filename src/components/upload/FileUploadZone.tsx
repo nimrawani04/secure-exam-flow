@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, X, AlertCircle, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,8 @@ interface FileUploadZoneProps {
 export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const validateFile = (selectedFile: File): boolean => {
@@ -71,22 +74,16 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
 
   const previewFile = () => {
     if (!file) return;
-    const previewUrl = URL.createObjectURL(file);
-    // Use window.open with a slight delay to avoid popup blockers
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.location.href = previewUrl;
-      setTimeout(() => URL.revokeObjectURL(previewUrl), 120_000);
-    } else {
-      // Fallback: create a temporary link and click it
-      const link = document.createElement('a');
-      link.href = previewUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(previewUrl), 120_000);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setPreviewOpen(true);
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
     }
   };
 
@@ -205,6 +202,26 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
           {action}
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) closePreview(); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Preview: {file?.name}</DialogTitle>
+          </DialogHeader>
+          {previewUrl ? (
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+              <iframe
+                src={previewUrl}
+                title="PDF preview"
+                className="h-full w-full"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No preview available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
