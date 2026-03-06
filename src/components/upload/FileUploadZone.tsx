@@ -72,8 +72,22 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const previewFile = () => {
     if (!file) return;
     const previewUrl = URL.createObjectURL(file);
-    window.open(previewUrl, '_blank', 'noopener,noreferrer');
-    setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+    // Use window.open with a slight delay to avoid popup blockers
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.location.href = previewUrl;
+      setTimeout(() => URL.revokeObjectURL(previewUrl), 120_000);
+    } else {
+      // Fallback: create a temporary link and click it
+      const link = document.createElement('a');
+      link.href = previewUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(previewUrl), 120_000);
+    }
   };
 
   return (
