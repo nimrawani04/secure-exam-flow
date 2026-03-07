@@ -100,6 +100,17 @@ const notificationTypeVariant: Record<string, 'secondary' | 'warning' | 'destruc
   success: 'success',
 };
 
+const replacementReasonOptions = [
+  'Paper Leak Suspected',
+  'Duplicate Questions',
+  'Printing Error',
+  'Wrong Paper Uploaded',
+  'Formatting Issue',
+  'Other',
+] as const;
+
+type ReplacementUrgency = 'normal' | 'urgent' | 'critical';
+
 const emptyPaperStats: Record<PaperStatus, number> = {
   draft: 0,
   submitted: 0,
@@ -224,9 +235,16 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
   const [latestPapersSort, setLatestPapersSort] = useState<'latest' | 'oldest'>('latest');
   const [inboxSort, setInboxSort] = useState<'latest' | 'oldest'>('latest');
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestTargetExam, setRequestTargetExam] = useState<ExamWithMeta | null>(null);
+  const [requestReason, setRequestReason] = useState<string>('Paper Leak Suspected');
+  const [requestRemarks, setRequestRemarks] = useState('');
+  const [requestUrgency, setRequestUrgency] = useState<ReplacementUrgency>('normal');
+  const [isSubmittingReplacementRequest, setIsSubmittingReplacementRequest] = useState(false);
   const seenInboxPaperKeysRef = useRef<Set<string>>(new Set());
   const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
+  const replacementRemarksLimit = 500;
 
   const departmentNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -504,6 +522,83 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     }
 
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const openReplacementRequestDialog = (exam: ExamWithMeta) => {
+    setRequestTargetExam(exam);
+    setRequestReason('Paper Leak Suspected');
+    setRequestRemarks('');
+    setRequestUrgency('normal');
+    setRequestDialogOpen(true);
+  };
+
+  const closeReplacementRequestDialog = () => {
+    if (isSubmittingReplacementRequest) return;
+    setRequestDialogOpen(false);
+    setRequestTargetExam(null);
+  };
+
+  const handleSubmitReplacementRequest = async () => {
+    if (!profile?.id || !requestTargetExam) {
+      toast({
+        title: 'Request failed',
+        description: 'Missing profile or paper details. Refresh and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const normalizedRemarks = requestRemarks.trim();
+    if (!normalizedRemarks) {
+      toast({
+        title: 'Remarks required',
+        description: 'Please provide remarks so HOD can prepare a replacement paper.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const subjectLabel = requestTargetExam.subjectCode
+      ? `${requestTargetExam.subjectName} (${requestTargetExam.subjectCode})`
+      : requestTargetExam.subjectName;
+    const urgencyLabel = requestUrgency.charAt(0).toUpperCase() + requestUrgency.slice(1);
+    const notificationType =
+      requestUrgency === 'critical' ? 'critical' : requestUrgency === 'urgent' ? 'warning' : 'info';
+
+    setIsSubmittingReplacementRequest(true);
+    try {
+      await createNotification.mutateAsync({
+        createdBy: profile.id,
+        title: `Replacement Paper Request - ${subjectLabel}`,
+        message: [
+          'A replacement question paper is requested by Exam Cell.',
+          `Subject: ${subjectLabel}`,
+          `Exam Type: ${examTypeLabels[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
+          `Reason: ${requestReason}`,
+          `Urgency: ${urgencyLabel}`,
+          `Remarks: ${normalizedRemarks}`,
+        ].join('\n'),
+        targetRoles: ['hod'],
+        targetDepartments: requestTargetExam.departmentId ? [requestTargetExam.departmentId] : null,
+        type: notificationType,
+      });
+
+      toast({
+        title: 'Request sent',
+        description: 'HOD has been notified to submit a replacement paper.',
+      });
+      setRequestDialogOpen(false);
+      setRequestTargetExam(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to send request.';
+      toast({
+        title: 'Request failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingReplacementRequest(false);
+    }
   };
 
   const getPaperBadge = (exam: ExamWithMeta) => {
@@ -1293,7 +1388,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               <SelectItem value="oldest">Sort: Oldest</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => navigate('/archive')}>
             <Archive className="w-4 h-4" />
             View Archive
           </Button>
@@ -1377,6 +1472,15 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                           title="Download paper"
                         >
                           <Download className="h-[18px] w-[18px]" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/80 hover:text-destructive"
+                          onClick={() => openReplacementRequestDialog(exam)}
+                          title="Request replacement paper"
+                        >
+                          <AlertTriangle className="h-[18px] w-[18px]" />
                         </Button>
                       </div>
                     </td>
@@ -1528,6 +1632,135 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       {view === 'calendar' && calendarSection}
       {view === 'inbox' && inboxSection}
       {view === 'archive' && archiveSection}
+
+      <Dialog
+        open={requestDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeReplacementRequestDialog();
+            return;
+          }
+          setRequestDialogOpen(true);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Request New Question Paper</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm text-muted-foreground">
+            This will notify the HOD to prepare a replacement paper. Use only when necessary.
+          </p>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Input readOnly value={requestTargetExam?.subjectName ?? ''} className="bg-muted/40" />
+              </div>
+              <div className="space-y-2">
+                <Label>Exam Type</Label>
+                <Input
+                  readOnly
+                  value={requestTargetExam ? examTypeLabels[requestTargetExam.examType as ExamType] : ''}
+                  className="bg-muted/40"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Input
+                readOnly
+                value={
+                  requestTargetExam?.departmentId
+                    ? (departmentNameMap.get(requestTargetExam.departmentId) ?? 'Unknown Department')
+                    : 'Unknown Department'
+                }
+                className="bg-muted/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="replacement-reason">Reason for Request *</Label>
+              <Select value={requestReason} onValueChange={setRequestReason}>
+                <SelectTrigger id="replacement-reason">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {replacementReasonOptions.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="replacement-remarks">Remarks *</Label>
+              <Textarea
+                id="replacement-remarks"
+                value={requestRemarks}
+                onChange={(event) => setRequestRemarks(event.target.value)}
+                maxLength={replacementRemarksLimit}
+                placeholder="Explain what happened and what needs to be corrected."
+                rows={5}
+              />
+              <p className="text-right text-xs text-muted-foreground">
+                {requestRemarks.length}/{replacementRemarksLimit}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Urgency Level</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={requestUrgency === 'normal' ? 'default' : 'outline'}
+                  onClick={() => setRequestUrgency('normal')}
+                >
+                  Normal
+                </Button>
+                <Button
+                  type="button"
+                  variant={requestUrgency === 'urgent' ? 'default' : 'outline'}
+                  onClick={() => setRequestUrgency('urgent')}
+                >
+                  Urgent
+                </Button>
+                <Button
+                  type="button"
+                  variant={requestUrgency === 'critical' ? 'destructive' : 'outline'}
+                  onClick={() => setRequestUrgency('critical')}
+                >
+                  Critical
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeReplacementRequestDialog} disabled={isSubmittingReplacementRequest}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitReplacementRequest}
+              disabled={isSubmittingReplacementRequest}
+              variant={requestUrgency === 'critical' ? 'destructive' : 'default'}
+            >
+              {isSubmittingReplacementRequest ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Request'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
