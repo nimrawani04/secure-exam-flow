@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard,
   Upload,
@@ -67,6 +69,34 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
+
+  // Fetch pending paper requests count for HOD
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  useEffect(() => {
+    if (profile?.role !== 'hod' || !profile?.department_id) return;
+
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('paper_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('department_id', profile.department_id!)
+        .eq('status', 'pending');
+      setPendingRequestsCount(count || 0);
+    };
+
+    fetchCount();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('hod-paper-requests-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'paper_requests' }, () => {
+        fetchCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role, profile?.department_id]);
 
   if (!profile?.role) return null;
 
@@ -156,22 +186,39 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+      {navItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const showBadge = profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0;
           const link = (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
+                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative',
                 collapsed && !isMobile ? 'justify-center px-0' : '',
                 isActive
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
             >
-              <item.icon className="w-5 h-5" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="relative">
+                <item.icon className="w-5 h-5" />
+                {showBadge && collapsed && !isMobile && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
+                    {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                  </span>
+                )}
+              </span>
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
+                      {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                    </span>
+                  )}
+                </span>
+              )}
             </Link>
           );
 

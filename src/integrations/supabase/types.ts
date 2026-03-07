@@ -47,6 +47,56 @@ export type Database = {
         }
         Relationships: []
       }
+      datesheet_entries: {
+        Row: {
+          course_code: string
+          course_name: string | null
+          created_at: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id: string
+          semester: number | null
+          subject_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          course_code: string
+          course_name?: string | null
+          created_at?: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          course_code?: string
+          course_name?: string | null
+          created_at?: string
+          created_by?: string
+          deadline?: string
+          exam_date?: string
+          exam_time?: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "datesheet_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -285,6 +335,79 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      paper_requests: {
+        Row: {
+          created_at: string
+          department_id: string
+          exam_id: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          reason: string
+          remarks: string
+          requested_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          subject_id: string
+          updated_at: string
+          urgency: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          exam_id: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          reason: string
+          remarks: string
+          requested_by: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject_id: string
+          updated_at?: string
+          urgency?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          exam_id?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          reason?: string
+          remarks?: string
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject_id?: string
+          updated_at?: string
+          urgency?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_requests_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_requests_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

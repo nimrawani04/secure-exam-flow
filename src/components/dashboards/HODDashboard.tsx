@@ -4,7 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useHODPapers } from '@/hooks/useHODPapers';
+import { useHODPaperRequests, type PaperRequest } from '@/hooks/useHODPaperRequests';
 import {
   FileCheck,
   Clock,
@@ -13,16 +15,26 @@ import {
   Eye,
   Lock,
   AlertTriangle,
+  ShieldAlert,
+  Loader2,
+  MessageSquareWarning,
+  Send,
+  ArrowUpDown,
 } from 'lucide-react';
 
 export function HODDashboard() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
-  const { papers, isLoading: isLoadingPapers, error } = useHODPapers();
+  const { papers, isLoading: isLoadingPapers, error, selectPaper } = useHODPapers();
+  const { requests: paperRequests, isLoading: isLoadingRequests, acknowledgeRequest } = useHODPaperRequests();
   const [departmentName, setDepartmentName] = useState<string>('your department');
   const [sortBy, setSortBy] = useState<'deadline' | 'subject' | 'status'>('deadline');
   const [filterBy, setFilterBy] = useState<'all' | 'pending' | 'selected'>('all');
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
+  const [replacementDialog, setReplacementDialog] = useState<PaperRequest | null>(null);
+  const [replacementSort, setReplacementSort] = useState<'newest' | 'version' | 'set'>('newest');
+  const [sendingReplacementId, setSendingReplacementId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -389,6 +401,87 @@ export function HODDashboard() {
           </div>
         )}
 
+        {/* Paper Requests from Exam Cell */}
+        {paperRequests.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquareWarning className="h-5 w-5 text-destructive" />
+              <h2 className="text-lg font-semibold">Paper Requests from Exam Cell</h2>
+              <Badge variant="destructive" className="ml-1">{paperRequests.length}</Badge>
+            </div>
+            <div className="space-y-3">
+              {paperRequests.map((req) => {
+                const urgencyStyles =
+                  req.urgency === 'critical'
+                    ? 'border-destructive/40 bg-destructive/5'
+                    : req.urgency === 'urgent'
+                    ? 'border-warning/40 bg-warning/5'
+                    : 'border-border/60 bg-white/70 dark:bg-card/70';
+                const urgencyBadge =
+                  req.urgency === 'critical'
+                    ? { label: '🚨 Critical', className: 'bg-destructive/15 text-destructive border-destructive/20' }
+                    : req.urgency === 'urgent'
+                    ? { label: '⚠️ Urgent', className: 'bg-warning/15 text-warning border-warning/20' }
+                    : { label: 'Normal', className: 'bg-muted text-muted-foreground' };
+                const examTypeLabel = req.examType.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+                return (
+                  <div
+                    key={req.id}
+                    className={`rounded-xl border ${urgencyStyles} backdrop-blur-md p-4 shadow-sm`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-foreground">{req.subjectName}</h3>
+                          <span className="text-xs text-muted-foreground">({req.subjectCode})</span>
+                          <Badge variant="outline" className={urgencyBadge.className}>
+                            {urgencyBadge.label}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          <span>{examTypeLabel}</span>
+                          <span>•</span>
+                          <span>Reason: <strong className="text-foreground">{req.reason}</strong></span>
+                        </div>
+                        <p className="text-sm text-foreground/80 bg-muted/30 rounded-md px-3 py-2 border border-border/30">
+                          {req.remarks}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Requested {req.createdAt.toLocaleDateString()} at {req.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="gap-2"
+                          disabled={acknowledgingId === req.id}
+                          onClick={async () => {
+                            setAcknowledgingId(req.id);
+                            const success = await acknowledgeRequest(req.id);
+                            setAcknowledgingId(null);
+                            if (success) {
+                              setReplacementDialog(req);
+                            }
+                          }}
+                        >
+                          {acknowledgingId === req.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                          Acknowledge & Select Replacement
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Warning */}
         <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 backdrop-blur-sm flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
@@ -401,6 +494,109 @@ export function HODDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Replacement Paper Selection Dialog */}
+      <Dialog open={!!replacementDialog} onOpenChange={(open) => !open && setReplacementDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" />
+              Select Replacement Paper
+            </DialogTitle>
+            <DialogDescription>
+              Choose an approved paper for <strong>{replacementDialog?.subjectName}</strong> ({replacementDialog?.subjectCode}) to replace the compromised paper.
+            </DialogDescription>
+          </DialogHeader>
+
+          {(() => {
+            if (!replacementDialog) return null;
+
+            const coursePapers = papers
+              .filter((p) => p.subjectId === replacementDialog.subjectId && (p.status === 'approved' || p.status === 'pending_review'))
+              .sort((a, b) => {
+                if (replacementSort === 'version') return b.version - a.version;
+                if (replacementSort === 'set') return a.setName.localeCompare(b.setName);
+                return b.uploadedAt.getTime() - a.uploadedAt.getTime();
+              });
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{coursePapers.length} paper{coursePapers.length !== 1 ? 's' : ''} available</p>
+                  <Select value={replacementSort} onValueChange={(v) => setReplacementSort(v as typeof replacementSort)}>
+                    <SelectTrigger className="w-40">
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="version">Version (high→low)</SelectItem>
+                      <SelectItem value="set">Set name (A→Z)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {coursePapers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileCheck className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No approved papers available for this subject.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Teachers may need to submit new papers first.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {coursePapers.map((paper) => (
+                      <div
+                        key={paper.id}
+                        className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border/60 bg-card/50 hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{paper.anonymousId}</span>
+                            <Badge variant="outline" className="text-xs">Set {paper.setName}</Badge>
+                            <Badge variant={paper.status === 'approved' ? 'success' : 'pending'} className="text-xs">
+                              {paper.status === 'approved' ? 'Approved' : 'Pending Review'}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                            <span>v{paper.version}</span>
+                            <span>Uploaded {paper.uploadedAt.toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="gap-1.5 shrink-0"
+                          disabled={sendingReplacementId === paper.id}
+                          onClick={async () => {
+                            setSendingReplacementId(paper.id);
+                            const success = await selectPaper(
+                              paper.id,
+                              paper.subjectId,
+                              paper.examType,
+                              `Replacement for paper request: ${replacementDialog.reason}`
+                            );
+                            setSendingReplacementId(null);
+                            if (success) {
+                              setReplacementDialog(null);
+                            }
+                          }}
+                        >
+                          {sendingReplacementId === paper.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5" />
+                          )}
+                          Select & Lock
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
