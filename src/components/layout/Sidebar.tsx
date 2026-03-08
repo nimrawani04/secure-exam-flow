@@ -281,8 +281,11 @@ export function Sidebar({
       {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
-            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0);
-          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount : pendingRequestsCount;
+            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0);
+          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount
+            : profile?.role === 'exam_cell' && item.path === '/inbox' ? reviewRequestedCount
+            : pendingRequestsCount;
           const link = (
             <Link
               key={item.path}
