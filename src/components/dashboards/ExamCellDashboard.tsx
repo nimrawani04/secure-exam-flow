@@ -218,6 +218,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [exams, setExams] = useState<ExamWithMeta[]>([]);
+  const [examsRefreshKey, setExamsRefreshKey] = useState(0);
+  const refreshExams = () => setExamsRefreshKey((k) => k + 1);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
   const [examsError, setExamsError] = useState<string | null>(null);
   const [paperStats, setPaperStats] = useState<Record<PaperStatus, number>>(emptyPaperStats);
