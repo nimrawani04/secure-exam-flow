@@ -1027,7 +1027,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   onKeyDown={handleBroadcastKeyDown}
                 />
               </div>
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-start">
+              <div className="space-y-1.5">
                 <Label>Message</Label>
                 <div className="space-y-2">
                   <Textarea
