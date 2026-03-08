@@ -61,10 +61,11 @@ export function ReviewResponseDialog({
     if (!user) return;
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('exam_papers')
-        .update({ status: 'locked' as PaperStatus })
-        .eq('id', paperId);
+      const { error } = await supabase.rpc('exam_cell_respond_to_review', {
+        _paper_id: paperId,
+        _user_id: user.id,
+        _action: 'approve',
+      });
 
       if (error) {
         console.error('Error approving paper:', error);
@@ -108,14 +109,12 @@ export function ReviewResponseDialog({
     if (!user || !feedback.trim()) return;
     setIsSubmitting(true);
     try {
-      // Update paper status back to pending_review with feedback
-      const { error } = await supabase
-        .from('exam_papers')
-        .update({
-          status: 'pending_review' as PaperStatus,
-          feedback: feedback.trim(),
-        })
-        .eq('id', paperId);
+      const { error } = await supabase.rpc('exam_cell_respond_to_review', {
+        _paper_id: paperId,
+        _user_id: user.id,
+        _action: 'feedback',
+        _feedback: feedback.trim(),
+      });
 
       if (error) {
         console.error('Error sending feedback:', error);

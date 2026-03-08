@@ -701,6 +701,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      exam_cell_respond_to_review: {
+        Args: {
+          _action: string
+          _feedback?: string
+          _paper_id: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       get_user_department: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
