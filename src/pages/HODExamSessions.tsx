@@ -173,7 +173,7 @@ export default function HODExamSessions() {
             </h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastSessions.map((session) => (
-                <SessionCard key={session.id} session={session} onDelete={deleteSession} isPast />
+                <SessionCard key={session.id} session={session} onDelete={deleteSession} isPastSession />
               ))}
             </div>
           </div>
