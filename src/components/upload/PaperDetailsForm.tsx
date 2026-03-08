@@ -182,9 +182,6 @@ export function PaperDetailsForm({
         </p>
       </div>
 
-      <p className="text-xs text-muted-foreground/70 mt-2">
-        Upload a single paper or split as Paper 1 and Paper 2. You cannot upload three papers.
-      </p>
     </div>
   );
 }
