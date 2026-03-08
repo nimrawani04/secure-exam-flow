@@ -113,8 +113,8 @@ export default function HODExamSessions() {
   };
 
   const now = new Date();
-  const activeSessions = sessions.filter((s) => s.status === 'active' && !isPast(s.examDate));
-  const pastSessions = sessions.filter((s) => s.status !== 'active' || isPast(s.examDate));
+  const activeSessions = sessions.filter((s) => s.status === 'active' && !isDatePast(s.examDate));
+  const pastSessions = sessions.filter((s) => s.status !== 'active' || isDatePast(s.examDate));
 
   return (
     <DashboardLayout>
