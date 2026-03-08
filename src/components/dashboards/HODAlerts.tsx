@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Bell, Loader2 } from 'lucide-react';
+import { Bell, Loader2, Search, ArrowUpDown, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Subject {
   id: string;
   name: string;
   code: string;
+  semester: number;
 }
 
 type TargetMode = 'department' | 'subjects';
