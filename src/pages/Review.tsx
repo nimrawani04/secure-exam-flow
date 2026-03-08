@@ -70,7 +70,7 @@ interface ReviewCardProps {
 
 function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
   const config = statusConfig[paper.status];
-  const formattedDeadline = paper.deadline.toLocaleDateString('en-GB', {
+  const formattedDate = paper.uploadedAt.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -105,7 +105,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 
           <div className="flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>Deadline {formattedDeadline}</span>
+            <span>Submitted on {formattedDate}</span>
           </div>
         </div>
 
@@ -205,7 +205,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
                   <span>&bull;</span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    Deadline {paper.deadline.toLocaleDateString()}
+                    Submitted on {paper.uploadedAt.toLocaleDateString()}
                   </span>
                 </div>
               </div>
