@@ -126,7 +126,6 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const validateFile = (selectedFile: File): boolean => {
