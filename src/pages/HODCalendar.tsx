@@ -61,15 +61,6 @@ const STATUS_CONFIG: Record<PaperStatusKey, { color: string; dotClass: string; i
   },
 };
 
-const EXAM_TYPE_LABELS: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-};
 
 function mapPaperStatus(status: string, isSelected: boolean): PaperStatusKey {
   if (status === 'locked') return 'locked';

@@ -16,16 +16,6 @@ import { Clock, CheckCircle2, Upload, Pencil, Trash2, Star } from 'lucide-react'
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const EXAM_TYPE_LABELS: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-  other: 'Other',
-};
 
 const STATUS_CONFIG: Record<TeacherSessionStatus, {
   color: string;
