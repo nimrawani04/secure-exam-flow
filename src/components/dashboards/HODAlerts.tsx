@@ -382,11 +382,50 @@ export function HODAlerts() {
                       Clear
                     </Button>
                   </div>
+
+                  {/* Search, Sort, Filter controls */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name or code..."
+                        value={subjectSearch}
+                        onChange={(e) => setSubjectSearch(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                    <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                        <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Semester" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Semesters</SelectItem>
+                        {availableSemesters.map((sem) => (
+                          <SelectItem key={sem} value={String(sem)}>
+                            Semester {sem}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={subjectSort} onValueChange={(v) => setSubjectSort(v as typeof subjectSort)}>
+                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                        <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name A–Z</SelectItem>
+                        <SelectItem value="code">Course Code</SelectItem>
+                        <SelectItem value="semester">Semester</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {subjectsLoading ? (
                     <p className="text-sm text-muted-foreground">Loading subjects...</p>
-                  ) : subjects.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {subjects.map((subject) => (
+                  ) : filteredSubjects.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
+                      {filteredSubjects.map((subject) => (
                         <label key={subject.id} className="flex items-start gap-3 rounded-lg border bg-secondary/20 p-3">
                           <Checkbox
                             checked={selectedSubjectIds.includes(subject.id)}
@@ -394,11 +433,13 @@ export function HODAlerts() {
                           />
                           <div>
                             <p className="text-sm font-medium">{subject.name}</p>
-                            <p className="text-xs text-muted-foreground">{subject.code}</p>
+                            <p className="text-xs text-muted-foreground">{subject.code} · Sem {subject.semester}</p>
                           </div>
                         </label>
                       ))}
                     </div>
+                  ) : subjects.length > 0 ? (
+                    <p className="text-sm text-muted-foreground">No subjects match your search or filter.</p>
                   ) : (
                     <p className="text-sm text-muted-foreground">No subjects assigned yet.</p>
                   )}
