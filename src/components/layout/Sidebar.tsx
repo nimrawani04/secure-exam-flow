@@ -254,7 +254,9 @@ export function Sidebar({
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
       {navItems.map((item) => {
           const isActive = location.pathname === item.path;
-          const showBadge = profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0;
+          const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
+            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0);
+          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount : pendingRequestsCount;
           const link = (
             <Link
               key={item.path}
