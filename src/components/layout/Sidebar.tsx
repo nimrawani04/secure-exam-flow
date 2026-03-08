@@ -168,7 +168,7 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
-  // Exam cell: count review_requested papers
+  // Exam cell: count locked + review_requested papers (papers sent by HODs)
   useEffect(() => {
     if (profile?.role !== 'exam_cell') return;
 
@@ -176,7 +176,7 @@ export function Sidebar({
       const { count } = await supabase
         .from('exam_papers')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'review_requested');
+        .in('status', ['locked', 'review_requested']);
       setReviewRequestedCount(count || 0);
     };
 
