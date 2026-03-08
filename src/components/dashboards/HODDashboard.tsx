@@ -599,7 +599,18 @@ export function HODDashboard() {
                             <span>Uploaded {paper.uploadedAt.toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <Button
+                        <div className="flex items-center gap-2 shrink-0">
+                          {paper.filePath && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1.5"
+                              onClick={() => handlePreviewPaper(paper.filePath, `${paper.subjectName} - ${paper.anonymousId}`)}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Preview
+                            </Button>
+                          )}
                           size="sm"
                           variant="default"
                           className="gap-1.5 shrink-0"
