@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useNotificationActions, useNotifications } from '@/hooks/useNotifications';
+import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardLayoutProps {
@@ -74,6 +75,7 @@ const notificationTypeConfig: Record<string, { label: string; variant: 'secondar
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading, profile } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -166,6 +168,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         toggleRead({ notificationId: n.id, userId: profile.id, markRead: true })
       )
     );
+    toast({
+      title: 'All notifications marked as read',
+      description: `${unreadNotifications.length} notification${unreadNotifications.length !== 1 ? 's' : ''} marked as read.`,
+    });
   };
 
   const renderNotificationsContent = () => (
