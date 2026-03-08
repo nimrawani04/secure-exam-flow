@@ -76,6 +76,8 @@ export function Sidebar({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   // Fetch pending calendar submissions count for teacher
   const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
+  // Fetch review_requested papers count for exam_cell
+  const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
@@ -158,6 +160,30 @@ export function Sidebar({
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'department_exam_sessions' }, () => {
         fetchPendingCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
+  // Exam cell: count review_requested papers
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchReviewCount = async () => {
+      const { count } = await supabase
+        .from('exam_papers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'review_requested');
+      setReviewRequestedCount(count || 0);
+    };
+
+    fetchReviewCount();
+
+    const channel = supabase
+      .channel('exam-cell-review-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_papers' }, () => {
+        fetchReviewCount();
       })
       .subscribe();
 
@@ -255,8 +281,11 @@ export function Sidebar({
       {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
-            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0);
-          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount : pendingRequestsCount;
+            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0);
+          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount
+            : profile?.role === 'exam_cell' && item.path === '/inbox' ? reviewRequestedCount
+            : pendingRequestsCount;
           const link = (
             <Link
               key={item.path}
