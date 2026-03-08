@@ -8,7 +8,7 @@ import { useTeacherCalendar, type TeacherSessionStatus } from '@/hooks/useTeache
 import { useEffect } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Clock, CheckCircle2, Loader, Lock, Upload } from 'lucide-react';
+import { Clock, CheckCircle2, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const EXAM_TYPE_LABELS: Record<string, string> = {
