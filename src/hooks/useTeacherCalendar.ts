@@ -95,7 +95,6 @@ export function useTeacherCalendar() {
             .select('id, status')
             .eq('subject_id', s.subject_id)
             .eq('uploaded_by', user.id)
-            .not('status', 'eq', 'rejected')
             .order('version', { ascending: false })
             .limit(1);
 
