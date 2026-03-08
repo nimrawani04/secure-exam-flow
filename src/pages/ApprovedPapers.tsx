@@ -72,13 +72,19 @@ export default function ApprovedPapers() {
                       <span>v{paper.version}</span>
                     </div>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1 bg-success/10 text-success border border-success/20"
-                  >
-                    <Lock className="h-3 w-3" />
-                    Locked
-                  </Badge>
+                  {(() => {
+                    const st = statusLabels[paper.status] || statusLabels.locked;
+                    const Icon = st.icon;
+                    return (
+                      <Badge
+                        variant="secondary"
+                        className={`flex items-center gap-1 border ${st.color}`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {st.label}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
