@@ -393,6 +393,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             paperFilePath: paper.filePath,
             hodRemark: paper.hodRemark,
             status: 'scheduled' as const,
+            isStandalone: true,
           } as ExamWithMeta);
         }
       });
