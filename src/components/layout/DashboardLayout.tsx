@@ -98,7 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     includeRead: false,
   });
   
-  const { updateReadState } = useNotificationActions();
+  const { toggleRead } = useNotificationActions();
   const notificationCount = unreadNotifications?.length || 0;
 
   const title = useMemo(() => {
@@ -145,8 +145,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [navigate]);
 
-  const handleReadToggle = async (id: string, isRead: boolean) => {
-    await updateReadState({ id, isRead });
+  const handleReadToggle = async (notificationId: string, markRead: boolean) => {
+    if (!profile?.id) return;
+    await toggleRead({ notificationId, userId: profile.id, markRead });
   };
 
   const renderNotificationsContent = () => (
@@ -171,7 +172,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             notification.message.length > 140
               ? `${notification.message.slice(0, 140)}...`
               : notification.message;
-          const isRead = Boolean(notification.is_read);
+          const isRead = Boolean((notification as any).is_read_by_user);
 
           return (
             <DropdownMenuItem
