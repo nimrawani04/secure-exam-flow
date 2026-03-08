@@ -143,6 +143,16 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequest
               <XCircle className="h-4 w-4" />
               Reject
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRequestReview}
+              disabled={isProcessing}
+              className="h-10 w-full gap-1.5 border-accent/50 text-accent hover:border-accent hover:bg-accent/10"
+            >
+              <Send className="h-4 w-4" />
+              Request Exam Cell Review
+            </Button>
           </div>
         )}
 
