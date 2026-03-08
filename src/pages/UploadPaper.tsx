@@ -25,10 +25,10 @@ type ExamSession = {
   exam_date: string | null;
 };
 const uploadExamTypeToDbExamType: Record<UploadExamTypeOption, ExamType> = {
-  cia_1: 'mid_term',
-  cia_2: 'internal',
+  cia_1: 'cia_1',
+  cia_2: 'cia_2',
   end_semester: 'end_term',
-  external_practical: 'practical',
+  external_practical: 'practical_external',
   internal_practical: 'practical',
 };
 
