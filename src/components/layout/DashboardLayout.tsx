@@ -125,7 +125,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       // Cmd+K or Ctrl+K to open notifications
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
-        notificationTriggerRef.current?.click();
+        setNotificationsOpen(prev => !prev);
         return;
       }
 
