@@ -1140,8 +1140,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           </div>
         </div>
 
-        <div className="space-y-3 lg:self-start">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
+        <div className="min-w-0 space-y-3 lg:self-start">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
