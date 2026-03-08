@@ -81,8 +81,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showRead, setShowRead] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const lastKey = useRef<{ key: string; time: number } | null>(null);
-  const notificationTriggerRef = useRef<HTMLButtonElement>(null);
   
   // Fetch notifications for display (respects showRead toggle)
   const { data: notifications, isLoading: notificationsLoading } = useNotifications({
@@ -125,7 +125,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       // Cmd+K or Ctrl+K to open notifications
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
-        notificationTriggerRef.current?.click();
+        setNotificationsOpen(prev => !prev);
         return;
       }
 
@@ -309,9 +309,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <DropdownMenu>
+            <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button ref={notificationTriggerRef} variant="ghost" size="icon" aria-label="Notifications" className="relative h-8 w-8">
+                <Button variant="ghost" size="icon" aria-label="Notifications" className="relative h-8 w-8">
                   <Bell className="h-4 w-4" />
                   {notificationCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
@@ -387,9 +387,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </DialogContent>
               </Dialog>
 
-              <DropdownMenu>
+              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button ref={notificationTriggerRef} variant="outline" size="icon" aria-label="Notifications" className="relative">
+                  <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
                     <Bell className="h-4 w-4" />
                     {notificationCount > 0 && (
                       <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
