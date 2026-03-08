@@ -123,6 +123,7 @@ const emptyPaperStats: Record<PaperStatus, number> = {
   rejected: 0,
   resubmission_requested: 0,
   locked: 0,
+  review_requested: 0,
 };
 
 const toLocalInputValue = (value?: string | null) => {

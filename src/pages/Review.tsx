@@ -50,6 +50,7 @@ const statusConfig: Record<PaperStatus, {
   rejected: { label: 'Rejected', variant: 'destructive' },
   resubmission_requested: { label: 'Resubmission Requested', variant: 'warning' },
   locked: { label: 'Locked & Selected', variant: 'default' },
+  review_requested: { label: 'Review Requested', variant: 'warning' },
 };
 
 const examTypeLabels: Record<string, string> = {
