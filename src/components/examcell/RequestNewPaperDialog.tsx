@@ -62,7 +62,7 @@ export function RequestNewPaperDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const examTypeLabel = examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-  const canSubmit = reason && remarks.trim().length >= 10;
+  const canSubmit = !!reason;
 
   const resetForm = () => {
     setReason('');
@@ -212,7 +212,7 @@ export function RequestNewPaperDialog({
           {/* Remarks */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
-              Remarks <span className="text-destructive">*</span>
+              Remarks <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <Textarea
               value={remarks}
