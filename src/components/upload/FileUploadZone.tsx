@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, X, AlertCircle, Eye } from 'lucide-react';
+import { FileText, X, AlertCircle, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
