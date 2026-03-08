@@ -297,21 +297,29 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         return;
       }
 
-      const { data: selectedPapers, error: selectedPapersError } = await supabase
-        .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback')
-        .eq('is_selected', true)
-        .in('status', ['approved', 'locked']);
+      // Fetch all selected/locked papers directly (these may not have exams entries)
+      const [selectedPapersRes, reviewRequestedRes] = await Promise.all([
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('is_selected', true)
+          .in('status', ['approved', 'locked']),
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('status', 'review_requested' as any),
+      ]);
 
-      if (selectedPapersError) {
-        console.error('Error fetching selected papers:', selectedPapersError);
-      }
+      if (selectedPapersRes.error) console.error('Error fetching selected papers:', selectedPapersRes.error);
+      if (reviewRequestedRes.error) console.error('Error fetching review-requested papers:', reviewRequestedRes.error);
+
+      const allRelevantPapers = [...(selectedPapersRes.data || []), ...(reviewRequestedRes.data || [])];
 
       const selectedPaperByExamKey = new Map<
         string,
-        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null }
+        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
-      (selectedPapers || []).forEach((paper: any) => {
+      (allRelevantPapers).forEach((paper: any) => {
         const key = `${paper.subject_id}-${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
@@ -319,9 +327,17 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
             hodRemark: paper.feedback ?? null,
+            subjectName: paper.subjects?.name ?? 'Unknown Subject',
+            subjectCode: paper.subjects?.code ?? '',
+            departmentId: paper.subjects?.department_id ?? null,
+            examType: paper.exam_type,
+            uploadedAt: paper.uploaded_at,
           });
         }
       });
+
+      // Track which subject+examType combos already have an exams entry
+      const coveredExamKeys = new Set<string>();
 
       const mapped = (data || [])
         .map((row: any) => {
@@ -332,6 +348,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           }
 
           const examKey = `${row.subject_id}-${row.exam_type}`;
+          coveredExamKeys.add(examKey);
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
           const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
@@ -355,6 +372,28 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           } as ExamWithMeta;
         })
         .filter((row): row is ExamWithMeta => Boolean(row));
+
+      // Add standalone locked papers that don't have a matching exams entry
+      selectedPaperByExamKey.forEach((paper, key) => {
+        if (!coveredExamKeys.has(key)) {
+          const uploadDate = new Date(paper.uploadedAt);
+          mapped.push({
+            id: `paper-${paper.id}`,
+            subjectId: key.split('-')[0],
+            subjectName: paper.subjectName,
+            subjectCode: paper.subjectCode,
+            departmentId: paper.departmentId,
+            examType: paper.examType as ExamType,
+            scheduledDate: uploadDate,
+            unlockTime: uploadDate,
+            paperId: paper.id,
+            paperStatus: paper.status,
+            paperFilePath: paper.filePath,
+            hodRemark: paper.hodRemark,
+            status: 'scheduled' as const,
+          } as ExamWithMeta);
+        }
+      });
 
       setExams(mapped);
       setIsLoadingExams(false);
@@ -445,7 +484,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const inboxExams = useMemo(
-    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
+    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved' || exam.paperStatus === 'review_requested'),
     [exams]
   );
   const sortedInboxExams = useMemo(() => {
@@ -615,6 +654,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const getPaperBadge = (exam: ExamWithMeta) => {
     if (exam.paperStatus === 'locked' || exam.paperStatus === 'approved') {
       return { label: 'Ready', variant: 'success' as const };
+    }
+    if (exam.paperStatus === 'review_requested') {
+      return { label: 'Review Requested', variant: 'warning' as const };
     }
     if (exam.paperStatus === 'resubmission_requested') {
       return { label: 'Resubmission Requested', variant: 'warning' as const };
@@ -1442,7 +1484,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             <tbody>
               {sortedInboxExams.map((exam) => {
                 const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
-                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : 'Approved';
+                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : exam.paperStatus === 'review_requested' ? 'Review Requested' : 'Approved';
                 return (
                   <tr key={exam.id} className="border-b transition-colors hover:bg-muted/20">
                     <td className="px-3 py-3.5 font-semibold text-foreground">{exam.subjectName}</td>
@@ -1455,13 +1497,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-3.5 text-muted-foreground/80">
-                      {exam.hodRemark?.trim() ? exam.hodRemark : 'No remark'}
+                    <td className="px-3 py-3.5 max-w-[200px]">
+                      {exam.hodRemark?.trim() ? (
+                        <span className="text-sm text-foreground/80 line-clamp-2" title={exam.hodRemark}>
+                          {exam.hodRemark}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50 text-sm italic">No remark</span>
+                      )}
                     </td>
                     <td className="px-3 py-3.5">
                       <Badge
-                        variant="success"
-                        className="border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success"
+                        variant={exam.paperStatus === 'review_requested' ? 'warning' : 'success'}
+                        className={
+                          exam.paperStatus === 'review_requested'
+                            ? 'border-transparent bg-warning/15 px-2.5 py-1 text-[12px] font-medium text-warning'
+                            : 'border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success'
+                        }
                       >
                         <Lock className="mr-1 h-3 w-3" />
                         {statusLabel}
