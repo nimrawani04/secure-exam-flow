@@ -77,8 +77,6 @@ export default function TeacherCalendar() {
     const counts: Record<TeacherSessionStatus, number> = {
       pending: 0,
       submitted: 0,
-      awaiting_review: 0,
-      locked: 0,
     };
     for (const ev of events) counts[ev.status]++;
     return counts;
