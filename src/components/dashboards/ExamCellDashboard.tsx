@@ -319,7 +319,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         string,
         { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
-      (selectedPapers || []).forEach((paper: any) => {
+      (allRelevantPapers).forEach((paper: any) => {
         const key = `${paper.subject_id}-${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
