@@ -410,7 +410,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [examsRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
