@@ -61,7 +61,7 @@ export function HODAlerts() {
       setSubjectsLoading(true);
       const { data, error } = await supabase
         .from('subjects')
-        .select('id, name, code')
+        .select('id, name, code, semester')
         .eq('department_id', profile.department_id)
         .order('name');
       setSubjectsLoading(false);
