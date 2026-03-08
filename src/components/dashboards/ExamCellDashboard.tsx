@@ -58,6 +58,9 @@ const examTypeLabels: Record<ExamType, string> = {
   end_term: 'End Term',
   practical: 'Practical',
   internal: 'Internal',
+  cia_1: 'CIA 1',
+  cia_2: 'CIA 2',
+  practical_external: 'Practical External',
 };
 
 const examCellViewCopy: Record<ExamCellView, { title: string; subtitle: string }> = {

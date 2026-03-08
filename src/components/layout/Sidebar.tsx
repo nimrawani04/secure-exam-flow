@@ -33,6 +33,7 @@ const roleNavItems = {
   ],
   hod: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Calendar, label: 'Exam Sessions', path: '/hod/sessions' },
     { icon: FileCheck, label: 'Review Papers', path: '/review' },
     { icon: Users, label: 'Department', path: '/department' },
     { icon: Bell, label: 'Teacher Alerts', path: '/hod/alerts' },
