@@ -172,7 +172,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             notification.message.length > 140
               ? `${notification.message.slice(0, 140)}...`
               : notification.message;
-          const isRead = Boolean(notification.is_read);
+          const isRead = Boolean((notification as any).is_read_by_user);
 
           return (
             <DropdownMenuItem
