@@ -98,7 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     includeRead: false,
   });
   
-  const { updateReadState } = useNotificationActions();
+  const { toggleRead } = useNotificationActions();
   const notificationCount = unreadNotifications?.length || 0;
 
   const title = useMemo(() => {
