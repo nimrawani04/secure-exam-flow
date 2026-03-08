@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTeacherCalendar, type TeacherSessionStatus } from '@/hooks/useTeacherCalendar';
+import { useEffect } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Clock, CheckCircle2, Loader, Lock, Upload } from 'lucide-react';
