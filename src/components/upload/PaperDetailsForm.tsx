@@ -145,50 +145,40 @@ export function PaperDetailsForm({
           onValueChange={(value) => setPaperOption(value as PaperOption)}
           className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:mt-0 sm:overflow-visible"
         >
-          <div className="shrink-0">
-            <RadioGroupItem
-              value="single"
-              id="paper-option-single"
-              className="peer sr-only"
-              disabled={paperOptionDisabled?.single}
-            />
-            <Label
-              htmlFor="paper-option-single"
-              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
-            >
-              <span className="sm:hidden">Single</span>
-              <span className="hidden sm:inline">Single Paper</span>
-            </Label>
-          </div>
-          <div className="shrink-0">
-            <RadioGroupItem
-              value="paper1"
-              id="paper-option-1"
-              className="peer sr-only"
-              disabled={paperOptionDisabled?.paper1}
-            />
-            <Label
-              htmlFor="paper-option-1"
-              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
-            >
-              Paper 1
-            </Label>
-          </div>
-          <div className="shrink-0">
-            <RadioGroupItem
-              value="paper2"
-              id="paper-option-2"
-              className="peer sr-only"
-              disabled={paperOptionDisabled?.paper2}
-            />
-            <Label
-              htmlFor="paper-option-2"
-              className="flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]"
-            >
-              Paper 2
-            </Label>
-          </div>
+          {([
+            { value: 'single' as PaperOption, label: 'Single Paper', shortLabel: 'Single' },
+            { value: 'paper1' as PaperOption, label: 'Paper 1', shortLabel: 'Paper 1' },
+            { value: 'paper2' as PaperOption, label: 'Paper 2', shortLabel: 'Paper 2' },
+          ] as const).map((opt) => {
+            const isDisabled = paperOptionDisabled?.[opt.value];
+            const isMuted = paperOptionMuted?.[opt.value] && paperOption !== opt.value;
+            return (
+              <div key={opt.value} className="shrink-0">
+                <RadioGroupItem
+                  value={opt.value}
+                  id={`paper-option-${opt.value}`}
+                  className="peer sr-only"
+                  disabled={isDisabled}
+                />
+                <Label
+                  htmlFor={`paper-option-${opt.value}`}
+                  className={cn(
+                    'flex h-9 min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm font-medium cursor-pointer transition-colors hover:border-accent/40 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-data-[state=checked]:bg-accent/10 peer-data-[state=checked]:border-accent/40 peer-data-[state=checked]:text-accent sm:h-10 sm:min-w-[96px]',
+                    isMuted && !isDisabled && 'opacity-40'
+                  )}
+                >
+                  <span className="sm:hidden">{opt.shortLabel}</span>
+                  <span className="hidden sm:inline">{opt.label}</span>
+                </Label>
+              </div>
+            );
+          })}
         </RadioGroup>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          {paperOption === 'single'
+            ? 'Single paper selected — Paper 1 & Paper 2 are unavailable.'
+            : 'Paper 1 / Paper 2 mode — Single paper is unavailable.'}
+        </p>
       </div>
 
       <p className="text-xs text-muted-foreground/70 mt-2">
