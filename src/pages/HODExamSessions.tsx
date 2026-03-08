@@ -270,13 +270,13 @@ export default function HODExamSessions() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { resetForm(); setCreateOpen(false); }}>
-              Cancel
-            </Button>
+          <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:gap-2">
             <Button onClick={handleCreate} disabled={!canSubmit || isSubmitting} className="gap-2">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Create & Notify Teachers
+            </Button>
+            <Button variant="outline" onClick={() => { resetForm(); setCreateOpen(false); }}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
