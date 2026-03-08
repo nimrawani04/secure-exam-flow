@@ -709,6 +709,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      select_paper_and_reject_others: {
+        Args: {
+          _exam_type: Database["public"]["Enums"]["exam_type"]
+          _hod_id: string
+          _paper_id: string
+          _remark?: string
+          _subject_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "teacher" | "hod" | "exam_cell" | "admin"
