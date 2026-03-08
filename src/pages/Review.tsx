@@ -697,6 +697,71 @@ export default function Review() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Request Review Dialog */}
+        <Dialog
+          open={reviewDialogOpen}
+          onOpenChange={(open) => {
+            setReviewDialogOpen(open);
+            if (!open && !isProcessing) {
+              setReviewPaper(null);
+              setReviewComment('');
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Request Exam Cell Review</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {reviewPaper
+                  ? `Send "${reviewPaper.subjectName} (${reviewPaper.subjectCode})" to the Exam Cell for additional review and verification.`
+                  : 'Send this paper to the Exam Cell for review.'}
+              </p>
+
+              <div className="space-y-2">
+                <label htmlFor="review-comment" className="text-sm font-medium">
+                  Comment (Optional)
+                </label>
+                <Textarea
+                  id="review-comment"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="e.g. Please verify formatting and marking scheme before final approval."
+                  rows={4}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReviewDialogOpen(false)}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={handleConfirmRequestReview}
+                disabled={isProcessing}
+                className="gap-1.5"
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {isProcessing ? 'Sending...' : 'Send for Review'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
