@@ -44,6 +44,7 @@ const roleNavItems = {
   exam_cell: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Calendar, label: 'Exam Calendar', path: '/calendar' },
+    { icon: FileCheck, label: 'Datesheets', path: '/exam-cell/datesheets' },
     { icon: Bell, label: 'HOD Alerts', path: '/exam-cell/alerts' },
     { icon: FileText, label: 'Papers Inbox', path: '/inbox' },
     { icon: Archive, label: 'Archive', path: '/archive' },
