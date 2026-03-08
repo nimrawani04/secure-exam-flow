@@ -1177,7 +1177,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{notification.title}</span>
                         <Badge
                           variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
-                          className="text-[10px] uppercase"
+                          className="text-[10px] uppercase shrink-0"
                         >
                           {notification.type || 'info'}
                         </Badge>
