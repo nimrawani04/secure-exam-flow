@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useHODPapers, HODPaper } from '@/hooks/useHODPapers';
 import { 
   FileText, 
@@ -22,6 +29,8 @@ import {
   RefreshCw,
   Loader2,
   Lock,
+  Filter,
+  ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -295,6 +304,19 @@ export default function Review() {
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selectedPaperForSend, setSelectedPaperForSend] = useState<HODPaper | null>(null);
   const [hodRemark, setHodRemark] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'subject' | 'version'>('date');
+
+  // Unique subjects for filter dropdown
+  const subjectOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; code: string }>();
+    papers.forEach((p) => {
+      if (!map.has(p.subjectId)) {
+        map.set(p.subjectId, { id: p.subjectId, name: p.subjectName, code: p.subjectCode });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [papers]);
 
   const handleApprove = async (paper: HODPaper) => {
     setIsProcessing(true);
@@ -353,13 +375,29 @@ export default function Review() {
     setPreviewOpen(true);
   };
 
-  const filteredPapers = papers.filter((paper) => {
-    if (activeTab === 'pending') return paper.status === 'pending_review';
-    if (activeTab === 'approved') return paper.status === 'approved';
-    if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
-    if (activeTab === 'rejected') return paper.status === 'rejected';
-    return true;
-  });
+  const filteredPapers = useMemo(() => {
+    let result = papers.filter((paper) => {
+      if (activeTab === 'pending') return paper.status === 'pending_review';
+      if (activeTab === 'approved') return paper.status === 'approved';
+      if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
+      if (activeTab === 'rejected') return paper.status === 'rejected';
+      return true;
+    });
+
+    // Apply subject filter
+    if (subjectFilter !== 'all') {
+      result = result.filter((p) => p.subjectId === subjectFilter);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      if (sortBy === 'subject') return a.subjectName.localeCompare(b.subjectName) || b.uploadedAt.getTime() - a.uploadedAt.getTime();
+      if (sortBy === 'version') return b.version - a.version || a.subjectName.localeCompare(b.subjectName);
+      return b.uploadedAt.getTime() - a.uploadedAt.getTime(); // date desc
+    });
+
+    return result;
+  }, [papers, activeTab, subjectFilter, sortBy]);
 
   const stats = {
     pending: papers.filter((p) => p.status === 'pending_review').length,
@@ -467,6 +505,39 @@ export default function Review() {
             <TabsTrigger value="selected" className="w-full">Selected ({stats.selected})</TabsTrigger>
             <TabsTrigger value="rejected" className="w-full">Rejected ({stats.rejected})</TabsTrigger>
           </TabsList>
+
+          {/* Subject Filter & Sort Controls */}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 flex-1">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                <SelectTrigger className="w-full sm:w-[250px]">
+                  <SelectValue placeholder="Filter by subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjectOptions.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'date' | 'subject' | 'version')}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Latest First</SelectItem>
+                  <SelectItem value="subject">Subject Name</SelectItem>
+                  <SelectItem value="version">Version (High → Low)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <TabsContent value={activeTab} className="mt-6">
             {isLoading ? (

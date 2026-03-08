@@ -219,13 +219,13 @@ export function useHODPapers() {
         return false;
       }
 
-      // Reject other approved papers for this subject/exam type
+      // Reject all other non-locked papers for this subject/exam type
       await supabase
         .from('exam_papers')
         .update({ status: 'rejected', feedback: 'Another paper was selected for this exam' })
         .eq('subject_id', subjectId)
         .eq('exam_type', examType)
-        .eq('status', 'approved')
+        .in('status', ['approved', 'pending_review', 'submitted'])
         .neq('id', paperId);
 
       // Create audit log
