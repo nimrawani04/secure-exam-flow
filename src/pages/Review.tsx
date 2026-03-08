@@ -318,7 +318,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequest
 }
 
 export default function Review() {
-  const { papers, isLoading, error, refetch, approvePaper, rejectPaper, selectPaper } = useHODPapers();
+  const { papers, isLoading, error, refetch, approvePaper, rejectPaper, selectPaper, requestReview } = useHODPapers();
   const [activeTab, setActiveTab] = useState('pending');
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -327,6 +327,9 @@ export default function Review() {
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selectedPaperForSend, setSelectedPaperForSend] = useState<HODPaper | null>(null);
   const [hodRemark, setHodRemark] = useState('');
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewPaper, setReviewPaper] = useState<HODPaper | null>(null);
+  const [reviewComment, setReviewComment] = useState('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'subject' | 'version'>('date');
 
