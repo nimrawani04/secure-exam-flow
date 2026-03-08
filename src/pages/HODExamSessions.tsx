@@ -302,7 +302,7 @@ function SessionCard({
   return (
     <div
       className={`rounded-xl border p-5 space-y-3 transition-all ${
-        isPast ? 'bg-muted/30 opacity-70' : 'bg-card hover:shadow-md'
+        isPastSession ? 'bg-muted/30 opacity-70' : 'bg-card hover:shadow-md'
       }`}
     >
       {/* Header */}
