@@ -23,15 +23,10 @@ export interface TeacherCalendarEvent {
 
 function deriveStatus(paperStatus?: PaperStatus | null): TeacherSessionStatus {
   if (!paperStatus) return 'pending';
-  switch (paperStatus) {
-    case 'draft':
-    case 'rejected':
-    case 'resubmission_requested':
-      return 'pending';
-    default:
-      // submitted, pending_review, approved, locked all mean "submitted" to the teacher
-      return 'submitted';
-  }
+  if (paperStatus === 'draft') return 'pending';
+  // All other statuses (submitted, pending_review, approved, rejected, 
+  // resubmission_requested, locked) show as "submitted" to the teacher
+  return 'submitted';
 }
 
 export function useTeacherCalendar() {
