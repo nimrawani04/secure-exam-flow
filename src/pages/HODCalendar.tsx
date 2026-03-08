@@ -8,6 +8,7 @@ import { useHODExamSessions } from '@/hooks/useHODExamSessions';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Lock, RefreshCw, CheckCircle2, AlertCircle, Clock, FileText } from 'lucide-react';
+import { EXAM_TYPE_LABELS } from '@/types';
 
 type PaperStatusKey = 'not_selected' | 'needs_resubmission' | 'approved' | 'locked' | 'resubmitted_pending' | 'pending_review';
 

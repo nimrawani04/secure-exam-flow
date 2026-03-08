@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Clock, CheckCircle2, Upload, Pencil, Trash2, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { EXAM_TYPE_LABELS } from '@/types';
 
 
 const STATUS_CONFIG: Record<TeacherSessionStatus, {

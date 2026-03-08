@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExamPaper, PaperStatus } from '@/types';
+import { ExamPaper, PaperStatus, EXAM_TYPE_LABELS } from '@/types';
 import { FileText, Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
