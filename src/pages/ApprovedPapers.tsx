@@ -18,7 +18,7 @@ const statusLabels: Record<string, { label: string; icon: typeof Lock; color: st
 export default function ApprovedPapers() {
   const { papers, isLoading, error, refetch } = useHODPapers();
 
-  const approvedPapers = papers.filter((paper) => paper.status === 'locked' && paper.isSelected);
+  const approvedPapers = papers.filter((paper) => (paper.status === 'locked' || paper.status === 'resubmission_requested') && paper.isSelected);
 
   return (
     <DashboardLayout>
