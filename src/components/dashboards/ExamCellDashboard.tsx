@@ -1581,7 +1581,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0 overflow-x-hidden">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">{headerCopy.title}</h1>
