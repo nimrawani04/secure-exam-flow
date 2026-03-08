@@ -166,6 +166,30 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
+  // Exam cell: count review_requested papers
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchReviewCount = async () => {
+      const { count } = await supabase
+        .from('exam_papers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'review_requested');
+      setReviewRequestedCount(count || 0);
+    };
+
+    fetchReviewCount();
+
+    const channel = supabase
+      .channel('exam-cell-review-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_papers' }, () => {
+        fetchReviewCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
   if (!profile?.role) return null;
 
   const navItems = roleNavItems[profile.role] || [];
