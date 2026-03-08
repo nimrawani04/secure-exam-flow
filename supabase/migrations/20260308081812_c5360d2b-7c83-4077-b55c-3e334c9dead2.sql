@@ -1,0 +1,1 @@
+UPDATE exam_papers SET status = 'review_requested', feedback = 'HOD requested review for verification' WHERE id = '52c3f1ca-6bd5-440c-8b90-6f8e74fd19b0'
