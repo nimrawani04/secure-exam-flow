@@ -76,6 +76,8 @@ export function Sidebar({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   // Fetch pending calendar submissions count for teacher
   const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
+  // Fetch review_requested papers count for exam_cell
+  const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
