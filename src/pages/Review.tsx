@@ -54,15 +54,8 @@ const statusConfig: Record<PaperStatus, {
   review_requested: { label: 'Review Requested', variant: 'warning' },
 };
 
-const examTypeLabels: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-};
+import { EXAM_TYPE_LABELS } from '@/types';
+
 
 interface ReviewCardProps {
   paper: HODPaper;
@@ -106,7 +99,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequest
           </div>
 
           <p className="text-xs text-muted-foreground">
-            {examTypeLabels[paper.examType]} &bull; Set: {paper.setName} &bull; v{paper.version}
+            {EXAM_TYPE_LABELS[paper.examType]} &bull; Set: {paper.setName} &bull; v{paper.version}
           </p>
 
           <div className="flex items-center gap-2 text-sm">
@@ -232,7 +225,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequest
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[13px] text-muted-foreground">
                   <span className="font-medium text-foreground/90">{paper.anonymousId}</span>
                   <span>&bull;</span>
-                  <span>{examTypeLabels[paper.examType]}</span>
+                  <span>{EXAM_TYPE_LABELS[paper.examType]}</span>
                   <span>&bull;</span>
                   <span>Set {paper.setName}</span>
                   <span>&bull;</span>

@@ -3,15 +3,8 @@ import { useHODPapers } from '@/hooks/useHODPapers';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Loader2, Lock } from 'lucide-react';
 
-const examTypeLabels: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-};
+import { EXAM_TYPE_LABELS } from '@/types';
+
 
 const statusLabels: Record<string, { label: string; icon: typeof Lock; color: string }> = {
   locked: { label: 'Locked', icon: Lock, color: 'bg-success/10 text-success border-success/20' },
@@ -69,7 +62,7 @@ export default function ApprovedPapers() {
                     <p className="text-sm text-muted-foreground mt-1">{paper.subjectCode}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="rounded-full bg-accent/10 text-accent px-2.5 py-0.5">
-                        {examTypeLabels[paper.examType]}
+                        {EXAM_TYPE_LABELS[paper.examType]}
                       </span>
                       <span>Set {paper.setName}</span>
                       <span>v{paper.version}</span>

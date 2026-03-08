@@ -8,6 +8,7 @@ import { useHODExamSessions } from '@/hooks/useHODExamSessions';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Lock, RefreshCw, CheckCircle2, AlertCircle, Clock, FileText } from 'lucide-react';
+import { EXAM_TYPE_LABELS } from '@/types';
 
 type PaperStatusKey = 'not_selected' | 'needs_resubmission' | 'approved' | 'locked' | 'resubmitted_pending' | 'pending_review';
 
@@ -61,15 +62,6 @@ const STATUS_CONFIG: Record<PaperStatusKey, { color: string; dotClass: string; i
   },
 };
 
-const EXAM_TYPE_LABELS: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-};
 
 function mapPaperStatus(status: string, isSelected: boolean): PaperStatusKey {
   if (status === 'locked') return 'locked';

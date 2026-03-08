@@ -4,6 +4,16 @@ export type PaperStatus = 'draft' | 'submitted' | 'pending_review' | 'approved' 
 
 export type ExamType = 'mid_term' | 'end_term' | 'practical' | 'internal' | 'cia_1' | 'cia_2' | 'practical_external';
 
+export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
+  mid_term: 'Mid Term',
+  end_term: 'End Term',
+  practical: 'Practical',
+  internal: 'Internal',
+  cia_1: 'CIA 1',
+  cia_2: 'CIA 2',
+  practical_external: 'Practical External',
+};
+
 export interface User {
   id: string;
   name: string;

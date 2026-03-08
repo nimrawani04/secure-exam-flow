@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExamPaper, PaperStatus } from '@/types';
+import { ExamPaper, PaperStatus, EXAM_TYPE_LABELS } from '@/types';
 import { FileText, Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,15 +43,6 @@ export function PaperCard({
   isSelected = false,
 }: PaperCardProps) {
   const status = statusConfig[paper.status];
-  const examTypeLabels: Record<string, string> = {
-    mid_term: 'Mid Term',
-    end_term: 'End Term',
-    practical: 'Practical',
-    internal: 'Internal',
-    cia_1: 'CIA 1',
-    cia_2: 'CIA 2',
-    practical_external: 'Practical External',
-  };
 
   return (
     <div
@@ -77,7 +68,7 @@ export function PaperCard({
           {!isAnonymous && (
             <>
               <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
-                {examTypeLabels[paper.examType]}
+                {EXAM_TYPE_LABELS[paper.examType]}
               </span>
               <span className="inline-flex h-6 items-center rounded-full bg-secondary px-3 text-xs font-medium text-foreground">
                 v{paper.version}

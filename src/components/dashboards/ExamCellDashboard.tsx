@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Exam } from '@/types';
+import { Exam, EXAM_TYPE_LABELS } from '@/types';
 import {
   Bell,
   Calendar,
@@ -55,15 +55,6 @@ type ExamWithMeta = Exam & {
   isStandalone?: boolean;
 };
 
-const examTypeLabels: Record<ExamType, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-  cia_1: 'CIA 1',
-  cia_2: 'CIA 2',
-  practical_external: 'Practical External',
-};
 
 const examCellViewCopy: Record<ExamCellView, { title: string; subtitle: string }> = {
   overview: {
@@ -629,7 +620,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         message: [
           'A replacement question paper is requested by Exam Cell.',
           `Subject: ${subjectLabel}`,
-          `Exam Type: ${examTypeLabels[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
+          `Exam Type: ${EXAM_TYPE_LABELS[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
           `Reason: ${requestReason}`,
           `Urgency: ${urgencyLabel}`,
           `Remarks: ${normalizedRemarks}`,
@@ -919,9 +910,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       <SelectValue placeholder="Select exam type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(examTypeLabels).map(([value, label]) => (
+                      {Object.entries(EXAM_TYPE_LABELS).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
-                          {label}
+                          {label as string}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1866,7 +1857,7 @@ function SessionCard({
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold">{session.name}</h3>
             <Badge variant="outline" className="text-xs">
-              {examTypeLabels[session.exam_type]}
+              {EXAM_TYPE_LABELS[session.exam_type as ExamType]}
             </Badge>
             {session.is_active && (
               <Badge variant="success" className="text-xs">
@@ -1909,9 +1900,9 @@ function SessionCard({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(examTypeLabels).map(([value, label]) => (
+                        {Object.entries(EXAM_TYPE_LABELS).map(([value, label]) => (
                           <SelectItem key={value} value={value}>
-                            {label}
+                            {label as string}
                           </SelectItem>
                         ))}
                       </SelectContent>
