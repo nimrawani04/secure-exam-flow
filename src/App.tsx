@@ -17,6 +17,7 @@ import Department from "./pages/Department";
 import Subjects from "./pages/Subjects";
 import ApprovedPapers from "./pages/ApprovedPapers";
 import HODExamSessions from "./pages/HODExamSessions";
+import HODCalendar from "./pages/HODCalendar";
 import { applyStoredAccent } from "./lib/theme";
 
 const queryClient = new QueryClient();
