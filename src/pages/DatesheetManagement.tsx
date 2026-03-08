@@ -64,7 +64,7 @@ export default function DatesheetManagement() {
       setDatesheets(
         (data || []).map((d) => ({
           ...d,
-          annotations: (d.annotations as Record<number, AnnotationStroke[]>) || {},
+          annotations: (d.annotations as unknown as Record<number, AnnotationStroke[]>) || {},
         }))
       );
     }
