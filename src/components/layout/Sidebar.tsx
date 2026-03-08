@@ -282,7 +282,7 @@ export function Sidebar({
                   <span>{item.label}</span>
                   {showBadge && (
                     <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
-                      {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                      {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                   )}
                 </span>
