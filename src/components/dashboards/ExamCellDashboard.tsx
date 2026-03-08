@@ -243,6 +243,12 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
   const replacementRemarksLimit = 500;
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestTargetExam, setRequestTargetExam] = useState<ExamWithMeta | null>(null);
+  const [requestReason, setRequestReason] = useState('Paper Leak Suspected');
+  const [requestRemarks, setRequestRemarks] = useState('');
+  const [requestUrgency, setRequestUrgency] = useState<ReplacementUrgency>('normal');
+  const [isSubmittingReplacementRequest, setIsSubmittingReplacementRequest] = useState(false);
 
   const departmentNameMap = useMemo(() => {
     const map = new Map<string, string>();
