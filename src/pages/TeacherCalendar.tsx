@@ -46,7 +46,20 @@ const STATUS_CONFIG: Record<TeacherSessionStatus, {
 
 export default function TeacherCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const { events, isLoading } = useTeacherCalendar();
+  const { events, isLoading, refetch } = useTeacherCalendar();
+
+  // Real-time: re-fetch when exam_papers change
+  useEffect(() => {
+    const channel = supabase
+      .channel('teacher-calendar-papers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'exam_papers' },
+        () => { refetch(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetch]);
 
   // Group events by date for calendar dots
   const eventsByDate = useMemo(() => {
