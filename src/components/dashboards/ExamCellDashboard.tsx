@@ -620,7 +620,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         message: [
           'A replacement question paper is requested by Exam Cell.',
           `Subject: ${subjectLabel}`,
-          `Exam Type: ${examTypeLabels[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
+          `Exam Type: ${EXAM_TYPE_LABELS[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
           `Reason: ${requestReason}`,
           `Urgency: ${urgencyLabel}`,
           `Remarks: ${normalizedRemarks}`,
