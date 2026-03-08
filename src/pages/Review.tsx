@@ -506,6 +506,39 @@ export default function Review() {
             <TabsTrigger value="rejected" className="w-full">Rejected ({stats.rejected})</TabsTrigger>
           </TabsList>
 
+          {/* Subject Filter & Sort Controls */}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 flex-1">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                <SelectTrigger className="w-full sm:w-[250px]">
+                  <SelectValue placeholder="Filter by subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjectOptions.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'date' | 'subject' | 'version')}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Latest First</SelectItem>
+                  <SelectItem value="subject">Subject Name</SelectItem>
+                  <SelectItem value="version">Version (High → Low)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <TabsContent value={activeTab} className="mt-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
