@@ -612,6 +612,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     if (exam.paperStatus === 'locked' || exam.paperStatus === 'approved') {
       return { label: 'Ready', variant: 'success' as const };
     }
+    if (exam.paperStatus === 'resubmission_requested') {
+      return { label: 'Resubmission Requested', variant: 'warning' as const };
+    }
     if (exam.paperStatus === 'pending_review' || exam.paperStatus === 'submitted') {
       return { label: 'Pending', variant: 'warning' as const };
     }
