@@ -62,7 +62,7 @@ export function RequestNewPaperDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const examTypeLabel = examType.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-  const canSubmit = reason && remarks.trim().length >= 10;
+  const canSubmit = !!reason;
 
   const resetForm = () => {
     setReason('');
