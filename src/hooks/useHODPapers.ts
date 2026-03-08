@@ -62,7 +62,7 @@ export function useHODPapers() {
           )
         `)
         .eq('subjects.department_id', profile.department_id)
-        .in('status', ['pending_review', 'approved', 'rejected', 'resubmission_requested', 'locked'])
+        .in('status', ['pending_review', 'approved', 'rejected', 'resubmission_requested', 'locked', 'review_requested'])
         .order('uploaded_at', { ascending: false });
 
       if (fetchError) {
@@ -261,6 +261,61 @@ export function useHODPapers() {
     }
   };
 
+  const requestReview = async (paperId: string, comment?: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      // Find the paper to include details in the notification
+      const paper = papers.find((p) => p.id === paperId);
+
+      const { error: updateError } = await supabase
+        .from('exam_papers')
+        .update({
+          status: 'review_requested' as any,
+          feedback: comment?.trim() || null,
+        })
+        .eq('id', paperId);
+
+      if (updateError) {
+        console.error('Error requesting review:', updateError);
+        toast.error('Failed to request review');
+        return false;
+      }
+
+      // Create audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'request_review',
+        entity_type: 'paper',
+        entity_id: paperId,
+        details: { action: 'HOD requested exam cell review', comment: comment?.trim() || null },
+      });
+
+      // Notify Exam Cell
+      const notifMessage = paper
+        ? `HOD has requested a review for ${paper.subjectName} (${paper.subjectCode}) - ${paper.examType.replace('_', ' ')}.${comment?.trim() ? `\n\nHOD Comment: ${comment.trim()}` : ''}`
+        : `A paper has been sent for review by HOD.${comment?.trim() ? `\n\nHOD Comment: ${comment.trim()}` : ''}`;
+
+      await supabase.from('notifications').insert({
+        created_by: user.id,
+        title: 'Review Requested by HOD',
+        message: notifMessage,
+        target_roles: ['exam_cell'],
+        target_departments: null,
+        type: 'warning',
+        user_id: null,
+      });
+
+      toast.success('Review request sent to Exam Cell');
+      await fetchPapers();
+      return true;
+    } catch (err) {
+      console.error('Error in requestReview:', err);
+      toast.error('An unexpected error occurred');
+      return false;
+    }
+  };
+
   return { 
     papers, 
     isLoading, 
@@ -269,5 +324,6 @@ export function useHODPapers() {
     approvePaper,
     rejectPaper,
     selectPaper,
+    requestReview,
   };
 }

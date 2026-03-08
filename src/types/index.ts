@@ -1,6 +1,6 @@
 export type UserRole = 'teacher' | 'hod' | 'exam_cell' | 'admin';
 
-export type PaperStatus = 'draft' | 'submitted' | 'pending_review' | 'approved' | 'rejected' | 'resubmission_requested' | 'locked';
+export type PaperStatus = 'draft' | 'submitted' | 'pending_review' | 'approved' | 'rejected' | 'resubmission_requested' | 'locked' | 'review_requested';
 
 export type ExamType = 'mid_term' | 'end_term' | 'practical' | 'internal' | 'cia_1' | 'cia_2' | 'practical_external';
 

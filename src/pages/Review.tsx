@@ -31,6 +31,7 @@ import {
   Lock,
   Filter,
   ArrowUpDown,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -50,6 +51,7 @@ const statusConfig: Record<PaperStatus, {
   rejected: { label: 'Rejected', variant: 'destructive' },
   resubmission_requested: { label: 'Resubmission Requested', variant: 'warning' },
   locked: { label: 'Locked & Selected', variant: 'default' },
+  review_requested: { label: 'Review Requested', variant: 'warning' },
 };
 
 const examTypeLabels: Record<string, string> = {
@@ -65,10 +67,11 @@ interface ReviewCardProps {
   onApprove: () => void;
   onReject: () => void;
   onSelect: () => void;
+  onRequestReview: () => void;
   isProcessing: boolean;
 }
 
-function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
+function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequestReview, isProcessing }: ReviewCardProps) {
   const config = statusConfig[paper.status];
   const formattedDate = paper.uploadedAt.toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -140,6 +143,26 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
               <XCircle className="h-4 w-4" />
               Reject
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRequestReview}
+              disabled={isProcessing}
+              className="h-10 w-full gap-1.5 border-accent/50 text-accent hover:border-accent hover:bg-accent/10"
+            >
+              <Send className="h-4 w-4" />
+              Request Exam Cell Review
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRequestReview}
+              disabled={isProcessing}
+              className="h-10 w-full gap-1.5 border-accent/50 text-accent hover:border-accent hover:bg-accent/10"
+            >
+              <Send className="h-4 w-4" />
+              Request Exam Cell Review
+            </Button>
           </div>
         )}
 
@@ -172,6 +195,15 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
             <div className="flex items-center gap-2 text-accent">
               <Lock className="h-4 w-4" />
               <span className="text-sm font-medium">This paper has been selected and locked for the exam</span>
+            </div>
+          </div>
+        )}
+
+        {paper.status === 'review_requested' && (
+          <div className="rounded-lg border border-warning/20 bg-warning/10 p-3">
+            <div className="flex items-center gap-2 text-warning">
+              <Send className="h-4 w-4" />
+              <span className="text-sm font-medium">Sent to Exam Cell for review</span>
             </div>
           </div>
         )}
@@ -253,6 +285,16 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
                 <XCircle className="h-4 w-4" />
                 Reject
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRequestReview}
+                disabled={isProcessing}
+                className="gap-1.5 h-10 w-full border-accent/50 text-accent hover:border-accent hover:bg-accent/10 sm:w-auto sm:ml-auto"
+              >
+                <Send className="h-4 w-4" />
+                Request Exam Cell Review
+              </Button>
             </div>
           )}
 
@@ -288,6 +330,18 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
               </div>
             </div>
           )}
+
+          {paper.status === 'review_requested' && (
+            <div className="mt-4 p-3 bg-warning/10 rounded-lg border border-warning/20">
+              <div className="flex items-center gap-2 text-warning">
+                <Send className="h-4 w-4" />
+                <span className="text-sm font-medium">Sent to Exam Cell for review</span>
+              </div>
+              {paper.filePath && (
+                <p className="text-xs text-muted-foreground mt-1">The Exam Cell will review and respond.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -295,7 +349,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
 }
 
 export default function Review() {
-  const { papers, isLoading, error, refetch, approvePaper, rejectPaper, selectPaper } = useHODPapers();
+  const { papers, isLoading, error, refetch, approvePaper, rejectPaper, selectPaper, requestReview } = useHODPapers();
   const [activeTab, setActiveTab] = useState('pending');
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -304,6 +358,9 @@ export default function Review() {
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selectedPaperForSend, setSelectedPaperForSend] = useState<HODPaper | null>(null);
   const [hodRemark, setHodRemark] = useState('');
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewPaper, setReviewPaper] = useState<HODPaper | null>(null);
+  const [reviewComment, setReviewComment] = useState('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'subject' | 'version'>('date');
 
@@ -328,6 +385,24 @@ export default function Review() {
     setIsProcessing(true);
     await rejectPaper(paper.id, '');
     setIsProcessing(false);
+  };
+
+  const handleRequestReview = (paper: HODPaper) => {
+    setReviewPaper(paper);
+    setReviewComment('');
+    setReviewDialogOpen(true);
+  };
+
+  const handleConfirmRequestReview = async () => {
+    if (!reviewPaper) return;
+    setIsProcessing(true);
+    const success = await requestReview(reviewPaper.id, reviewComment);
+    setIsProcessing(false);
+    if (success) {
+      setReviewDialogOpen(false);
+      setReviewPaper(null);
+      setReviewComment('');
+    }
   };
 
   const handleSelect = async (paper: HODPaper) => {
@@ -381,6 +456,7 @@ export default function Review() {
       if (activeTab === 'approved') return paper.status === 'approved';
       if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
       if (activeTab === 'rejected') return paper.status === 'rejected';
+      if (activeTab === 'review_requested') return paper.status === 'review_requested';
       return true;
     });
 
@@ -404,6 +480,7 @@ export default function Review() {
     approved: papers.filter((p) => p.status === 'approved').length,
     selected: papers.filter((p) => p.status === 'locked' && p.isSelected).length,
     rejected: papers.filter((p) => p.status === 'rejected').length,
+    reviewRequested: papers.filter((p) => p.status === 'review_requested').length,
   };
 
   return (
@@ -499,11 +576,12 @@ export default function Review() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:overflow-visible sm:grid sm:grid-cols-4 sm:gap-2">
+          <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:overflow-visible sm:grid sm:grid-cols-5 sm:gap-2">
             <TabsTrigger value="pending" className="w-full">Pending ({stats.pending})</TabsTrigger>
             <TabsTrigger value="approved" className="w-full">Approved ({stats.approved})</TabsTrigger>
             <TabsTrigger value="selected" className="w-full">Selected ({stats.selected})</TabsTrigger>
             <TabsTrigger value="rejected" className="w-full">Rejected ({stats.rejected})</TabsTrigger>
+            <TabsTrigger value="review_requested" className="w-full">Review Req. ({stats.reviewRequested})</TabsTrigger>
           </TabsList>
 
           {/* Subject Filter & Sort Controls */}
@@ -573,6 +651,7 @@ export default function Review() {
                     onApprove={() => handleApprove(paper)}
                     onReject={() => handleReject(paper)}
                     onSelect={() => handleSelect(paper)}
+                    onRequestReview={() => handleRequestReview(paper)}
                     isProcessing={isProcessing}
                   />
                 ))}
@@ -648,6 +727,71 @@ export default function Review() {
               </Button>
               <Button type="button" variant="hero" onClick={handleConfirmSelect} disabled={isProcessing}>
                 {isProcessing ? 'Sending...' : 'Lock & Send to Exam Cell'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Request Review Dialog */}
+        <Dialog
+          open={reviewDialogOpen}
+          onOpenChange={(open) => {
+            setReviewDialogOpen(open);
+            if (!open && !isProcessing) {
+              setReviewPaper(null);
+              setReviewComment('');
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Request Exam Cell Review</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {reviewPaper
+                  ? `Send "${reviewPaper.subjectName} (${reviewPaper.subjectCode})" to the Exam Cell for additional review and verification.`
+                  : 'Send this paper to the Exam Cell for review.'}
+              </p>
+
+              <div className="space-y-2">
+                <label htmlFor="review-comment" className="text-sm font-medium">
+                  Comment (Optional)
+                </label>
+                <Textarea
+                  id="review-comment"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="e.g. Please verify formatting and marking scheme before final approval."
+                  rows={4}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReviewDialogOpen(false)}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={handleConfirmRequestReview}
+                disabled={isProcessing}
+                className="gap-1.5"
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {isProcessing ? 'Sending...' : 'Send for Review'}
               </Button>
             </DialogFooter>
           </DialogContent>
