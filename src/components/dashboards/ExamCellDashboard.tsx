@@ -1140,8 +1140,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           </div>
         </div>
 
-        <div className="space-y-3 lg:self-start">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
+        <div className="min-w-0 space-y-3 lg:self-start">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
@@ -1166,18 +1166,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 ))}
               </div>
             ) : hodNotifications.length > 0 ? (
-              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm">
+              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm overflow-hidden">
                 {hodNotifications.map((notification) => (
                   <div key={notification.id} className="flex items-start gap-3 p-3 sm:p-4">
                     <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
                       <Bell className="w-4 h-4 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{notification.title}</span>
                         <Badge
                           variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
-                          className="text-[10px] uppercase"
+                          className="text-[10px] uppercase shrink-0"
                         >
                           {notification.type || 'info'}
                         </Badge>
