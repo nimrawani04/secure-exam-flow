@@ -185,7 +185,7 @@ export default function HODCalendar() {
 
         <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
           {/* Calendar */}
-          <Card className="w-fit">
+          <Card className="w-fit mx-auto lg:mx-0">
             <CardContent className="p-3">
               <Calendar
                 mode="single"
