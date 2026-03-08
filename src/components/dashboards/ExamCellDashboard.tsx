@@ -51,6 +51,7 @@ type ExamWithMeta = Exam & {
   paperStatus?: PaperStatus | null;
   paperFilePath?: string | null;
   hodRemark?: string | null;
+  isStandalone?: boolean;
 };
 
 const examTypeLabels: Record<ExamType, string> = {
@@ -317,13 +318,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       const selectedPaperByExamKey = new Map<
         string,
-        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
+        { id: string; subjectId: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
       (allRelevantPapers).forEach((paper: any) => {
-        const key = `${paper.subject_id}-${paper.exam_type}`;
+        const key = `${paper.subject_id}::${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
             id: paper.id,
+            subjectId: paper.subject_id,
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
             hodRemark: paper.feedback ?? null,
@@ -347,7 +349,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             return null;
           }
 
-          const examKey = `${row.subject_id}-${row.exam_type}`;
+          const examKey = `${row.subject_id}::${row.exam_type}`;
           coveredExamKeys.add(examKey);
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
@@ -379,7 +381,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           const uploadDate = new Date(paper.uploadedAt);
           mapped.push({
             id: paper.id,
-            subjectId: key.split('-')[0],
+            subjectId: paper.subjectId,
             subjectName: paper.subjectName,
             subjectCode: paper.subjectCode,
             departmentId: paper.departmentId,
@@ -391,6 +393,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             paperFilePath: paper.filePath,
             hodRemark: paper.hodRemark,
             status: 'scheduled' as const,
+            isStandalone: true,
           } as ExamWithMeta);
         }
       });
@@ -1540,7 +1543,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
                         <RequestNewPaperDialog
-                          examId={exam.id}
+                          examId={exam.isStandalone ? null : exam.id}
                           subjectId={exam.subjectId}
                           subjectName={exam.subjectName}
                           examType={exam.examType}

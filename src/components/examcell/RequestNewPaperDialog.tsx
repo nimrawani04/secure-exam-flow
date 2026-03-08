@@ -36,7 +36,7 @@ const URGENCY_LEVELS = [
 ] as const;
 
 interface RequestNewPaperDialogProps {
-  examId: string;
+  examId?: string | null;
   subjectId: string;
   subjectName: string;
   examType: string;
@@ -79,7 +79,7 @@ export function RequestNewPaperDialog({
       const { error: insertError } = await supabase
         .from('paper_requests')
         .insert({
-          exam_id: examId,
+          exam_id: examId || null,
           subject_id: subjectId,
           exam_type: examType as Database['public']['Enums']['exam_type'],
           department_id: departmentId,

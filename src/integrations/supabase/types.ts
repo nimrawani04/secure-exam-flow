@@ -430,7 +430,7 @@ export type Database = {
         Row: {
           created_at: string
           department_id: string
-          exam_id: string
+          exam_id: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id: string
           reason: string
@@ -446,7 +446,7 @@ export type Database = {
         Insert: {
           created_at?: string
           department_id: string
-          exam_id: string
+          exam_id?: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id?: string
           reason: string
@@ -462,7 +462,7 @@ export type Database = {
         Update: {
           created_at?: string
           department_id?: string
-          exam_id?: string
+          exam_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           reason?: string
