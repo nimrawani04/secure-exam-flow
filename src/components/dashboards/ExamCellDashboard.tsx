@@ -317,13 +317,14 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       const selectedPaperByExamKey = new Map<
         string,
-        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
+        { id: string; subjectId: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
       (allRelevantPapers).forEach((paper: any) => {
-        const key = `${paper.subject_id}-${paper.exam_type}`;
+        const key = `${paper.subject_id}::${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
             id: paper.id,
+            subjectId: paper.subject_id,
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
             hodRemark: paper.feedback ?? null,
