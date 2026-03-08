@@ -386,7 +386,23 @@ export function HODDashboard() {
                         Due {formatDueDate(paper.deadline)}
                       </div>
                     </div>
-                    <Badge variant="pending">1</Badge>
+                    <div className="flex items-center gap-2">
+                      {paper.filePath && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Preview paper"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewPaper(paper.filePath, `${paper.subjectName} - ${paper.anonymousId}`);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Badge variant="pending">1</Badge>
+                    </div>
                   </div>
                 </div>
               ))}
