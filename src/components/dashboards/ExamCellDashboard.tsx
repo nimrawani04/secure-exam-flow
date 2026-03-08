@@ -51,6 +51,7 @@ type ExamWithMeta = Exam & {
   paperStatus?: PaperStatus | null;
   paperFilePath?: string | null;
   hodRemark?: string | null;
+  isStandalone?: boolean;
 };
 
 const examTypeLabels: Record<ExamType, string> = {
