@@ -387,9 +387,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </DialogContent>
               </Dialog>
 
-              <DropdownMenu>
+              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button ref={notificationTriggerRef} variant="outline" size="icon" aria-label="Notifications" className="relative">
+                  <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
                     <Bell className="h-4 w-4" />
                     {notificationCount > 0 && (
                       <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
