@@ -192,6 +192,31 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
+  // Exam cell: count unread notifications (HOD Alerts)
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchUnreadAlerts = async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, is_read')
+        .contains('target_roles', ['exam_cell'])
+        .eq('is_read', false);
+      setUnreadAlertsCount(data?.length || 0);
+    };
+
+    fetchUnreadAlerts();
+
+    const channel = supabase
+      .channel('exam-cell-alerts-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchUnreadAlerts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
   if (!profile?.role) return null;
 
   const navItems = roleNavItems[profile.role] || [];
