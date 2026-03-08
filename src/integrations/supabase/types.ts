@@ -580,6 +580,7 @@ export type Database = {
         | "pending_review"
         | "approved"
         | "rejected"
+        | "resubmission_requested"
         | "locked"
     }
     CompositeTypes: {
@@ -717,6 +718,7 @@ export const Constants = {
         "pending_review",
         "approved",
         "rejected",
+        "resubmission_requested",
         "locked",
       ],
     },

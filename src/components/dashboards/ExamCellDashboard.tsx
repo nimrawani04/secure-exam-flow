@@ -118,6 +118,7 @@ const emptyPaperStats: Record<PaperStatus, number> = {
   pending_review: 0,
   approved: 0,
   rejected: 0,
+  resubmission_requested: 0,
   locked: 0,
 };
 
@@ -610,6 +611,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const getPaperBadge = (exam: ExamWithMeta) => {
     if (exam.paperStatus === 'locked' || exam.paperStatus === 'approved') {
       return { label: 'Ready', variant: 'success' as const };
+    }
+    if (exam.paperStatus === 'resubmission_requested') {
+      return { label: 'Resubmission Requested', variant: 'warning' as const };
     }
     if (exam.paperStatus === 'pending_review' || exam.paperStatus === 'submitted') {
       return { label: 'Pending', variant: 'warning' as const };

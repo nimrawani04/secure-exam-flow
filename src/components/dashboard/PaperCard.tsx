@@ -24,6 +24,7 @@ const statusConfig: Record<PaperStatus, { label: string; variant: 'default' | 's
   pending_review: { label: 'Pending Review', variant: 'warning' },
   approved: { label: 'Approved', variant: 'success' },
   rejected: { label: 'Rejected', variant: 'rejected' },
+  resubmission_requested: { label: 'Resubmission Requested', variant: 'warning' },
   locked: { label: 'Locked', variant: 'default' },
 };
 

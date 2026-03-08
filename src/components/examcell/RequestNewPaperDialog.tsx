@@ -95,6 +95,19 @@ export function RequestNewPaperDialog({
         return;
       }
 
+      // Update the locked paper's status to resubmission_requested
+      const { error: updateError } = await supabase
+        .from('exam_papers')
+        .update({ status: 'resubmission_requested' as Database['public']['Enums']['paper_status'] })
+        .eq('subject_id', subjectId)
+        .eq('exam_type', examType as Database['public']['Enums']['exam_type'])
+        .eq('is_selected', true)
+        .in('status', ['locked', 'approved']);
+
+      if (updateError) {
+        console.error('Error updating paper status:', updateError);
+      }
+
       // Notify HOD
       const urgencyPrefix = urgency === 'critical' ? '🚨 CRITICAL: ' : urgency === 'urgent' ? '⚠️ URGENT: ' : '';
       await supabase.from('notifications').insert({
