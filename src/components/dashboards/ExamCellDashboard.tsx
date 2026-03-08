@@ -298,15 +298,22 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       }
 
       // Fetch all selected/locked papers directly (these may not have exams entries)
-      const { data: selectedPapers, error: selectedPapersError } = await supabase
-        .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
-        .eq('is_selected', true)
-        .in('status', ['approved', 'locked', 'review_requested']);
+      const [selectedPapersRes, reviewRequestedRes] = await Promise.all([
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('is_selected', true)
+          .in('status', ['approved', 'locked']),
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('status', 'review_requested' as any),
+      ]);
 
-      if (selectedPapersError) {
-        console.error('Error fetching selected papers:', selectedPapersError);
-      }
+      if (selectedPapersRes.error) console.error('Error fetching selected papers:', selectedPapersRes.error);
+      if (reviewRequestedRes.error) console.error('Error fetching review-requested papers:', reviewRequestedRes.error);
+
+      const allRelevantPapers = [...(selectedPapersRes.data || []), ...(reviewRequestedRes.data || [])];
 
       const selectedPaperByExamKey = new Map<
         string,
