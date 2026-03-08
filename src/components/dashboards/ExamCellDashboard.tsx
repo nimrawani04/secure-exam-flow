@@ -674,6 +674,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   };
 
   useEffect(() => {
+    // Skip if no data loaded yet — wait for real data before initializing
+    if (inboxExams.length === 0) return;
+
     const currentKeys = new Set(
       inboxExams.map((exam) => exam.paperId ?? `exam-${exam.id}`)
     );
