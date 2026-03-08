@@ -18,6 +18,7 @@ import Subjects from "./pages/Subjects";
 import ApprovedPapers from "./pages/ApprovedPapers";
 import HODExamSessions from "./pages/HODExamSessions";
 import HODCalendar from "./pages/HODCalendar";
+import TeacherCalendar from "./pages/TeacherCalendar";
 import { applyStoredAccent } from "./lib/theme";
 
 const queryClient = new QueryClient();
