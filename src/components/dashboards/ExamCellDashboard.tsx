@@ -380,7 +380,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           const uploadDate = new Date(paper.uploadedAt);
           mapped.push({
             id: paper.id,
-            subjectId: key.split('-')[0],
+            subjectId: paper.subjectId,
             subjectName: paper.subjectName,
             subjectCode: paper.subjectCode,
             departmentId: paper.departmentId,
