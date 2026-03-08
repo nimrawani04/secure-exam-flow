@@ -563,6 +563,56 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_calendar_entries: {
+        Row: {
+          created_at: string
+          exam_date: string | null
+          exam_type: string | null
+          id: string
+          notes: string | null
+          status: string
+          subject_id: string | null
+          submission_deadline: string
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          subject_id?: string | null
+          submission_deadline: string
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          subject_id?: string | null
+          submission_deadline?: string
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_calendar_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teacher_subjects: {
         Row: {
           created_at: string
