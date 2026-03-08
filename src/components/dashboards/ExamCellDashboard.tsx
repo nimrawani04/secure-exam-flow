@@ -1857,7 +1857,7 @@ function SessionCard({
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold">{session.name}</h3>
             <Badge variant="outline" className="text-xs">
-              {examTypeLabels[session.exam_type]}
+              {EXAM_TYPE_LABELS[session.exam_type as ExamType]}
             </Badge>
             {session.is_active && (
               <Badge variant="success" className="text-xs">
