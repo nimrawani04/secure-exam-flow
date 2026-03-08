@@ -638,12 +638,25 @@ export function HODDashboard() {
                             Select & Lock
                           </Button>
                         </div>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Paper Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewUrl(''); } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+            <iframe src={previewUrl} title="PDF preview" className="h-full w-full" />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
