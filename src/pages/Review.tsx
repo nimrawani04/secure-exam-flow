@@ -59,6 +59,9 @@ const examTypeLabels: Record<string, string> = {
   end_term: 'End Term',
   practical: 'Practical',
   internal: 'Internal',
+  cia_1: 'CIA 1',
+  cia_2: 'CIA 2',
+  practical_external: 'Practical External',
 };
 
 interface ReviewCardProps {
