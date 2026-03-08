@@ -340,11 +340,8 @@ export default function UploadPaper() {
               setSelectedExamType={setSelectedExamType}
               paperOption={paperOption}
               setPaperOption={setPaperOption}
-              paperOptionDisabled={{
-                single: !allowSingle,
-                paper1: !allowPaper1,
-                paper2: !allowPaper2,
-              }}
+              paperOptionDisabled={paperOptionHardDisabled}
+              paperOptionMuted={paperOptionDisabledMap}
             />
 
             <FileUploadZone
