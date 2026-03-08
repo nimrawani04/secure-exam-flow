@@ -94,8 +94,8 @@ export function useTeacherCalendar() {
             .from('exam_papers')
             .select('id, status')
             .eq('subject_id', s.subject_id)
-            .eq('exam_type', s.exam_type)
             .eq('uploaded_by', user.id)
+            .not('status', 'eq', 'rejected')
             .order('version', { ascending: false })
             .limit(1);
 
