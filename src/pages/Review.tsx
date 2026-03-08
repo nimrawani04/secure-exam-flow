@@ -356,6 +356,24 @@ export default function Review() {
     setIsProcessing(false);
   };
 
+  const handleRequestReview = (paper: HODPaper) => {
+    setReviewPaper(paper);
+    setReviewComment('');
+    setReviewDialogOpen(true);
+  };
+
+  const handleConfirmRequestReview = async () => {
+    if (!reviewPaper) return;
+    setIsProcessing(true);
+    const success = await requestReview(reviewPaper.id, reviewComment);
+    setIsProcessing(false);
+    if (success) {
+      setReviewDialogOpen(false);
+      setReviewPaper(null);
+      setReviewComment('');
+    }
+  };
+
   const handleSelect = async (paper: HODPaper) => {
     setSelectedPaperForSend(paper);
     setHodRemark('');
