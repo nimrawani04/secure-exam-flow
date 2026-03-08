@@ -309,9 +309,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <DropdownMenu>
+            <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button ref={notificationTriggerRef} variant="ghost" size="icon" aria-label="Notifications" className="relative h-8 w-8">
+                <Button variant="ghost" size="icon" aria-label="Notifications" className="relative h-8 w-8">
                   <Bell className="h-4 w-4" />
                   {notificationCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
