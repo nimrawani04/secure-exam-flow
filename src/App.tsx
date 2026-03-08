@@ -52,7 +52,7 @@ const App = () => {
               <Route path="/hod/calendar" element={<HODCalendar />} />
               <Route path="/approved" element={<ApprovedPapers />} />
               <Route path="/teacher/calendar" element={<TeacherCalendar />} />
-              <Route path="/calendar" element={<Dashboard />} />
+              
               <Route path="/exam-cell/datesheets" element={<DatesheetManagement />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
               <Route path="/exam-cell/alerts" element={<Dashboard />} />
