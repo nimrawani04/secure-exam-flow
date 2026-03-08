@@ -198,6 +198,15 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequest
             </div>
           </div>
         )}
+
+        {paper.status === 'review_requested' && (
+          <div className="rounded-lg border border-warning/20 bg-warning/10 p-3">
+            <div className="flex items-center gap-2 text-warning">
+              <Send className="h-4 w-4" />
+              <span className="text-sm font-medium">Sent to Exam Cell for review</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="hidden md:block">
