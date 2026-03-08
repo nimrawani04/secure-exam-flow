@@ -739,6 +739,7 @@ export type Database = {
         | "rejected"
         | "resubmission_requested"
         | "locked"
+        | "review_requested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -885,6 +886,7 @@ export const Constants = {
         "rejected",
         "resubmission_requested",
         "locked",
+        "review_requested",
       ],
     },
   },
