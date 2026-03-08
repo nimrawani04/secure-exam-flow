@@ -370,6 +370,8 @@ export default function Auth() {
                 </button>
               </div>
             </>
+              )}
+            </>
           )}
         </div>
       </div>
