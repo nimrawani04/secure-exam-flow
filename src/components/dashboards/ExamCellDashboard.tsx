@@ -118,6 +118,7 @@ const emptyPaperStats: Record<PaperStatus, number> = {
   pending_review: 0,
   approved: 0,
   rejected: 0,
+  resubmission_requested: 0,
   locked: 0,
 };
 
