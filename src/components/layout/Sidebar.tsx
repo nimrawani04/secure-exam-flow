@@ -74,6 +74,8 @@ export function Sidebar({
 
   // Fetch pending paper requests count for HOD
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  // Fetch pending calendar submissions count for teacher
+  const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
@@ -89,7 +91,6 @@ export function Sidebar({
 
     fetchCount();
 
-    // Subscribe to realtime changes
     const channel = supabase
       .channel('hod-paper-requests-count')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'paper_requests' }, () => {
@@ -99,6 +100,69 @@ export function Sidebar({
 
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role, profile?.department_id]);
+
+  // Teacher: count pending sessions (sessions where teacher hasn't submitted a paper)
+  useEffect(() => {
+    if (profile?.role !== 'teacher') return;
+
+    const fetchPendingCount = async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+
+      // Get teacher's subject IDs
+      const { data: assignments } = await supabase
+        .from('teacher_subjects')
+        .select('subject_id')
+        .eq('teacher_id', user.user.id);
+
+      const subjectIds = (assignments || []).map((a) => a.subject_id);
+      if (subjectIds.length === 0) { setPendingCalendarCount(0); return; }
+
+      // Get active sessions for those subjects
+      const { data: sessions } = await supabase
+        .from('department_exam_sessions')
+        .select('id, subject_id, exam_type, submission_deadline')
+        .in('subject_id', subjectIds)
+        .eq('status', 'active');
+
+      if (!sessions || sessions.length === 0) { setPendingCalendarCount(0); return; }
+
+      // Check which sessions have a paper uploaded by this teacher
+      let pending = 0;
+      const now = new Date();
+      for (const s of sessions) {
+        // Only count sessions with deadline in the future or within 1 day past
+        const deadline = new Date(s.submission_deadline);
+        if (deadline.getTime() < now.getTime() - 86400000) continue;
+
+        const { count } = await supabase
+          .from('exam_papers')
+          .select('id', { count: 'exact', head: true })
+          .eq('subject_id', s.subject_id)
+          .eq('exam_type', s.exam_type)
+          .eq('uploaded_by', user.user.id)
+          .in('status', ['pending_review', 'submitted', 'approved', 'locked']);
+
+        if (!count || count === 0) pending++;
+      }
+
+      setPendingCalendarCount(pending);
+    };
+
+    fetchPendingCount();
+
+    const channel = supabase
+      .channel('teacher-calendar-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_papers' }, () => {
+        fetchPendingCount();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'department_exam_sessions' }, () => {
+        fetchPendingCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
 
   if (!profile?.role) return null;
 
