@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Exam } from '@/types';
+import { Exam, EXAM_TYPE_LABELS } from '@/types';
 import {
   Bell,
   Calendar,
@@ -40,6 +40,8 @@ import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { RequestNewPaperDialog } from '@/components/examcell/RequestNewPaperDialog';
+import { ReviewResponseDialog } from '@/components/examcell/ReviewResponseDialog';
 
 type ExamType = Database['public']['Enums']['exam_type'];
 type PaperStatus = Database['public']['Enums']['paper_status'];
@@ -50,14 +52,9 @@ type ExamWithMeta = Exam & {
   paperStatus?: PaperStatus | null;
   paperFilePath?: string | null;
   hodRemark?: string | null;
+  isStandalone?: boolean;
 };
 
-const examTypeLabels: Record<ExamType, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-};
 
 const examCellViewCopy: Record<ExamCellView, { title: string; subtitle: string }> = {
   overview: {
@@ -117,7 +114,9 @@ const emptyPaperStats: Record<PaperStatus, number> = {
   pending_review: 0,
   approved: 0,
   rejected: 0,
+  resubmission_requested: 0,
   locked: 0,
+  review_requested: 0,
 };
 
 const toLocalInputValue = (value?: string | null) => {
@@ -210,6 +209,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [exams, setExams] = useState<ExamWithMeta[]>([]);
+  const [examsRefreshKey, setExamsRefreshKey] = useState(0);
+  const refreshExams = () => setExamsRefreshKey((k) => k + 1);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
   const [examsError, setExamsError] = useState<string | null>(null);
   const [paperStats, setPaperStats] = useState<Record<PaperStatus, number>>(emptyPaperStats);
@@ -235,16 +236,19 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   const [broadcastDepartments, setBroadcastDepartments] = useState<string[]>([]);
   const [latestPapersSort, setLatestPapersSort] = useState<'latest' | 'oldest'>('latest');
   const [inboxSort, setInboxSort] = useState<'latest' | 'oldest'>('latest');
-  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
-  const [requestTargetExam, setRequestTargetExam] = useState<ExamWithMeta | null>(null);
-  const [requestReason, setRequestReason] = useState<string>('Paper Leak Suspected');
-  const [requestRemarks, setRequestRemarks] = useState('');
-  const [requestUrgency, setRequestUrgency] = useState<ReplacementUrgency>('normal');
-  const [isSubmittingReplacementRequest, setIsSubmittingReplacementRequest] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewDialogUrl, setPreviewDialogUrl] = useState('');
+  const [previewDialogTitle, setPreviewDialogTitle] = useState('');
   const seenInboxPaperKeysRef = useRef<Set<string>>(new Set());
   const initializedInboxFeedRef = useRef(false);
   const broadcastMessageLimit = 500;
   const replacementRemarksLimit = 500;
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestTargetExam, setRequestTargetExam] = useState<ExamWithMeta | null>(null);
+  const [requestReason, setRequestReason] = useState('Paper Leak Suspected');
+  const [requestRemarks, setRequestRemarks] = useState('');
+  const [requestUrgency, setRequestUrgency] = useState<ReplacementUrgency>('normal');
+  const [isSubmittingReplacementRequest, setIsSubmittingReplacementRequest] = useState(false);
 
   const departmentNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -288,31 +292,48 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         return;
       }
 
-      const { data: selectedPapers, error: selectedPapersError } = await supabase
-        .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback')
-        .eq('is_selected', true)
-        .in('status', ['approved', 'locked']);
+      // Fetch all selected/locked papers directly (these may not have exams entries)
+      const [selectedPapersRes, reviewRequestedRes] = await Promise.all([
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('is_selected', true)
+          .in('status', ['approved', 'locked']),
+        supabase
+          .from('exam_papers')
+          .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
+          .eq('status', 'review_requested' as any),
+      ]);
 
-      if (selectedPapersError) {
-        console.error('Error fetching selected papers:', selectedPapersError);
-      }
+      if (selectedPapersRes.error) console.error('Error fetching selected papers:', selectedPapersRes.error);
+      if (reviewRequestedRes.error) console.error('Error fetching review-requested papers:', reviewRequestedRes.error);
+
+      const allRelevantPapers = [...(selectedPapersRes.data || []), ...(reviewRequestedRes.data || [])];
 
       const selectedPaperByExamKey = new Map<
         string,
-        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null }
+        { id: string; subjectId: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
-      (selectedPapers || []).forEach((paper: any) => {
-        const key = `${paper.subject_id}-${paper.exam_type}`;
+      (allRelevantPapers).forEach((paper: any) => {
+        const key = `${paper.subject_id}::${paper.exam_type}`;
         if (!selectedPaperByExamKey.has(key)) {
           selectedPaperByExamKey.set(key, {
             id: paper.id,
+            subjectId: paper.subject_id,
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
             hodRemark: paper.feedback ?? null,
+            subjectName: paper.subjects?.name ?? 'Unknown Subject',
+            subjectCode: paper.subjects?.code ?? '',
+            departmentId: paper.subjects?.department_id ?? null,
+            examType: paper.exam_type,
+            uploadedAt: paper.uploaded_at,
           });
         }
       });
+
+      // Track which subject+examType combos already have an exams entry
+      const coveredExamKeys = new Set<string>();
 
       const mapped = (data || [])
         .map((row: any) => {
@@ -322,7 +343,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             return null;
           }
 
-          const examKey = `${row.subject_id}-${row.exam_type}`;
+          const examKey = `${row.subject_id}::${row.exam_type}`;
+          coveredExamKeys.add(examKey);
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
           const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
@@ -347,6 +369,29 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         })
         .filter((row): row is ExamWithMeta => Boolean(row));
 
+      // Add standalone locked papers that don't have a matching exams entry
+      selectedPaperByExamKey.forEach((paper, key) => {
+        if (!coveredExamKeys.has(key)) {
+          const uploadDate = new Date(paper.uploadedAt);
+          mapped.push({
+            id: paper.id,
+            subjectId: paper.subjectId,
+            subjectName: paper.subjectName,
+            subjectCode: paper.subjectCode,
+            departmentId: paper.departmentId,
+            examType: paper.examType as ExamType,
+            scheduledDate: uploadDate,
+            unlockTime: uploadDate,
+            paperId: paper.id,
+            paperStatus: paper.status,
+            paperFilePath: paper.filePath,
+            hodRemark: paper.hodRemark,
+            status: 'scheduled' as const,
+            isStandalone: true,
+          } as ExamWithMeta);
+        }
+      });
+
       setExams(mapped);
       setIsLoadingExams(false);
     };
@@ -356,7 +401,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [examsRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -436,7 +481,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const inboxExams = useMemo(
-    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
+    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved' || exam.paperStatus === 'review_requested'),
     [exams]
   );
   const sortedInboxExams = useMemo(() => {
@@ -503,7 +548,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       return;
     }
 
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    setPreviewDialogTitle(`${exam.subjectName} (${exam.subjectCode})`);
+    setPreviewDialogUrl(data.signedUrl);
+    setPreviewDialogOpen(true);
   };
 
   const handleDownloadPaper = async (exam: ExamWithMeta) => {
@@ -573,7 +620,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         message: [
           'A replacement question paper is requested by Exam Cell.',
           `Subject: ${subjectLabel}`,
-          `Exam Type: ${examTypeLabels[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
+          `Exam Type: ${EXAM_TYPE_LABELS[requestTargetExam.examType as ExamType] ?? requestTargetExam.examType}`,
           `Reason: ${requestReason}`,
           `Urgency: ${urgencyLabel}`,
           `Remarks: ${normalizedRemarks}`,
@@ -605,6 +652,12 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     if (exam.paperStatus === 'locked' || exam.paperStatus === 'approved') {
       return { label: 'Ready', variant: 'success' as const };
     }
+    if (exam.paperStatus === 'review_requested') {
+      return { label: 'Review Requested', variant: 'warning' as const };
+    }
+    if (exam.paperStatus === 'resubmission_requested') {
+      return { label: 'Resubmission Requested', variant: 'warning' as const };
+    }
     if (exam.paperStatus === 'pending_review' || exam.paperStatus === 'submitted') {
       return { label: 'Pending', variant: 'warning' as const };
     }
@@ -612,6 +665,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   };
 
   useEffect(() => {
+    // Skip if no data loaded yet — wait for real data before initializing
+    if (inboxExams.length === 0) return;
+
     const currentKeys = new Set(
       inboxExams.map((exam) => exam.paperId ?? `exam-${exam.id}`)
     );
@@ -854,9 +910,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       <SelectValue placeholder="Select exam type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(examTypeLabels).map(([value, label]) => (
+                      {Object.entries(EXAM_TYPE_LABELS).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
-                          {label}
+                          {label as string}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -949,20 +1005,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-      <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">Compose Alert</h2>
-                <p className="text-sm text-muted-foreground">
-                  Notify HODs across departments or targeted groups.
-                </p>
-              </div>
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-6 space-y-5">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold">Compose Alert</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Notify HODs across departments or targeted groups.
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-center">
+            <div className="space-y-5">
+              <div className="space-y-2">
                 <Label>Title</Label>
                 <Input
                   placeholder="e.g. Review window opens Monday"
@@ -971,26 +1025,24 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   onKeyDown={handleBroadcastKeyDown}
                 />
               </div>
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-start">
+              <div className="space-y-2">
                 <Label>Message</Label>
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder="Share any instructions or deadlines for HODs..."
-                    value={broadcastMessage}
-                    onChange={(e) => setBroadcastMessage(e.target.value)}
-                    rows={4}
-                    maxLength={broadcastMessageLimit}
-                    className="min-h-[120px]"
-                    onKeyDown={handleBroadcastKeyDown}
-                  />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Keep it clear and actionable.</span>
-                    <span>{broadcastMessage.length}/{broadcastMessageLimit}</span>
-                  </div>
+                <Textarea
+                  placeholder="Share any instructions or deadlines for HODs..."
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  rows={4}
+                  maxLength={broadcastMessageLimit}
+                  className="min-h-[120px]"
+                  onKeyDown={handleBroadcastKeyDown}
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Keep it clear and actionable.</span>
+                  <span>{broadcastMessage.length}/{broadcastMessageLimit}</span>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-5 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                 <div className="space-y-2">
                   <Label>Alert Type</Label>
                   <Select value={broadcastType} onValueChange={(value) => setBroadcastType(value as typeof broadcastType)}>
@@ -1032,8 +1084,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       {deptsLoading ? (
                         <p className="text-sm text-muted-foreground">Loading departments...</p>
                       ) : departments && departments.length > 0 ? (
-                        <div className="pb-1 sm:-mx-1 sm:overflow-x-auto sm:px-1">
-                          <div className="flex flex-wrap items-center gap-2 sm:min-w-max sm:flex-nowrap">
+                        <div className="pt-1">
+                          <div className="flex flex-wrap items-center gap-2">
                             {departments.map((dept) => {
                               const isSelectedDept = broadcastDepartments.includes(dept.id);
                               return (
@@ -1071,27 +1123,25 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
-              <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                <Button variant="outline" size="sm" className="h-[38px] w-full sm:w-auto" onClick={handlePreview}>
-                  Preview
-                </Button>
-                <Button
-                  variant="hero"
-                  className="h-[38px] w-full gap-2 sm:w-auto"
-                  onClick={handleBroadcast}
-                  disabled={createNotification.isPending}
-                >
-                  <Bell className="w-4 h-4" />
-                  {createNotification.isPending ? 'Sending...' : 'Send Alert'}
-                </Button>
-              </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="outline" className="h-10 w-full sm:w-auto sm:self-end" onClick={handlePreview}>
+                Preview
+              </Button>
+              <Button
+                variant="hero"
+                className="h-10 w-full gap-2 sm:w-auto sm:self-end"
+                onClick={handleBroadcast}
+                disabled={createNotification.isPending}
+              >
+                <Bell className="w-4 h-4" />
+                {createNotification.isPending ? 'Sending...' : 'Send Alert'}
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3 lg:self-start">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
+        <div className="min-w-0 space-y-3 lg:self-start">
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold">Recent HOD Alerts</h3>
@@ -1116,18 +1166,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 ))}
               </div>
             ) : hodNotifications.length > 0 ? (
-              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm">
+              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm overflow-hidden">
                 {hodNotifications.map((notification) => (
                   <div key={notification.id} className="flex items-start gap-3 p-3 sm:p-4">
                     <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
                       <Bell className="w-4 h-4 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{notification.title}</span>
                         <Badge
                           variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
-                          className="text-[10px] uppercase"
+                          className="text-[10px] uppercase shrink-0"
                         >
                           {notification.type || 'info'}
                         </Badge>
@@ -1428,7 +1478,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             <tbody>
               {sortedInboxExams.map((exam) => {
                 const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
-                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : 'Approved';
+                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : exam.paperStatus === 'review_requested' ? 'Review Requested' : 'Approved';
                 return (
                   <tr key={exam.id} className="border-b transition-colors hover:bg-muted/20">
                     <td className="px-3 py-3.5 font-semibold text-foreground">{exam.subjectName}</td>
@@ -1441,13 +1491,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-3.5 text-muted-foreground/80">
-                      {exam.hodRemark?.trim() ? exam.hodRemark : 'No remark'}
+                    <td className="px-3 py-3.5 min-w-[160px] max-w-[280px]">
+                      {exam.hodRemark?.trim() ? (
+                        <span className="text-sm text-foreground/80 break-words whitespace-normal" title={exam.hodRemark}>
+                          {exam.hodRemark}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50 text-sm italic">No remark</span>
+                      )}
                     </td>
                     <td className="px-3 py-3.5">
                       <Badge
-                        variant="success"
-                        className="border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success"
+                        variant={exam.paperStatus === 'review_requested' ? 'warning' : 'success'}
+                        className={
+                          exam.paperStatus === 'review_requested'
+                            ? 'border-transparent bg-warning/15 px-2.5 py-1 text-[12px] font-medium text-warning'
+                            : 'border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success'
+                        }
                       >
                         <Lock className="mr-1 h-3 w-3" />
                         {statusLabel}
@@ -1473,15 +1533,26 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         >
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground/80 hover:text-destructive"
-                          onClick={() => openReplacementRequestDialog(exam)}
-                          title="Request replacement paper"
-                        >
-                          <AlertTriangle className="h-[18px] w-[18px]" />
-                        </Button>
+                        {exam.paperStatus === 'review_requested' && exam.paperId && (
+                          <ReviewResponseDialog
+                            paperId={exam.paperId}
+                            subjectId={exam.subjectId}
+                            subjectName={exam.subjectName}
+                            examType={exam.examType}
+                            departmentId={exam.departmentId ?? ''}
+                            departmentName={departmentName ?? 'Unknown'}
+                            hodRemark={exam.hodRemark}
+                            onSuccess={refreshExams}
+                          />
+                        )}
+                        <RequestNewPaperDialog
+                          examId={exam.isStandalone ? null : exam.id}
+                          subjectId={exam.subjectId}
+                          subjectName={exam.subjectName}
+                          examType={exam.examType}
+                          departmentId={exam.departmentId ?? ''}
+                          departmentName={departmentName ?? 'Unknown'}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -1510,7 +1581,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0 overflow-x-hidden">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">{headerCopy.title}</h1>
@@ -1633,132 +1704,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
       {view === 'inbox' && inboxSection}
       {view === 'archive' && archiveSection}
 
-      <Dialog
-        open={requestDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeReplacementRequestDialog();
-            return;
-          }
-          setRequestDialogOpen(true);
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl">
+      {/* Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Request New Question Paper</DialogTitle>
+            <DialogTitle>Preview: {previewDialogTitle}</DialogTitle>
           </DialogHeader>
-
-          <p className="text-sm text-muted-foreground">
-            This will notify the HOD to prepare a replacement paper. Use only when necessary.
-          </p>
-
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Subject</Label>
-                <Input readOnly value={requestTargetExam?.subjectName ?? ''} className="bg-muted/40" />
-              </div>
-              <div className="space-y-2">
-                <Label>Exam Type</Label>
-                <Input
-                  readOnly
-                  value={requestTargetExam ? examTypeLabels[requestTargetExam.examType as ExamType] : ''}
-                  className="bg-muted/40"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Department</Label>
-              <Input
-                readOnly
-                value={
-                  requestTargetExam?.departmentId
-                    ? (departmentNameMap.get(requestTargetExam.departmentId) ?? 'Unknown Department')
-                    : 'Unknown Department'
-                }
-                className="bg-muted/40"
+          {previewDialogUrl ? (
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+              <iframe
+                src={previewDialogUrl}
+                title="Paper preview"
+                className="h-full w-full"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="replacement-reason">Reason for Request *</Label>
-              <Select value={requestReason} onValueChange={setRequestReason}>
-                <SelectTrigger id="replacement-reason">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {replacementReasonOptions.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="replacement-remarks">Remarks *</Label>
-              <Textarea
-                id="replacement-remarks"
-                value={requestRemarks}
-                onChange={(event) => setRequestRemarks(event.target.value)}
-                maxLength={replacementRemarksLimit}
-                placeholder="Explain what happened and what needs to be corrected."
-                rows={5}
-              />
-              <p className="text-right text-xs text-muted-foreground">
-                {requestRemarks.length}/{replacementRemarksLimit}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Urgency Level</Label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={requestUrgency === 'normal' ? 'default' : 'outline'}
-                  onClick={() => setRequestUrgency('normal')}
-                >
-                  Normal
-                </Button>
-                <Button
-                  type="button"
-                  variant={requestUrgency === 'urgent' ? 'default' : 'outline'}
-                  onClick={() => setRequestUrgency('urgent')}
-                >
-                  Urgent
-                </Button>
-                <Button
-                  type="button"
-                  variant={requestUrgency === 'critical' ? 'destructive' : 'outline'}
-                  onClick={() => setRequestUrgency('critical')}
-                >
-                  Critical
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeReplacementRequestDialog} disabled={isSubmittingReplacementRequest}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmitReplacementRequest}
-              disabled={isSubmittingReplacementRequest}
-              variant={requestUrgency === 'critical' ? 'destructive' : 'default'}
-            >
-              {isSubmittingReplacementRequest ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Request'
-              )}
-            </Button>
-          </DialogFooter>
+          ) : (
+            <p className="text-sm text-muted-foreground">No preview available.</p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -1889,7 +1851,7 @@ function SessionCard({
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold">{session.name}</h3>
             <Badge variant="outline" className="text-xs">
-              {examTypeLabels[session.exam_type]}
+              {EXAM_TYPE_LABELS[session.exam_type as ExamType]}
             </Badge>
             {session.is_active && (
               <Badge variant="success" className="text-xs">
@@ -1932,9 +1894,9 @@ function SessionCard({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(examTypeLabels).map(([value, label]) => (
+                        {Object.entries(EXAM_TYPE_LABELS).map(([value, label]) => (
                           <SelectItem key={value} value={value}>
-                            {label}
+                            {label as string}
                           </SelectItem>
                         ))}
                       </SelectContent>

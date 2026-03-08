@@ -1,0 +1,1 @@
+ALTER TABLE public.paper_requests ALTER COLUMN exam_id DROP NOT NULL;

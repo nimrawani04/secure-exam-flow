@@ -14,12 +14,8 @@ import {
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-const examTypeLabels: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
-};
+import { EXAM_TYPE_LABELS } from '@/types';
+
 
 function PaperRow({ paper }: { paper: TeacherPaper }) {
   return (
@@ -37,7 +33,7 @@ function PaperRow({ paper }: { paper: TeacherPaper }) {
         <div className="flex flex-col gap-2 sm:items-end">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
-              {examTypeLabels[paper.examType]}
+              {EXAM_TYPE_LABELS[paper.examType]}
             </span>
             <span className="inline-flex h-6 items-center rounded-full bg-primary/10 px-3 text-xs font-medium text-primary">
               v{paper.version}

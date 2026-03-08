@@ -47,6 +47,146 @@ export type Database = {
         }
         Relationships: []
       }
+      datesheet_entries: {
+        Row: {
+          course_code: string
+          course_name: string | null
+          created_at: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id: string
+          semester: number | null
+          subject_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          course_code: string
+          course_name?: string | null
+          created_at?: string
+          created_by: string
+          deadline: string
+          exam_date: string
+          exam_time: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          course_code?: string
+          course_name?: string | null
+          created_at?: string
+          created_by?: string
+          deadline?: string
+          exam_date?: string
+          exam_time?: string
+          id?: string
+          semester?: number | null
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "datesheet_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datesheets: {
+        Row: {
+          annotations: Json | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          annotations?: Json | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          annotations?: Json | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      department_exam_sessions: {
+        Row: {
+          created_at: string
+          created_by: string
+          department_id: string
+          exam_date: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          semester: number
+          status: string
+          subject_id: string
+          submission_deadline: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department_id: string
+          exam_date: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          semester: number
+          status?: string
+          subject_id: string
+          submission_deadline: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department_id?: string
+          exam_date?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          semester?: number
+          status?: string
+          subject_id?: string
+          submission_deadline?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_exam_sessions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_exam_sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -244,6 +384,35 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          id: string
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -285,6 +454,79 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      paper_requests: {
+        Row: {
+          created_at: string
+          department_id: string
+          exam_id: string | null
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          reason: string
+          remarks: string
+          requested_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          subject_id: string
+          updated_at: string
+          urgency: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          exam_id?: string | null
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          reason: string
+          remarks: string
+          requested_by: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject_id: string
+          updated_at?: string
+          urgency?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          exam_id?: string | null
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          reason?: string
+          remarks?: string
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject_id?: string
+          updated_at?: string
+          urgency?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_requests_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_requests_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -383,6 +625,56 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_calendar_entries: {
+        Row: {
+          created_at: string
+          exam_date: string | null
+          exam_type: string | null
+          id: string
+          notes: string | null
+          status: string
+          subject_id: string | null
+          submission_deadline: string
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          subject_id?: string | null
+          submission_deadline: string
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          subject_id?: string | null
+          submission_deadline?: string
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_calendar_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teacher_subjects: {
         Row: {
           created_at: string
@@ -438,6 +730,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      exam_cell_respond_to_review: {
+        Args: {
+          _action: string
+          _feedback?: string
+          _paper_id: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       get_user_department: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -446,18 +747,37 @@ export type Database = {
         }
         Returns: boolean
       }
+      select_paper_and_reject_others: {
+        Args: {
+          _exam_type: Database["public"]["Enums"]["exam_type"]
+          _hod_id: string
+          _paper_id: string
+          _remark?: string
+          _subject_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "teacher" | "hod" | "exam_cell" | "admin"
       exam_status: "scheduled" | "in_progress" | "completed" | "archived"
-      exam_type: "mid_term" | "end_term" | "practical" | "internal"
+      exam_type:
+        | "mid_term"
+        | "end_term"
+        | "practical"
+        | "internal"
+        | "cia_1"
+        | "cia_2"
+        | "practical_external"
       paper_status:
         | "draft"
         | "submitted"
         | "pending_review"
         | "approved"
         | "rejected"
+        | "resubmission_requested"
         | "locked"
+        | "review_requested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -587,14 +907,24 @@ export const Constants = {
     Enums: {
       app_role: ["teacher", "hod", "exam_cell", "admin"],
       exam_status: ["scheduled", "in_progress", "completed", "archived"],
-      exam_type: ["mid_term", "end_term", "practical", "internal"],
+      exam_type: [
+        "mid_term",
+        "end_term",
+        "practical",
+        "internal",
+        "cia_1",
+        "cia_2",
+        "practical_external",
+      ],
       paper_status: [
         "draft",
         "submitted",
         "pending_review",
         "approved",
         "rejected",
+        "resubmission_requested",
         "locked",
+        "review_requested",
       ],
     },
   },

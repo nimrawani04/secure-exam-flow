@@ -3,17 +3,18 @@ import { useHODPapers } from '@/hooks/useHODPapers';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Loader2, Lock } from 'lucide-react';
 
-const examTypeLabels: Record<string, string> = {
-  mid_term: 'Mid Term',
-  end_term: 'End Term',
-  practical: 'Practical',
-  internal: 'Internal',
+import { EXAM_TYPE_LABELS } from '@/types';
+
+
+const statusLabels: Record<string, { label: string; icon: typeof Lock; color: string }> = {
+  locked: { label: 'Locked', icon: Lock, color: 'bg-success/10 text-success border-success/20' },
+  resubmission_requested: { label: 'Resubmission Requested', icon: FileText, color: 'bg-warning/10 text-warning border-warning/20' },
 };
 
 export default function ApprovedPapers() {
   const { papers, isLoading, error, refetch } = useHODPapers();
 
-  const approvedPapers = papers.filter((paper) => paper.status === 'locked' && paper.isSelected);
+  const approvedPapers = papers.filter((paper) => (paper.status === 'locked' || paper.status === 'resubmission_requested') && paper.isSelected);
 
   return (
     <DashboardLayout>
@@ -61,19 +62,25 @@ export default function ApprovedPapers() {
                     <p className="text-sm text-muted-foreground mt-1">{paper.subjectCode}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="rounded-full bg-accent/10 text-accent px-2.5 py-0.5">
-                        {examTypeLabels[paper.examType]}
+                        {EXAM_TYPE_LABELS[paper.examType]}
                       </span>
                       <span>Set {paper.setName}</span>
                       <span>v{paper.version}</span>
                     </div>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1 bg-success/10 text-success border border-success/20"
-                  >
-                    <Lock className="h-3 w-3" />
-                    Locked
-                  </Badge>
+                  {(() => {
+                    const st = statusLabels[paper.status] || statusLabels.locked;
+                    const Icon = st.icon;
+                    return (
+                      <Badge
+                        variant="secondary"
+                        className={`flex items-center gap-1 border ${st.color}`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {st.label}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Bell, Loader2 } from 'lucide-react';
+import { Bell, Loader2, Search, ArrowUpDown, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Subject {
   id: string;
   name: string;
   code: string;
+  semester: number;
 }
 
 type TargetMode = 'department' | 'subjects';
@@ -53,6 +54,36 @@ export function HODAlerts() {
   const [countLoading, setCountLoading] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const messageLimit = 500;
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [subjectSort, setSubjectSort] = useState<'name' | 'code' | 'semester'>('name');
+  const [semesterFilter, setSemesterFilter] = useState<string>('all');
+
+  const availableSemesters = useMemo(() => {
+    const sems = [...new Set(subjects.map((s) => s.semester))].sort((a, b) => a - b);
+    return sems;
+  }, [subjects]);
+
+  const filteredSubjects = useMemo(() => {
+    let list = [...subjects];
+    // Semester filter
+    if (semesterFilter !== 'all') {
+      list = list.filter((s) => s.semester === Number(semesterFilter));
+    }
+    // Search
+    if (subjectSearch.trim()) {
+      const q = subjectSearch.trim().toLowerCase();
+      list = list.filter(
+        (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+      );
+    }
+    // Sort
+    list.sort((a, b) => {
+      if (subjectSort === 'semester') return a.semester - b.semester;
+      if (subjectSort === 'code') return a.code.localeCompare(b.code);
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [subjects, subjectSearch, subjectSort, semesterFilter]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -60,7 +91,7 @@ export function HODAlerts() {
       setSubjectsLoading(true);
       const { data, error } = await supabase
         .from('subjects')
-        .select('id, name, code')
+        .select('id, name, code, semester')
         .eq('department_id', profile.department_id)
         .order('name');
       setSubjectsLoading(false);
@@ -351,11 +382,50 @@ export function HODAlerts() {
                       Clear
                     </Button>
                   </div>
+
+                  {/* Search, Sort, Filter controls */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name or code..."
+                        value={subjectSearch}
+                        onChange={(e) => setSubjectSearch(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                    <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                        <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Semester" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Semesters</SelectItem>
+                        {availableSemesters.map((sem) => (
+                          <SelectItem key={sem} value={String(sem)}>
+                            Semester {sem}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={subjectSort} onValueChange={(v) => setSubjectSort(v as typeof subjectSort)}>
+                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                        <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name A–Z</SelectItem>
+                        <SelectItem value="code">Course Code</SelectItem>
+                        <SelectItem value="semester">Semester</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {subjectsLoading ? (
                     <p className="text-sm text-muted-foreground">Loading subjects...</p>
-                  ) : subjects.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {subjects.map((subject) => (
+                  ) : filteredSubjects.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
+                      {filteredSubjects.map((subject) => (
                         <label key={subject.id} className="flex items-start gap-3 rounded-lg border bg-secondary/20 p-3">
                           <Checkbox
                             checked={selectedSubjectIds.includes(subject.id)}
@@ -363,11 +433,13 @@ export function HODAlerts() {
                           />
                           <div>
                             <p className="text-sm font-medium">{subject.name}</p>
-                            <p className="text-xs text-muted-foreground">{subject.code}</p>
+                            <p className="text-xs text-muted-foreground">{subject.code} · Sem {subject.semester}</p>
                           </div>
                         </label>
                       ))}
                     </div>
+                  ) : subjects.length > 0 ? (
+                    <p className="text-sm text-muted-foreground">No subjects match your search or filter.</p>
                   ) : (
                     <p className="text-sm text-muted-foreground">No subjects assigned yet.</p>
                   )}

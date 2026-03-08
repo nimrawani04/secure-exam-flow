@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,8 +40,21 @@ export default function Auth() {
   const [isPasswordReset, setIsPasswordReset] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
-    // Detect reset from query param OR from Supabase recovery hash fragment
     return params.get('reset') === 'true' || hash.includes('type=recovery');
+  });
+  // Ref to track recovery state synchronously (avoids race with redirect effect)
+  const isPasswordResetRef = useRef(isPasswordReset);
+  const updatePasswordReset = (value: boolean) => {
+    isPasswordResetRef.current = value;
+    setIsPasswordReset(value);
+  };
+  const [authError, setAuthError] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.includes('error=')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      return hashParams.get('error_description')?.replace(/\+/g, ' ') || 'Authentication error occurred';
+    }
+    return null;
   });
   
   const { signIn, signUp, isAuthenticated } = useAuth();
@@ -51,23 +66,19 @@ export default function Auth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordReset(true);
+        updatePasswordReset(true);
       }
     });
 
     // Check hash fragment for recovery type (Supabase appends #type=recovery)
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
-      setIsPasswordReset(true);
+      updatePasswordReset(true);
     }
 
     // Also check if we arrived via reset link (URL has ?reset=true)
     if (searchParams.get('reset') === 'true') {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setIsPasswordReset(true);
-        }
-      });
+      updatePasswordReset(true);
     }
 
     return () => subscription.unsubscribe();
@@ -75,7 +86,7 @@ export default function Auth() {
 
   // Redirect authenticated users to dashboard (but NOT during password reset)
   useEffect(() => {
-    if (isAuthenticated && !isPasswordReset) {
+    if (isAuthenticated && !isPasswordResetRef.current) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, isPasswordReset, navigate]);
@@ -182,6 +193,45 @@ export default function Auth() {
             <PasswordResetForm />
           ) : (
             <>
+              {authError ? (
+                <div className="space-y-6">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-8 h-8 text-destructive" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Link expired or invalid</h2>
+                      <p className="text-muted-foreground mt-2 text-sm">
+                        {authError}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => {
+                        setAuthError(null);
+                        setShowForgotPassword(true);
+                        // Clean URL hash
+                        window.history.replaceState(null, '', window.location.pathname);
+                      }}
+                      className="w-full h-12"
+                    >
+                      Request a new reset link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAuthError(null);
+                        window.history.replaceState(null, '', window.location.pathname);
+                      }}
+                      className="w-full h-12"
+                    >
+                      Back to sign in
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="text-center">
                 <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">{isSignUp ? 'Create account' : 'Welcome back'}</h2>
                 <p className="text-muted-foreground mt-3 text-base">
@@ -319,6 +369,8 @@ export default function Auth() {
                   )}
                 </button>
               </div>
+            </>
+              )}
             </>
           )}
         </div>

@@ -34,6 +34,21 @@ export function useUploadPaper() {
     setUploadProgress(0);
 
     try {
+      // Check for existing paper and determine version
+      const { data: existingPapers } = await supabase
+        .from('exam_papers')
+        .select('id, version, file_path')
+        .eq('subject_id', params.subjectId)
+        .eq('exam_type', params.examType)
+        .eq('set_name', params.setName)
+        .eq('uploaded_by', user.id)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const nextVersion = existingPapers && existingPapers.length > 0
+        ? existingPapers[0].version + 1
+        : 1;
+
       // Generate unique file path: userId/paperId.pdf
       const paperId = crypto.randomUUID();
       const filePath = `${user.id}/${paperId}.pdf`;
@@ -68,6 +83,7 @@ export function useUploadPaper() {
           file_path: filePath,
           uploaded_by: user.id,
           status: 'pending_review',
+          version: nextVersion,
         })
         .select()
         .single();

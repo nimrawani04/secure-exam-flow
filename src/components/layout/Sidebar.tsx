@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard,
   Upload,
@@ -25,12 +27,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const roleNavItems = {
   teacher: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Calendar, label: 'Exam Calendar', path: '/teacher/calendar' },
     { icon: Upload, label: 'Upload Paper', path: '/upload' },
     { icon: FileText, label: 'My Submissions', path: '/submissions' },
     { icon: ClipboardList, label: 'Assigned Subjects', path: '/subjects' },
   ],
   hod: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Calendar, label: 'Exam Sessions', path: '/hod/sessions' },
+    { icon: Clock, label: 'Paper Calendar', path: '/hod/calendar' },
     { icon: FileCheck, label: 'Review Papers', path: '/review' },
     { icon: Users, label: 'Department', path: '/department' },
     { icon: Bell, label: 'Teacher Alerts', path: '/hod/alerts' },
@@ -38,8 +43,7 @@ const roleNavItems = {
   ],
   exam_cell: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Calendar, label: 'Exam Calendar', path: '/calendar' },
-    { icon: Clock, label: 'Exam Sessions', path: '/exam-cell/sessions' },
+    { icon: FileCheck, label: 'Datesheets', path: '/exam-cell/datesheets' },
     { icon: Bell, label: 'HOD Alerts', path: '/exam-cell/alerts' },
     { icon: FileText, label: 'Papers Inbox', path: '/inbox' },
     { icon: Archive, label: 'Archive', path: '/archive' },
@@ -67,6 +71,165 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
+
+  // Fetch pending paper requests count for HOD
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  // Fetch pending calendar submissions count for teacher
+  const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
+  // Fetch review_requested papers count for exam_cell
+  const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
+  // Fetch unread notifications count for exam_cell (HOD Alerts)
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
+
+  useEffect(() => {
+    if (profile?.role !== 'hod' || !profile?.department_id) return;
+
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('paper_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('department_id', profile.department_id!)
+        .eq('status', 'pending');
+      setPendingRequestsCount(count || 0);
+    };
+
+    fetchCount();
+
+    const channel = supabase
+      .channel('hod-paper-requests-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'paper_requests' }, () => {
+        fetchCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role, profile?.department_id]);
+
+  // Teacher: count pending sessions (sessions where teacher hasn't submitted a paper)
+  useEffect(() => {
+    if (profile?.role !== 'teacher') return;
+
+    const fetchPendingCount = async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+
+      // Get teacher's subject IDs
+      const { data: assignments } = await supabase
+        .from('teacher_subjects')
+        .select('subject_id')
+        .eq('teacher_id', user.user.id);
+
+      const subjectIds = (assignments || []).map((a) => a.subject_id);
+      if (subjectIds.length === 0) { setPendingCalendarCount(0); return; }
+
+      // Get active sessions for those subjects
+      const { data: sessions } = await supabase
+        .from('department_exam_sessions')
+        .select('id, subject_id, exam_type, submission_deadline')
+        .in('subject_id', subjectIds)
+        .eq('status', 'active');
+
+      if (!sessions || sessions.length === 0) { setPendingCalendarCount(0); return; }
+
+      // Check which sessions have a paper uploaded by this teacher
+      let pending = 0;
+      const now = new Date();
+      for (const s of sessions) {
+        // Only count sessions with deadline in the future or within 1 day past
+        const deadline = new Date(s.submission_deadline);
+        if (deadline.getTime() < now.getTime() - 86400000) continue;
+
+        const { count } = await supabase
+          .from('exam_papers')
+          .select('id', { count: 'exact', head: true })
+          .eq('subject_id', s.subject_id)
+          .eq('exam_type', s.exam_type)
+          .eq('uploaded_by', user.user.id)
+          .in('status', ['pending_review', 'submitted', 'approved', 'locked']);
+
+        if (!count || count === 0) pending++;
+      }
+
+      setPendingCalendarCount(pending);
+    };
+
+    fetchPendingCount();
+
+    const channel = supabase
+      .channel('teacher-calendar-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_papers' }, () => {
+        fetchPendingCount();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'department_exam_sessions' }, () => {
+        fetchPendingCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
+  // Exam cell: count locked + review_requested papers (papers sent by HODs)
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchReviewCount = async () => {
+      const { count } = await supabase
+        .from('exam_papers')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['locked', 'review_requested']);
+      setReviewRequestedCount(count || 0);
+    };
+
+    fetchReviewCount();
+
+    const channel = supabase
+      .channel('exam-cell-review-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_papers' }, () => {
+        fetchReviewCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
+  // Exam cell: count unread notifications (HOD Alerts) using per-user notification_reads
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchUnreadAlerts = async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+
+      const [notifResult, readsResult] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('id')
+          .contains('target_roles', ['exam_cell']),
+        supabase
+          .from('notification_reads')
+          .select('notification_id')
+          .eq('user_id', user.user.id),
+      ]);
+
+      const readSet = new Set((readsResult.data || []).map((r) => r.notification_id));
+      const unreadCount = (notifResult.data || []).filter((n) => !readSet.has(n.id)).length;
+      setUnreadAlertsCount(unreadCount);
+    };
+
+    fetchUnreadAlerts();
+
+    const channel = supabase
+      .channel('exam-cell-alerts-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchUnreadAlerts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads' }, () => {
+        fetchUnreadAlerts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
 
   if (!profile?.role) return null;
 
@@ -156,22 +319,46 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+      {navItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
+            (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' && unreadAlertsCount > 0);
+          const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount
+            : profile?.role === 'exam_cell' && item.path === '/inbox' ? reviewRequestedCount
+            : profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' ? unreadAlertsCount
+            : pendingRequestsCount;
           const link = (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
+                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative',
                 collapsed && !isMobile ? 'justify-center px-0' : '',
                 isActive
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
             >
-              <item.icon className="w-5 h-5" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="relative">
+                <item.icon className="w-5 h-5" />
+                {showBadge && collapsed && !isMobile && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </span>
+                )}
+              </span>
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
+                      {badgeCount > 9 ? '9+' : badgeCount}
+                    </span>
+                  )}
+                </span>
+              )}
             </Link>
           );
 

@@ -25,10 +25,10 @@ type ExamSession = {
   exam_date: string | null;
 };
 const uploadExamTypeToDbExamType: Record<UploadExamTypeOption, ExamType> = {
-  cia_1: 'mid_term',
-  cia_2: 'internal',
+  cia_1: 'cia_1',
+  cia_2: 'cia_2',
   end_semester: 'end_term',
-  external_practical: 'practical',
+  external_practical: 'practical_external',
   internal_practical: 'practical',
 };
 
@@ -226,6 +226,19 @@ export default function UploadPaper() {
   const allowPaper1 = !hasSingle;
   const allowPaper2 = !hasSingle;
 
+  // Visual mutual-exclusivity hints based on current selection
+  const paperOptionDisabledMap = {
+    single: !allowSingle || paperOption === 'paper1' || paperOption === 'paper2',
+    paper1: !allowPaper1 || paperOption === 'single',
+    paper2: !allowPaper2 || paperOption === 'single',
+  };
+  // Only truly disable (prevent click) for DB conflicts
+  const paperOptionHardDisabled = {
+    single: !allowSingle,
+    paper1: !allowPaper1,
+    paper2: !allowPaper2,
+  };
+
   useEffect(() => {
     const isCurrentAllowed =
       (paperOption === 'single' && allowSingle) ||
@@ -327,11 +340,8 @@ export default function UploadPaper() {
               setSelectedExamType={setSelectedExamType}
               paperOption={paperOption}
               setPaperOption={setPaperOption}
-              paperOptionDisabled={{
-                single: !allowSingle,
-                paper1: !allowPaper1,
-                paper2: !allowPaper2,
-              }}
+              paperOptionDisabled={paperOptionHardDisabled}
+              paperOptionMuted={paperOptionDisabledMap}
             />
 
             <FileUploadZone
@@ -368,11 +378,8 @@ export default function UploadPaper() {
                 setSelectedExamType={setSelectedExamType}
                 paperOption={paperOption}
                 setPaperOption={setPaperOption}
-                paperOptionDisabled={{
-                  single: !allowSingle,
-                  paper1: !allowPaper1,
-                  paper2: !allowPaper2,
-                }}
+                paperOptionDisabled={paperOptionHardDisabled}
+                paperOptionMuted={paperOptionDisabledMap}
               />
 
               <FileUploadZone

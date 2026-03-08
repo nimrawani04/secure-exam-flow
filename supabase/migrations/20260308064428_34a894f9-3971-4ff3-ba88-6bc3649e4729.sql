@@ -1,0 +1,1 @@
+UPDATE exam_papers SET exam_type = 'cia_1' WHERE id IN ('c9c37636-1d7a-408b-8468-8dba442290a1', '868cf487-799a-40bc-be41-2a25e8a3ac74') AND exam_type = 'mid_term'
