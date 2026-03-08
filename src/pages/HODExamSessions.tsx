@@ -41,7 +41,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
-import { format, isPast, isBefore, differenceInDays } from 'date-fns';
+import { format, isBefore, differenceInDays } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 
 type ExamType = Database['public']['Enums']['exam_type'];
