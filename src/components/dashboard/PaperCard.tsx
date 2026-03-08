@@ -26,6 +26,7 @@ const statusConfig: Record<PaperStatus, { label: string; variant: 'default' | 's
   rejected: { label: 'Rejected', variant: 'rejected' },
   resubmission_requested: { label: 'Resubmission Requested', variant: 'warning' },
   locked: { label: 'Locked', variant: 'default' },
+  review_requested: { label: 'Review Requested', variant: 'warning' },
 };
 
 export function PaperCard({
