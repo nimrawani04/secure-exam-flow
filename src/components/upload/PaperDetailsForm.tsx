@@ -54,6 +54,7 @@ export function PaperDetailsForm({
   paperOption,
   setPaperOption,
   paperOptionDisabled,
+  paperOptionMuted,
 }: PaperDetailsFormProps) {
   return (
     <div className="space-y-3.5 sm:space-y-4 sm:bg-card sm:rounded-lg sm:border sm:p-5">
