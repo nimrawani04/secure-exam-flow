@@ -378,7 +378,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         if (!coveredExamKeys.has(key)) {
           const uploadDate = new Date(paper.uploadedAt);
           mapped.push({
-            id: `paper-${paper.id}`,
+            id: paper.id,
             subjectId: key.split('-')[0],
             subjectName: paper.subjectName,
             subjectCode: paper.subjectCode,
