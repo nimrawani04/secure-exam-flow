@@ -348,7 +348,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             return null;
           }
 
-          const examKey = `${row.subject_id}-${row.exam_type}`;
+          const examKey = `${row.subject_id}::${row.exam_type}`;
           coveredExamKeys.add(examKey);
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
