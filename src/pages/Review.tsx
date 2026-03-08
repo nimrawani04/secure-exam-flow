@@ -617,6 +617,7 @@ export default function Review() {
                     onApprove={() => handleApprove(paper)}
                     onReject={() => handleReject(paper)}
                     onSelect={() => handleSelect(paper)}
+                    onRequestReview={() => handleRequestReview(paper)}
                     isProcessing={isProcessing}
                   />
                 ))}
