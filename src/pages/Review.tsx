@@ -67,8 +67,11 @@ interface ReviewCardProps {
   onApprove: () => void;
   onReject: () => void;
   onSelect: () => void;
+  onRequestReview: () => void;
   isProcessing: boolean;
 }
+
+function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequestReview, isProcessing }: ReviewCardProps) {
 
 function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
   const config = statusConfig[paper.status];
