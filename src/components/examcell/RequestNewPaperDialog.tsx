@@ -36,7 +36,7 @@ const URGENCY_LEVELS = [
 ] as const;
 
 interface RequestNewPaperDialogProps {
-  examId: string;
+  examId?: string | null;
   subjectId: string;
   subjectName: string;
   examType: string;
