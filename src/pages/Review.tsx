@@ -304,6 +304,19 @@ export default function Review() {
   const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selectedPaperForSend, setSelectedPaperForSend] = useState<HODPaper | null>(null);
   const [hodRemark, setHodRemark] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'subject' | 'version'>('date');
+
+  // Unique subjects for filter dropdown
+  const subjectOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; code: string }>();
+    papers.forEach((p) => {
+      if (!map.has(p.subjectId)) {
+        map.set(p.subjectId, { id: p.subjectId, name: p.subjectName, code: p.subjectCode });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [papers]);
 
   const handleApprove = async (paper: HODPaper) => {
     setIsProcessing(true);
@@ -362,13 +375,29 @@ export default function Review() {
     setPreviewOpen(true);
   };
 
-  const filteredPapers = papers.filter((paper) => {
-    if (activeTab === 'pending') return paper.status === 'pending_review';
-    if (activeTab === 'approved') return paper.status === 'approved';
-    if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
-    if (activeTab === 'rejected') return paper.status === 'rejected';
-    return true;
-  });
+  const filteredPapers = useMemo(() => {
+    let result = papers.filter((paper) => {
+      if (activeTab === 'pending') return paper.status === 'pending_review';
+      if (activeTab === 'approved') return paper.status === 'approved';
+      if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
+      if (activeTab === 'rejected') return paper.status === 'rejected';
+      return true;
+    });
+
+    // Apply subject filter
+    if (subjectFilter !== 'all') {
+      result = result.filter((p) => p.subjectId === subjectFilter);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      if (sortBy === 'subject') return a.subjectName.localeCompare(b.subjectName) || b.uploadedAt.getTime() - a.uploadedAt.getTime();
+      if (sortBy === 'version') return b.version - a.version || a.subjectName.localeCompare(b.subjectName);
+      return b.uploadedAt.getTime() - a.uploadedAt.getTime(); // date desc
+    });
+
+    return result;
+  }, [papers, activeTab, subjectFilter, sortBy]);
 
   const stats = {
     pending: papers.filter((p) => p.status === 'pending_review').length,
