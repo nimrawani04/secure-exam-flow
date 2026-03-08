@@ -313,7 +313,7 @@ function SessionCard({
             {session.subjectCode} · Sem {session.semester}
           </p>
         </div>
-        <Badge variant={isPast ? 'secondary' : 'default'} className="text-xs">
+        <Badge variant={isPastSession ? 'secondary' : 'default'} className="text-xs">
           {examLabel}
         </Badge>
       </div>
