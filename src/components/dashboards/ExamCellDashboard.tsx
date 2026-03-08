@@ -1166,7 +1166,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                 ))}
               </div>
             ) : hodNotifications.length > 0 ? (
-              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm">
+              <div className="divide-y border rounded-lg bg-white/70 dark:bg-card/70 backdrop-blur-sm overflow-hidden">
                 {hodNotifications.map((notification) => (
                   <div key={notification.id} className="flex items-start gap-3 p-3 sm:p-4">
                     <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
