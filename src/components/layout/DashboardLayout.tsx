@@ -256,24 +256,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-[hsl(var(--dashboard-bg))] dark:bg-[hsl(var(--dashboard-bg-dark))]">
       <div className="lg:hidden sticky top-0 z-40 border-b bg-background">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold truncate">
               {profile?.full_name || 'Account'}
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <span className="truncate">{title.section}</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3 w-3 shrink-0" />
               <span className="truncate font-medium text-foreground">{title.page}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
+                <Button variant="ghost" size="icon" aria-label="Notifications" className="relative h-8 w-8">
                   <Bell className="h-4 w-4" />
                   {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                    <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                       {notificationCount > 9 ? '9+' : notificationCount}
                     </span>
                   )}
@@ -281,19 +281,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </DropdownMenuTrigger>
               {renderNotificationsContent()}
             </DropdownMenu>
-            <ThemeToggle className="h-9 w-9" compact />
+            <ThemeToggle className="h-8 w-8" compact />
             <button
               type="button"
               onClick={() => navigate('/profile')}
               aria-label="Open profile"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground"
             >
               {profile?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
             </button>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Open menu">
-                  <Menu className="w-5 h-5" />
+                <Button variant="ghost" size="icon" aria-label="Open menu" className="h-8 w-8">
+                  <Menu className="w-4 h-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0">
