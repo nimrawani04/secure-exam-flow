@@ -79,6 +79,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showRead, setShowRead] = useState(false);
   const lastKey = useRef<{ key: string; time: number } | null>(null);
+  const notificationTriggerRef = useRef<HTMLButtonElement>(null);
   
   // Fetch notifications for display (respects showRead toggle)
   const { data: notifications, isLoading: notificationsLoading } = useNotifications({
