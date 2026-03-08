@@ -192,17 +192,28 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
-  // Exam cell: count unread notifications (HOD Alerts)
+  // Exam cell: count unread notifications (HOD Alerts) using per-user notification_reads
   useEffect(() => {
     if (profile?.role !== 'exam_cell') return;
 
     const fetchUnreadAlerts = async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('id, is_read')
-        .contains('target_roles', ['exam_cell'])
-        .eq('is_read', false);
-      setUnreadAlertsCount(data?.length || 0);
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+
+      const [notifResult, readsResult] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('id')
+          .contains('target_roles', ['exam_cell']),
+        supabase
+          .from('notification_reads')
+          .select('notification_id')
+          .eq('user_id', user.user.id),
+      ]);
+
+      const readSet = new Set((readsResult.data || []).map((r) => r.notification_id));
+      const unreadCount = (notifResult.data || []).filter((n) => !readSet.has(n.id)).length;
+      setUnreadAlertsCount(unreadCount);
     };
 
     fetchUnreadAlerts();
@@ -210,6 +221,9 @@ export function Sidebar({
     const channel = supabase
       .channel('exam-cell-alerts-badge')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchUnreadAlerts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads' }, () => {
         fetchUnreadAlerts();
       })
       .subscribe();
