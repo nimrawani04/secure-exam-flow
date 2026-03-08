@@ -145,8 +145,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [navigate]);
 
-  const handleReadToggle = async (id: string, isRead: boolean) => {
-    await updateReadState({ id, isRead });
+  const handleReadToggle = async (notificationId: string, markRead: boolean) => {
+    if (!profile?.id) return;
+    await toggleRead({ notificationId, userId: profile.id, markRead });
   };
 
   const renderNotificationsContent = () => (
