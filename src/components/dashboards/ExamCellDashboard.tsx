@@ -297,9 +297,10 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         return;
       }
 
+      // Fetch all selected/locked papers directly (these may not have exams entries)
       const { data: selectedPapers, error: selectedPapersError } = await supabase
         .from('exam_papers')
-        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback')
+        .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
         .eq('is_selected', true)
         .in('status', ['approved', 'locked']);
 
@@ -309,7 +310,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
       const selectedPaperByExamKey = new Map<
         string,
-        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null }
+        { id: string; status: PaperStatus; filePath: string | null; hodRemark: string | null; subjectName: string; subjectCode: string; departmentId: string | null; examType: string; uploadedAt: string }
       >();
       (selectedPapers || []).forEach((paper: any) => {
         const key = `${paper.subject_id}-${paper.exam_type}`;
@@ -319,9 +320,17 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             status: paper.status as PaperStatus,
             filePath: paper.file_path ?? null,
             hodRemark: paper.feedback ?? null,
+            subjectName: paper.subjects?.name ?? 'Unknown Subject',
+            subjectCode: paper.subjects?.code ?? '',
+            departmentId: paper.subjects?.department_id ?? null,
+            examType: paper.exam_type,
+            uploadedAt: paper.uploaded_at,
           });
         }
       });
+
+      // Track which subject+examType combos already have an exams entry
+      const coveredExamKeys = new Set<string>();
 
       const mapped = (data || [])
         .map((row: any) => {
@@ -332,6 +341,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           }
 
           const examKey = `${row.subject_id}-${row.exam_type}`;
+          coveredExamKeys.add(examKey);
           const fallbackSelectedPaper = selectedPaperByExamKey.get(examKey);
           const resolvedPaperId = row.selected_paper_id ?? fallbackSelectedPaper?.id;
           const resolvedPaperStatus = row.exam_papers?.status ?? fallbackSelectedPaper?.status ?? null;
@@ -355,6 +365,28 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
           } as ExamWithMeta;
         })
         .filter((row): row is ExamWithMeta => Boolean(row));
+
+      // Add standalone locked papers that don't have a matching exams entry
+      selectedPaperByExamKey.forEach((paper, key) => {
+        if (!coveredExamKeys.has(key)) {
+          const uploadDate = new Date(paper.uploadedAt);
+          mapped.push({
+            id: `paper-${paper.id}`,
+            subjectId: key.split('-')[0],
+            subjectName: paper.subjectName,
+            subjectCode: paper.subjectCode,
+            departmentId: paper.departmentId,
+            examType: paper.examType as ExamType,
+            scheduledDate: uploadDate,
+            unlockTime: uploadDate,
+            paperId: paper.id,
+            paperStatus: paper.status,
+            paperFilePath: paper.filePath,
+            hodRemark: paper.hodRemark,
+            status: 'scheduled' as const,
+          } as ExamWithMeta);
+        }
+      });
 
       setExams(mapped);
       setIsLoadingExams(false);
