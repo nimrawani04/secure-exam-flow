@@ -1,11 +1,120 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, X, AlertCircle, Eye } from 'lucide-react';
+import { FileText, X, AlertCircle, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+interface PdfPreviewDialogProps {
+  open: boolean;
+  onClose: () => void;
+  file: File | null;
+}
+
+function PdfPreviewDialog({ open, onClose, file }: PdfPreviewDialogProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+
+  const renderPage = useCallback(async (pageNum: number) => {
+    const doc = pdfDocRef.current;
+    const canvas = canvasRef.current;
+    if (!doc || !canvas) return;
+
+    const page = await doc.getPage(pageNum);
+    const containerWidth = canvas.parentElement?.clientWidth || 360;
+    const unscaledViewport = page.getViewport({ scale: 1 });
+    const scale = containerWidth / unscaledViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  }, []);
+
+  useEffect(() => {
+    if (!open || !file) return;
+    let cancelled = false;
+
+    const loadPdf = async () => {
+      const arrayBuffer = await file.arrayBuffer();
+      if (cancelled) return;
+      const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      if (cancelled) return;
+      pdfDocRef.current = doc;
+      setTotalPages(doc.numPages);
+      setCurrentPage(1);
+    };
+
+    loadPdf();
+    return () => { cancelled = true; };
+  }, [open, file]);
+
+  useEffect(() => {
+    if (open && totalPages > 0) {
+      renderPage(currentPage);
+    }
+  }, [open, currentPage, totalPages, renderPage]);
+
+  useEffect(() => {
+    if (!open) {
+      pdfDocRef.current?.destroy();
+      pdfDocRef.current = null;
+      setTotalPages(0);
+      setCurrentPage(1);
+    }
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-sm truncate">Preview: {file?.name}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-auto rounded-lg border bg-muted/30">
+          {totalPages > 0 ? (
+            <canvas ref={canvasRef} className="mx-auto block" />
+          ) : (
+            <div className="flex items-center justify-center h-48">
+              <p className="text-sm text-muted-foreground">Loading preview…</p>
+            </div>
+          )}
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button
+              type="button" variant="outline" size="icon"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              type="button" variant="outline" size="icon"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface FileUploadZoneProps {
   file: File | null;
@@ -17,7 +126,6 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const validateFile = (selectedFile: File): boolean => {
@@ -74,17 +182,11 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
 
   const previewFile = () => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
     setPreviewOpen(true);
   };
 
   const closePreview = () => {
     setPreviewOpen(false);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
   };
 
   return (
@@ -203,25 +305,12 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
         </div>
       )}
 
-      {/* Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) closePreview(); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Preview: {file?.name}</DialogTitle>
-          </DialogHeader>
-          {previewUrl ? (
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
-              <iframe
-                src={previewUrl}
-                title="PDF preview"
-                className="h-full w-full"
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No preview available.</p>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Preview Dialog - Canvas-based for mobile compatibility */}
+      <PdfPreviewDialog
+        open={previewOpen}
+        onClose={closePreview}
+        file={file}
+      />
     </div>
   );
 }
