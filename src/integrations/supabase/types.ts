@@ -97,6 +97,63 @@ export type Database = {
           },
         ]
       }
+      department_exam_sessions: {
+        Row: {
+          created_at: string
+          created_by: string
+          department_id: string
+          exam_date: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          semester: number
+          status: string
+          subject_id: string
+          submission_deadline: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department_id: string
+          exam_date: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          semester: number
+          status?: string
+          subject_id: string
+          submission_deadline: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department_id?: string
+          exam_date?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          semester?: number
+          status?: string
+          subject_id?: string
+          submission_deadline?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_exam_sessions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_exam_sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -573,7 +630,14 @@ export type Database = {
     Enums: {
       app_role: "teacher" | "hod" | "exam_cell" | "admin"
       exam_status: "scheduled" | "in_progress" | "completed" | "archived"
-      exam_type: "mid_term" | "end_term" | "practical" | "internal"
+      exam_type:
+        | "mid_term"
+        | "end_term"
+        | "practical"
+        | "internal"
+        | "cia_1"
+        | "cia_2"
+        | "practical_external"
       paper_status:
         | "draft"
         | "submitted"
@@ -711,7 +775,15 @@ export const Constants = {
     Enums: {
       app_role: ["teacher", "hod", "exam_cell", "admin"],
       exam_status: ["scheduled", "in_progress", "completed", "archived"],
-      exam_type: ["mid_term", "end_term", "practical", "internal"],
+      exam_type: [
+        "mid_term",
+        "end_term",
+        "practical",
+        "internal",
+        "cia_1",
+        "cia_2",
+        "practical_external",
+      ],
       paper_status: [
         "draft",
         "submitted",
