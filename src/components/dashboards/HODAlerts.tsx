@@ -54,6 +54,36 @@ export function HODAlerts() {
   const [countLoading, setCountLoading] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const messageLimit = 500;
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [subjectSort, setSubjectSort] = useState<'name' | 'code' | 'semester'>('name');
+  const [semesterFilter, setSemesterFilter] = useState<string>('all');
+
+  const availableSemesters = useMemo(() => {
+    const sems = [...new Set(subjects.map((s) => s.semester))].sort((a, b) => a - b);
+    return sems;
+  }, [subjects]);
+
+  const filteredSubjects = useMemo(() => {
+    let list = [...subjects];
+    // Semester filter
+    if (semesterFilter !== 'all') {
+      list = list.filter((s) => s.semester === Number(semesterFilter));
+    }
+    // Search
+    if (subjectSearch.trim()) {
+      const q = subjectSearch.trim().toLowerCase();
+      list = list.filter(
+        (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+      );
+    }
+    // Sort
+    list.sort((a, b) => {
+      if (subjectSort === 'semester') return a.semester - b.semester;
+      if (subjectSort === 'code') return a.code.localeCompare(b.code);
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [subjects, subjectSearch, subjectSort, semesterFilter]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
