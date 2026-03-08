@@ -170,7 +170,7 @@ export default function DatesheetManagement() {
     setIsSaving(true);
     const { error } = await supabase
       .from('datesheets')
-      .update({ annotations: currentAnnotations as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+      .update({ annotations: JSON.parse(JSON.stringify(currentAnnotations)), updated_at: new Date().toISOString() })
       .eq('id', selectedDatesheet.id);
 
     if (error) {
