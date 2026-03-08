@@ -150,9 +150,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     await toggleRead({ notificationId, userId: profile.id, markRead });
   };
 
+  const handleMarkAllRead = async () => {
+    if (!profile?.id || !unreadNotifications?.length) return;
+    await Promise.all(
+      unreadNotifications.map((n) =>
+        toggleRead({ notificationId: n.id, userId: profile.id, markRead: true })
+      )
+    );
+  };
+
   const renderNotificationsContent = () => (
     <DropdownMenuContent align="end" className="w-80 max-h-[360px] overflow-auto">
-      <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+      <div className="flex items-center justify-between px-2 py-1.5">
+        <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+        {notificationCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px] text-primary hover:text-primary"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleMarkAllRead();
+            }}
+          >
+            Mark all read
+          </Button>
+        )}
+      </div>
       <DropdownMenuSeparator />
       <DropdownMenuCheckboxItem
         checked={showRead}
