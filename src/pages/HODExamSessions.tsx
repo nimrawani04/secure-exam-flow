@@ -387,6 +387,6 @@ function SessionCard({
   );
 }
 
-function isPast(date: Date): boolean {
+function isDatePast(date: Date): boolean {
   return date.getTime() < Date.now();
 }
