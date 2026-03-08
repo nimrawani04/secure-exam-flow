@@ -56,6 +56,7 @@ const routeTitles: Record<string, { section: string; page: string }> = {
 };
 
 const shortcuts = [
+  { keys: 'Cmd + K', label: 'Open notifications', path: '' },
   { keys: 'G + D', label: 'Go to Dashboard', path: '/dashboard' },
   { keys: 'G + U', label: 'Go to Upload Paper', path: '/upload' },
   { keys: 'G + S', label: 'Go to Submissions', path: '/submissions' },
