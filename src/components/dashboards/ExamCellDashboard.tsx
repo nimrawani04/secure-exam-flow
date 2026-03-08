@@ -477,7 +477,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const inboxExams = useMemo(
-    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved'),
+    () => exams.filter((exam) => exam.paperStatus === 'locked' || exam.paperStatus === 'approved' || exam.paperStatus === 'review_requested'),
     [exams]
   );
   const sortedInboxExams = useMemo(() => {
