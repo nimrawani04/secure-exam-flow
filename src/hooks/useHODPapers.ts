@@ -196,37 +196,23 @@ export function useHODPapers() {
     if (!user) return false;
 
     try {
-      // First, deselect any previously selected papers for this subject/exam type
-      await supabase
-        .from('exam_papers')
-        .update({ is_selected: false })
-        .eq('subject_id', subjectId)
-        .eq('exam_type', examType);
+      // Use server-side function to atomically select + reject
+      const { error: rpcError } = await supabase.rpc(
+        'select_paper_and_reject_others' as any,
+        {
+          _paper_id: paperId,
+          _subject_id: subjectId,
+          _exam_type: examType,
+          _hod_id: user.id,
+          _remark: remark?.trim() || null,
+        }
+      );
 
-      // Select this paper and lock it
-      const { error: updateError } = await supabase
-        .from('exam_papers')
-        .update({
-          is_selected: true,
-          status: 'locked',
-          feedback: remark?.trim() || null,
-        })
-        .eq('id', paperId);
-
-      if (updateError) {
-        console.error('Error selecting paper:', updateError);
+      if (rpcError) {
+        console.error('Error selecting paper:', rpcError);
         toast.error('Failed to select paper');
         return false;
       }
-
-      // Reject all other non-locked papers for this subject/exam type
-      await supabase
-        .from('exam_papers')
-        .update({ status: 'rejected', feedback: 'Another paper was selected for this exam' })
-        .eq('subject_id', subjectId)
-        .eq('exam_type', examType)
-        .in('status', ['approved', 'pending_review', 'submitted'])
-        .neq('id', paperId);
 
       // Create audit log
       await supabase.from('audit_logs').insert({
