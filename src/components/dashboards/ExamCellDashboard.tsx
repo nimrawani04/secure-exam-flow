@@ -1545,6 +1545,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         >
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
+                        {exam.paperStatus === 'review_requested' && exam.paperId && (
+                          <ReviewResponseDialog
+                            paperId={exam.paperId}
+                            subjectId={exam.subjectId}
+                            subjectName={exam.subjectName}
+                            examType={exam.examType}
+                            departmentId={exam.departmentId ?? ''}
+                            departmentName={departmentName ?? 'Unknown'}
+                            hodRemark={exam.hodRemark}
+                            onSuccess={refreshExams}
+                          />
+                        )}
                         <RequestNewPaperDialog
                           examId={exam.isStandalone ? null : exam.id}
                           subjectId={exam.subjectId}
