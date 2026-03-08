@@ -52,7 +52,6 @@ export function PaperCard({
     cia_2: 'CIA 2',
     practical_external: 'Practical External',
   };
-  };
 
   return (
     <div
