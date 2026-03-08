@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useHODPapers } from '@/hooks/useHODPapers';
 import { useHODPaperRequests, type PaperRequest } from '@/hooks/useHODPaperRequests';
+import { toast } from 'sonner';
 import {
   FileCheck,
   Clock,
@@ -35,6 +36,26 @@ export function HODDashboard() {
   const [replacementDialog, setReplacementDialog] = useState<PaperRequest | null>(null);
   const [replacementSort, setReplacementSort] = useState<'newest' | 'version' | 'set'>('newest');
   const [sendingReplacementId, setSendingReplacementId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
+
+  const handlePreviewPaper = async (filePath: string | null, title: string) => {
+    if (!filePath) {
+      toast.error('No file available for this paper');
+      return;
+    }
+    const { data, error: urlError } = await supabase.storage
+      .from('exam-papers')
+      .createSignedUrl(filePath, 60 * 10);
+    if (urlError || !data?.signedUrl) {
+      toast.error('Could not generate preview');
+      return;
+    }
+    setPreviewTitle(title);
+    setPreviewUrl(data.signedUrl);
+    setPreviewOpen(true);
+  };
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -365,7 +386,23 @@ export function HODDashboard() {
                         Due {formatDueDate(paper.deadline)}
                       </div>
                     </div>
-                    <Badge variant="pending">1</Badge>
+                    <div className="flex items-center gap-2">
+                      {paper.filePath && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Preview paper"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewPaper(paper.filePath, `${paper.subjectName} - ${paper.anonymousId}`);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Badge variant="pending">1</Badge>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -562,32 +599,45 @@ export function HODDashboard() {
                             <span>Uploaded {paper.uploadedAt.toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="gap-1.5 shrink-0"
-                          disabled={sendingReplacementId === paper.id}
-                          onClick={async () => {
-                            setSendingReplacementId(paper.id);
-                            const success = await selectPaper(
-                              paper.id,
-                              paper.subjectId,
-                              paper.examType,
-                              `Replacement for paper request: ${replacementDialog.reason}`
-                            );
-                            setSendingReplacementId(null);
-                            if (success) {
-                              setReplacementDialog(null);
-                            }
-                          }}
-                        >
-                          {sendingReplacementId === paper.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Lock className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-2 shrink-0">
+                          {paper.filePath && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1.5"
+                              onClick={() => handlePreviewPaper(paper.filePath, `${paper.subjectName} - ${paper.anonymousId}`)}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Preview
+                            </Button>
                           )}
-                          Select & Lock
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="gap-1.5"
+                            disabled={sendingReplacementId === paper.id}
+                            onClick={async () => {
+                              setSendingReplacementId(paper.id);
+                              const success = await selectPaper(
+                                paper.id,
+                                paper.subjectId,
+                                paper.examType,
+                                `Replacement for paper request: ${replacementDialog.reason}`
+                              );
+                              setSendingReplacementId(null);
+                              if (success) {
+                                setReplacementDialog(null);
+                              }
+                            }}
+                          >
+                            {sendingReplacementId === paper.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Lock className="h-3.5 w-3.5" />
+                            )}
+                            Select & Lock
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -595,6 +645,18 @@ export function HODDashboard() {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Paper Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewUrl(''); } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
+            <iframe src={previewUrl} title="PDF preview" className="h-full w-full" />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
