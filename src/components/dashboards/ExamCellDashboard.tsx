@@ -1474,7 +1474,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             <tbody>
               {sortedInboxExams.map((exam) => {
                 const departmentName = exam.departmentId ? departmentNameMap.get(exam.departmentId) : null;
-                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : 'Approved';
+                const statusLabel = exam.paperStatus === 'locked' ? 'Locked' : exam.paperStatus === 'review_requested' ? 'Review Requested' : 'Approved';
                 return (
                   <tr key={exam.id} className="border-b transition-colors hover:bg-muted/20">
                     <td className="px-3 py-3.5 font-semibold text-foreground">{exam.subjectName}</td>
