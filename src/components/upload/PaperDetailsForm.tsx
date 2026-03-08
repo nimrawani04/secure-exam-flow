@@ -38,6 +38,7 @@ interface PaperDetailsFormProps {
   paperOption: PaperOption;
   setPaperOption: (value: PaperOption) => void;
   paperOptionDisabled?: Partial<Record<PaperOption, boolean>>;
+  paperOptionMuted?: Partial<Record<PaperOption, boolean>>;
 }
 
 export function PaperDetailsForm({
