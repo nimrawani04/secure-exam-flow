@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useHODPapers } from '@/hooks/useHODPapers';
 import { useHODPaperRequests, type PaperRequest } from '@/hooks/useHODPaperRequests';
+import { toast } from 'sonner';
 import {
   FileCheck,
   Clock,
@@ -35,6 +36,26 @@ export function HODDashboard() {
   const [replacementDialog, setReplacementDialog] = useState<PaperRequest | null>(null);
   const [replacementSort, setReplacementSort] = useState<'newest' | 'version' | 'set'>('newest');
   const [sendingReplacementId, setSendingReplacementId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
+
+  const handlePreviewPaper = async (filePath: string | null, title: string) => {
+    if (!filePath) {
+      toast.error('No file available for this paper');
+      return;
+    }
+    const { data, error: urlError } = await supabase.storage
+      .from('exam-papers')
+      .createSignedUrl(filePath, 60 * 10);
+    if (urlError || !data?.signedUrl) {
+      toast.error('Could not generate preview');
+      return;
+    }
+    setPreviewTitle(title);
+    setPreviewUrl(data.signedUrl);
+    setPreviewOpen(true);
+  };
 
   useEffect(() => {
     const fetchDepartment = async () => {
