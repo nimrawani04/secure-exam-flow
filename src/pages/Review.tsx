@@ -205,7 +205,7 @@ function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcess
                   <span>&bull;</span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    Deadline {paper.deadline.toLocaleDateString()}
+                    Submitted on {paper.uploadedAt.toLocaleDateString()}
                   </span>
                 </div>
               </div>
