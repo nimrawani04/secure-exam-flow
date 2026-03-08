@@ -1503,9 +1503,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-3.5 max-w-[200px]">
+                    <td className="px-3 py-3.5 min-w-[160px] max-w-[280px]">
                       {exam.hodRemark?.trim() ? (
-                        <span className="text-sm text-foreground/80 line-clamp-2" title={exam.hodRemark}>
+                        <span className="text-sm text-foreground/80 break-words whitespace-normal" title={exam.hodRemark}>
                           {exam.hodRemark}
                         </span>
                       ) : (
