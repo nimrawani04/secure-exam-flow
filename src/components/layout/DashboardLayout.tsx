@@ -309,7 +309,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         collapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
       />
-      <main className={cn('min-h-screen relative', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
+      <main className={cn('min-h-screen relative overflow-x-hidden', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
         <div className="hidden lg:block sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div>
