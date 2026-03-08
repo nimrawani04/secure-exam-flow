@@ -119,6 +119,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K to open notifications
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        notificationTriggerRef.current?.click();
+        return;
+      }
+
       if (event.key === '?' || (event.shiftKey && event.key === '/')) {
         event.preventDefault();
         setShortcutsOpen(true);
