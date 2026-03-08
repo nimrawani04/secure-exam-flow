@@ -425,6 +425,7 @@ export default function Review() {
       if (activeTab === 'approved') return paper.status === 'approved';
       if (activeTab === 'selected') return paper.status === 'locked' && paper.isSelected;
       if (activeTab === 'rejected') return paper.status === 'rejected';
+      if (activeTab === 'review_requested') return paper.status === 'review_requested';
       return true;
     });
 
