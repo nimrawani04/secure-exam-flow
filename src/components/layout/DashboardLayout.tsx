@@ -75,6 +75,7 @@ const notificationTypeConfig: Record<string, { label: string; variant: 'secondar
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading, profile } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
