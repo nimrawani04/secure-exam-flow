@@ -288,14 +288,14 @@ export default function HODExamSessions() {
 function SessionCard({
   session,
   onDelete,
-  isPast = false,
+  isPastSession = false,
 }: {
   session: import('@/hooks/useHODExamSessions').DepartmentExamSession;
   onDelete: (id: string) => Promise<boolean>;
-  isPast?: boolean;
+  isPastSession?: boolean;
 }) {
   const examLabel = session.examType.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-  const deadlinePassed = isPast(session.submissionDeadline);
+  const deadlinePassed = isDatePast(session.submissionDeadline);
   const daysLeft = differenceInDays(session.submissionDeadline, new Date());
   const allSubmitted = session.totalTeachers > 0 && session.submittedCount >= session.totalTeachers;
 
