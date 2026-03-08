@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const roleNavItems = {
   teacher: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Calendar, label: 'Exam Calendar', path: '/teacher/calendar' },
     { icon: Upload, label: 'Upload Paper', path: '/upload' },
     { icon: FileText, label: 'My Submissions', path: '/submissions' },
     { icon: ClipboardList, label: 'Assigned Subjects', path: '/subjects' },
