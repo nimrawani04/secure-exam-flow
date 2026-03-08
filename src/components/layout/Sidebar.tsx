@@ -78,6 +78,8 @@ export function Sidebar({
   const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
   // Fetch review_requested papers count for exam_cell
   const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
+  // Fetch unread notifications count for exam_cell (HOD Alerts)
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
@@ -190,6 +192,31 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
+  // Exam cell: count unread notifications (HOD Alerts)
+  useEffect(() => {
+    if (profile?.role !== 'exam_cell') return;
+
+    const fetchUnreadAlerts = async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, is_read')
+        .contains('target_roles', ['exam_cell'])
+        .eq('is_read', false);
+      setUnreadAlertsCount(data?.length || 0);
+    };
+
+    fetchUnreadAlerts();
+
+    const channel = supabase
+      .channel('exam-cell-alerts-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchUnreadAlerts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.role]);
+
   if (!profile?.role) return null;
 
   const navItems = roleNavItems[profile.role] || [];
@@ -282,9 +309,11 @@ export function Sidebar({
           const isActive = location.pathname === item.path;
           const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
             (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
-            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0);
+            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' && unreadAlertsCount > 0);
           const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount
             : profile?.role === 'exam_cell' && item.path === '/inbox' ? reviewRequestedCount
+            : profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' ? unreadAlertsCount
             : pendingRequestsCount;
           const link = (
             <Link
