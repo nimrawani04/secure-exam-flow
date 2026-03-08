@@ -41,6 +41,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { RequestNewPaperDialog } from '@/components/examcell/RequestNewPaperDialog';
+import { ReviewResponseDialog } from '@/components/examcell/ReviewResponseDialog';
 
 type ExamType = Database['public']['Enums']['exam_type'];
 type PaperStatus = Database['public']['Enums']['paper_status'];
@@ -217,6 +218,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [exams, setExams] = useState<ExamWithMeta[]>([]);
+  const [examsRefreshKey, setExamsRefreshKey] = useState(0);
+  const refreshExams = () => setExamsRefreshKey((k) => k + 1);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
   const [examsError, setExamsError] = useState<string | null>(null);
   const [paperStats, setPaperStats] = useState<Record<PaperStatus, number>>(emptyPaperStats);
@@ -407,7 +410,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [examsRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1542,6 +1545,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                         >
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
+                        {exam.paperStatus === 'review_requested' && exam.paperId && (
+                          <ReviewResponseDialog
+                            paperId={exam.paperId}
+                            subjectId={exam.subjectId}
+                            subjectName={exam.subjectName}
+                            examType={exam.examType}
+                            departmentId={exam.departmentId ?? ''}
+                            departmentName={departmentName ?? 'Unknown'}
+                            hodRemark={exam.hodRemark}
+                            onSuccess={refreshExams}
+                          />
+                        )}
                         <RequestNewPaperDialog
                           examId={exam.isStandalone ? null : exam.id}
                           subjectId={exam.subjectId}
