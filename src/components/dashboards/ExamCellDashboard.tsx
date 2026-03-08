@@ -1487,13 +1487,23 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                     <td className="px-3 py-3.5 text-muted-foreground/80">
                       {exam.scheduledDate.toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-3.5 text-muted-foreground/80">
-                      {exam.hodRemark?.trim() ? exam.hodRemark : 'No remark'}
+                    <td className="px-3 py-3.5 max-w-[200px]">
+                      {exam.hodRemark?.trim() ? (
+                        <span className="text-sm text-foreground/80 line-clamp-2" title={exam.hodRemark}>
+                          {exam.hodRemark}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50 text-sm italic">No remark</span>
+                      )}
                     </td>
                     <td className="px-3 py-3.5">
                       <Badge
-                        variant="success"
-                        className="border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success"
+                        variant={exam.paperStatus === 'review_requested' ? 'warning' : 'success'}
+                        className={
+                          exam.paperStatus === 'review_requested'
+                            ? 'border-transparent bg-warning/15 px-2.5 py-1 text-[12px] font-medium text-warning'
+                            : 'border-transparent bg-success/15 px-2.5 py-1 text-[12px] font-medium text-success'
+                        }
                       >
                         <Lock className="mr-1 h-3 w-3" />
                         {statusLabel}
