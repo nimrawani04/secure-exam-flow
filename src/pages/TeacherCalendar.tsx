@@ -42,20 +42,6 @@ const STATUS_CONFIG: Record<TeacherSessionStatus, {
     label: 'Submitted',
     emoji: '🟢',
   },
-  awaiting_review: {
-    color: 'bg-warning/15 text-warning border-warning/20',
-    dotClass: 'bg-warning',
-    icon: Loader,
-    label: 'Awaiting Review',
-    emoji: '🟡',
-  },
-  locked: {
-    color: 'bg-primary/15 text-primary border-primary/20',
-    dotClass: 'bg-primary',
-    icon: Lock,
-    label: 'Locked / Finalized',
-    emoji: '🔵',
-  },
 };
 
 export default function TeacherCalendar() {
