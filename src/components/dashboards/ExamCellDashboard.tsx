@@ -1005,20 +1005,18 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-        <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">Compose Alert</h2>
-                <p className="text-sm text-muted-foreground">
-                  Notify HODs across departments or targeted groups.
-                </p>
-              </div>
+          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-6 space-y-5">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold">Compose Alert</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Notify HODs across departments or targeted groups.
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
+            <div className="space-y-5">
+              <div className="space-y-2">
                 <Label>Title</Label>
                 <Input
                   placeholder="e.g. Review window opens Monday"
@@ -1027,26 +1025,24 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                   onKeyDown={handleBroadcastKeyDown}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label>Message</Label>
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder="Share any instructions or deadlines for HODs..."
-                    value={broadcastMessage}
-                    onChange={(e) => setBroadcastMessage(e.target.value)}
-                    rows={4}
-                    maxLength={broadcastMessageLimit}
-                    className="min-h-[120px]"
-                    onKeyDown={handleBroadcastKeyDown}
-                  />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Keep it clear and actionable.</span>
-                    <span>{broadcastMessage.length}/{broadcastMessageLimit}</span>
-                  </div>
+                <Textarea
+                  placeholder="Share any instructions or deadlines for HODs..."
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  rows={4}
+                  maxLength={broadcastMessageLimit}
+                  className="min-h-[120px]"
+                  onKeyDown={handleBroadcastKeyDown}
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Keep it clear and actionable.</span>
+                  <span>{broadcastMessage.length}/{broadcastMessageLimit}</span>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-5 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                 <div className="space-y-2">
                   <Label>Alert Type</Label>
                   <Select value={broadcastType} onValueChange={(value) => setBroadcastType(value as typeof broadcastType)}>
@@ -1088,8 +1084,8 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       {deptsLoading ? (
                         <p className="text-sm text-muted-foreground">Loading departments...</p>
                       ) : departments && departments.length > 0 ? (
-                        <div className="pb-1 sm:-mx-1 sm:overflow-x-auto sm:px-1">
-                          <div className="flex flex-wrap items-center gap-2 sm:min-w-max sm:flex-nowrap">
+                        <div className="pt-1">
+                          <div className="flex flex-wrap items-center gap-2">
                             {departments.map((dept) => {
                               const isSelectedDept = broadcastDepartments.includes(dept.id);
                               return (
@@ -1127,21 +1123,19 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
-              <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                <Button variant="outline" size="sm" className="h-[38px] w-full sm:w-auto" onClick={handlePreview}>
-                  Preview
-                </Button>
-                <Button
-                  variant="hero"
-                  className="h-[38px] w-full gap-2 sm:w-auto"
-                  onClick={handleBroadcast}
-                  disabled={createNotification.isPending}
-                >
-                  <Bell className="w-4 h-4" />
-                  {createNotification.isPending ? 'Sending...' : 'Send Alert'}
-                </Button>
-              </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="outline" className="h-10 w-full sm:w-auto sm:self-end" onClick={handlePreview}>
+                Preview
+              </Button>
+              <Button
+                variant="hero"
+                className="h-10 w-full gap-2 sm:w-auto sm:self-end"
+                onClick={handleBroadcast}
+                disabled={createNotification.isPending}
+              >
+                <Bell className="w-4 h-4" />
+                {createNotification.isPending ? 'Sending...' : 'Send Alert'}
+              </Button>
             </div>
           </div>
         </div>
