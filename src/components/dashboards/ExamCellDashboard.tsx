@@ -1018,7 +1018,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
             </div>
 
             <div className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-center">
+              <div className="space-y-1.5">
                 <Label>Title</Label>
                 <Input
                   placeholder="e.g. Review window opens Monday"
