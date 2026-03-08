@@ -1173,7 +1173,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       <Bell className="w-4 h-4 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{notification.title}</span>
                         <Badge
                           variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
