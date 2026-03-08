@@ -63,8 +63,9 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const accentStorageKey = getAccentStorageKey(profile?.id);
-  const resetRedirectUrl = new URL(`${import.meta.env.BASE_URL}auth?reset=true`, window.location.origin).toString();
+  const resetRedirectUrl = `${window.location.origin}/auth?reset=true`;
   const [accentHex, setAccentHex] = useState(
     () => localStorage.getItem(accentStorageKey) || DEFAULT_ACCENT_HEX
   );
