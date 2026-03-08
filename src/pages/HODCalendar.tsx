@@ -106,13 +106,13 @@ export default function HODCalendar() {
       }
     }
 
-    // Also include sessions that may not have papers yet
+    // Also include sessions that may not have papers yet — use exam date
     for (const session of sessions) {
       const key = `${session.subjectId}-${session.examType}`;
       if (!grouped[key]) {
         grouped[key] = {
           id: session.id,
-          date: new Date(session.submissionDeadline),
+          date: new Date(session.examDate),
           deadlineDate: new Date(session.submissionDeadline),
           subjectName: session.subjectName,
           subjectCode: session.subjectCode,
@@ -120,6 +120,9 @@ export default function HODCalendar() {
           status: 'not_selected',
           label: `${session.subjectCode} – ${EXAM_TYPE_LABELS[session.examType] || session.examType}`,
         };
+      } else {
+        // Update the date to exam date if session has one
+        grouped[key].date = new Date(session.examDate);
       }
     }
 
@@ -185,7 +188,7 @@ export default function HODCalendar() {
 
         <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
           {/* Calendar */}
-          <Card className="w-fit">
+          <Card className="w-fit mx-auto lg:mx-0">
             <CardContent className="p-3">
               <Calendar
                 mode="single"
