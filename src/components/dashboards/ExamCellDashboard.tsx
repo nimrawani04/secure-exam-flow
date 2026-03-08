@@ -1005,7 +1005,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-      <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
+        <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
           <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-5 space-y-4">
             <div className="flex items-start gap-4">
