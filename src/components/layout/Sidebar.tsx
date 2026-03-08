@@ -78,6 +78,8 @@ export function Sidebar({
   const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
   // Fetch review_requested papers count for exam_cell
   const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
+  // Fetch unread notifications count for exam_cell (HOD Alerts)
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
