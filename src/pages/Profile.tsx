@@ -63,8 +63,9 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const accentStorageKey = getAccentStorageKey(profile?.id);
-  const resetRedirectUrl = new URL(`${import.meta.env.BASE_URL}auth?reset=true`, window.location.origin).toString();
+  const resetRedirectUrl = `${window.location.origin}/auth?reset=true`;
   const [accentHex, setAccentHex] = useState(
     () => localStorage.getItem(accentStorageKey) || DEFAULT_ACCENT_HEX
   );
@@ -170,19 +171,26 @@ export default function Profile() {
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: resetRedirectUrl,
-    });
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: resetRedirectUrl,
+      });
 
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+
+      toast({
+        title: 'Reset link sent',
+        description: 'Check your email to set a new password.',
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Unexpected error. Please try again.', variant: 'destructive' });
+    } finally {
+      setSendingReset(false);
     }
-
-    toast({
-      title: 'Reset link sent',
-      description: 'Check your email to set a new password.',
-    });
   };
 
   return (
@@ -358,9 +366,10 @@ export default function Profile() {
                   <Button
                     variant="outline"
                     onClick={handleSendResetLink}
+                    disabled={sendingReset}
                     className="h-[38px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
                   >
-                    Send Reset Link
+                    {sendingReset ? 'Sending...' : 'Send Reset Link'}
                   </Button>
                 </div>
 
