@@ -545,11 +545,12 @@ export default function Review() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:overflow-visible sm:grid sm:grid-cols-4 sm:gap-2">
+          <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:overflow-visible sm:grid sm:grid-cols-5 sm:gap-2">
             <TabsTrigger value="pending" className="w-full">Pending ({stats.pending})</TabsTrigger>
             <TabsTrigger value="approved" className="w-full">Approved ({stats.approved})</TabsTrigger>
             <TabsTrigger value="selected" className="w-full">Selected ({stats.selected})</TabsTrigger>
             <TabsTrigger value="rejected" className="w-full">Rejected ({stats.rejected})</TabsTrigger>
+            <TabsTrigger value="review_requested" className="w-full">Review Req. ({stats.reviewRequested})</TabsTrigger>
           </TabsList>
 
           {/* Subject Filter & Sort Controls */}
