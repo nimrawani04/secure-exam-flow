@@ -182,17 +182,11 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
 
   const previewFile = () => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
     setPreviewOpen(true);
   };
 
   const closePreview = () => {
     setPreviewOpen(false);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
   };
 
   return (
