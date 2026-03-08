@@ -359,7 +359,7 @@ function SessionCard({
       )}
 
       {/* Actions */}
-      {!isPast && (
+      {!isPastSession && (
         <div className="pt-1 flex justify-end">
           <AlertDialog>
             <AlertDialogTrigger asChild>
