@@ -611,32 +611,33 @@ export function HODDashboard() {
                               Preview
                             </Button>
                           )}
-                          size="sm"
-                          variant="default"
-                          className="gap-1.5 shrink-0"
-                          disabled={sendingReplacementId === paper.id}
-                          onClick={async () => {
-                            setSendingReplacementId(paper.id);
-                            const success = await selectPaper(
-                              paper.id,
-                              paper.subjectId,
-                              paper.examType,
-                              `Replacement for paper request: ${replacementDialog.reason}`
-                            );
-                            setSendingReplacementId(null);
-                            if (success) {
-                              setReplacementDialog(null);
-                            }
-                          }}
-                        >
-                          {sendingReplacementId === paper.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Lock className="h-3.5 w-3.5" />
-                          )}
-                          Select & Lock
-                        </Button>
-                      </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="gap-1.5"
+                            disabled={sendingReplacementId === paper.id}
+                            onClick={async () => {
+                              setSendingReplacementId(paper.id);
+                              const success = await selectPaper(
+                                paper.id,
+                                paper.subjectId,
+                                paper.examType,
+                                `Replacement for paper request: ${replacementDialog.reason}`
+                              );
+                              setSendingReplacementId(null);
+                              if (success) {
+                                setReplacementDialog(null);
+                              }
+                            }}
+                          >
+                            {sendingReplacementId === paper.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Lock className="h-3.5 w-3.5" />
+                            )}
+                            Select & Lock
+                          </Button>
+                        </div>
                     ))}
                   </div>
                 )}
