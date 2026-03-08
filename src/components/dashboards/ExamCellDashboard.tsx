@@ -910,9 +910,9 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                       <SelectValue placeholder="Select exam type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(examTypeLabels).map(([value, label]) => (
+                      {Object.entries(EXAM_TYPE_LABELS).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
-                          {label}
+                          {label as string}
                         </SelectItem>
                       ))}
                     </SelectContent>
