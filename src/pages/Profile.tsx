@@ -171,19 +171,26 @@ export default function Profile() {
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: resetRedirectUrl,
-    });
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: resetRedirectUrl,
+      });
 
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+
+      toast({
+        title: 'Reset link sent',
+        description: 'Check your email to set a new password.',
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Unexpected error. Please try again.', variant: 'destructive' });
+    } finally {
+      setSendingReset(false);
     }
-
-    toast({
-      title: 'Reset link sent',
-      description: 'Check your email to set a new password.',
-    });
   };
 
   return (
