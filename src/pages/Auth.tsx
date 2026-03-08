@@ -193,12 +193,45 @@ export default function Auth() {
             <PasswordResetForm />
           ) : (
             <>
-              {authError && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{authError}</AlertDescription>
-                </Alert>
-              )}
+              {authError ? (
+                <div className="space-y-6">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-8 h-8 text-destructive" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Link expired or invalid</h2>
+                      <p className="text-muted-foreground mt-2 text-sm">
+                        {authError}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => {
+                        setAuthError(null);
+                        setShowForgotPassword(true);
+                        // Clean URL hash
+                        window.history.replaceState(null, '', window.location.pathname);
+                      }}
+                      className="w-full h-12"
+                    >
+                      Request a new reset link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAuthError(null);
+                        window.history.replaceState(null, '', window.location.pathname);
+                      }}
+                      className="w-full h-12"
+                    >
+                      Back to sign in
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="text-center">
                 <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">{isSignUp ? 'Create account' : 'Welcome back'}</h2>
                 <p className="text-muted-foreground mt-3 text-base">
@@ -336,6 +369,8 @@ export default function Auth() {
                   )}
                 </button>
               </div>
+            </>
+              )}
             </>
           )}
         </div>
