@@ -222,9 +222,11 @@ export default function UploadPaper() {
   const hasSingle = existingSetLookup.has('Single');
   const hasPaper1 = existingSetLookup.has('Paper 1');
   const hasPaper2 = existingSetLookup.has('Paper 2');
-  const allowSingle = !(hasPaper1 || hasPaper2);
-  const allowPaper1 = !hasSingle;
-  const allowPaper2 = !hasSingle;
+
+  // Mutual exclusivity: DB state + current selection
+  const allowSingle = !(hasPaper1 || hasPaper2) && paperOption !== 'paper1' && paperOption !== 'paper2';
+  const allowPaper1 = !hasSingle && paperOption !== 'single';
+  const allowPaper2 = !hasSingle && paperOption !== 'single';
 
   useEffect(() => {
     const isCurrentAllowed =
