@@ -23,10 +23,19 @@ export function TeacherDashboard() {
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Teacher';
   const now = new Date();
+  const examTypeLabels: Record<string, string> = {
+    mid_term: 'Mid Term',
+    end_term: 'End Term',
+    practical: 'Practical',
+    internal: 'Internal',
+    cia_1: 'CIA 1',
+    cia_2: 'CIA 2',
+    practical_external: 'Practical External',
+  };
   const upcoming = papers
     .map((paper) => ({
       deadline: paper.deadline,
-      label: `${paper.subjectName} - ${paper.examType.replace('_', ' ')}`,
+      label: `${paper.subjectName} - ${examTypeLabels[paper.examType] || paper.examType}`,
     }))
     .filter((item) => item.deadline.getTime() > now.getTime())
     .sort((a, b) => a.deadline.getTime() - b.deadline.getTime())[0];
