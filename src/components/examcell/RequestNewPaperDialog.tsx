@@ -212,7 +212,7 @@ export function RequestNewPaperDialog({
           {/* Remarks */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">
-              Remarks <span className="text-destructive">*</span>
+              Remarks <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <Textarea
               value={remarks}
