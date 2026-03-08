@@ -27,7 +27,7 @@ export function TeacherDashboard() {
   const upcoming = papers
     .map((paper) => ({
       deadline: paper.deadline,
-      label: `${paper.subjectName} - ${examTypeLabels[paper.examType] || paper.examType}`,
+      label: `${paper.subjectName} - ${EXAM_TYPE_LABELS[paper.examType] || paper.examType}`,
     }))
     .filter((item) => item.deadline.getTime() > now.getTime())
     .sort((a, b) => a.deadline.getTime() - b.deadline.getTime())[0];

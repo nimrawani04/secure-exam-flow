@@ -68,7 +68,7 @@ export function PaperCard({
           {!isAnonymous && (
             <>
               <span className="inline-flex h-6 items-center rounded-full bg-accent/10 px-3 text-xs font-medium text-accent">
-                {examTypeLabels[paper.examType]}
+                {EXAM_TYPE_LABELS[paper.examType]}
               </span>
               <span className="inline-flex h-6 items-center rounded-full bg-secondary px-3 text-xs font-medium text-foreground">
                 v{paper.version}
