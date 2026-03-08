@@ -6,7 +6,7 @@ import type { Database } from '@/integrations/supabase/types';
 type ExamType = Database['public']['Enums']['exam_type'];
 type PaperStatus = Database['public']['Enums']['paper_status'];
 
-export type TeacherSessionStatus = 'pending' | 'submitted' | 'awaiting_review' | 'locked';
+export type TeacherSessionStatus = 'pending' | 'submitted';
 
 export interface TeacherCalendarEvent {
   id: string;
@@ -24,19 +24,13 @@ export interface TeacherCalendarEvent {
 function deriveStatus(paperStatus?: PaperStatus | null): TeacherSessionStatus {
   if (!paperStatus) return 'pending';
   switch (paperStatus) {
-    case 'locked':
-      return 'locked';
-    case 'approved':
-      return 'locked';
-    case 'pending_review':
-    case 'submitted':
-      return 'awaiting_review';
     case 'draft':
     case 'rejected':
     case 'resubmission_requested':
       return 'pending';
     default:
-      return 'pending';
+      // submitted, pending_review, approved, locked all mean "submitted" to the teacher
+      return 'submitted';
   }
 }
 

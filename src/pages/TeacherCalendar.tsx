@@ -1,13 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTeacherCalendar, type TeacherSessionStatus } from '@/hooks/useTeacherCalendar';
+
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Clock, CheckCircle2, Loader, Lock, Upload } from 'lucide-react';
+import { Clock, CheckCircle2, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const EXAM_TYPE_LABELS: Record<string, string> = {
@@ -41,25 +43,24 @@ const STATUS_CONFIG: Record<TeacherSessionStatus, {
     label: 'Submitted',
     emoji: '🟢',
   },
-  awaiting_review: {
-    color: 'bg-warning/15 text-warning border-warning/20',
-    dotClass: 'bg-warning',
-    icon: Loader,
-    label: 'Awaiting Review',
-    emoji: '🟡',
-  },
-  locked: {
-    color: 'bg-primary/15 text-primary border-primary/20',
-    dotClass: 'bg-primary',
-    icon: Lock,
-    label: 'Locked / Finalized',
-    emoji: '🔵',
-  },
 };
 
 export default function TeacherCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const { events, isLoading } = useTeacherCalendar();
+  const { events, isLoading, refetch } = useTeacherCalendar();
+
+  // Real-time: re-fetch when exam_papers change
+  useEffect(() => {
+    const channel = supabase
+      .channel('teacher-calendar-papers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'exam_papers' },
+        () => { refetch(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetch]);
 
   // Group events by date for calendar dots
   const eventsByDate = useMemo(() => {
@@ -90,8 +91,6 @@ export default function TeacherCalendar() {
     const counts: Record<TeacherSessionStatus, number> = {
       pending: 0,
       submitted: 0,
-      awaiting_review: 0,
-      locked: 0,
     };
     for (const ev of events) counts[ev.status]++;
     return counts;
