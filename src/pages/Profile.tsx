@@ -9,6 +9,17 @@ import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DEFAULT_ACCENT_HEX, getContrastText, setAccentFromHex, getAccentStorageKey } from '@/lib/theme';
 import { Lock } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const presetColors = [
   '#1d4ed8',
@@ -363,14 +374,31 @@ export default function Profile() {
                 )}
 
                 <div className="mt-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleSendResetLink}
-                    disabled={sendingReset}
-                    className="h-[38px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
-                  >
-                    {sendingReset ? 'Sending...' : 'Send Reset Link'}
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        disabled={sendingReset}
+                        className="h-[38px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
+                      >
+                        {sendingReset ? 'Sending...' : 'Send Reset Link'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Send password reset link?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          A password reset link will be sent to <span className="font-medium text-foreground">{email}</span>. You'll be logged out and redirected to set a new password.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSendResetLink}>
+                          Send Reset Link
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
 
                 <div className="mt-3.5 grid gap-y-3.5 gap-x-6 sm:grid-cols-2">
