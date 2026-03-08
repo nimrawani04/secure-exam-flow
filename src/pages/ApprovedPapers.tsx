@@ -10,6 +10,11 @@ const examTypeLabels: Record<string, string> = {
   internal: 'Internal',
 };
 
+const statusLabels: Record<string, { label: string; icon: typeof Lock; color: string }> = {
+  locked: { label: 'Locked', icon: Lock, color: 'bg-success/10 text-success border-success/20' },
+  resubmission_requested: { label: 'Resubmission Requested', icon: FileText, color: 'bg-warning/10 text-warning border-warning/20' },
+};
+
 export default function ApprovedPapers() {
   const { papers, isLoading, error, refetch } = useHODPapers();
 
