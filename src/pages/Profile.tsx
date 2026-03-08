@@ -366,9 +366,10 @@ export default function Profile() {
                   <Button
                     variant="outline"
                     onClick={handleSendResetLink}
+                    disabled={sendingReset}
                     className="h-[38px] border-muted-foreground/30 text-muted-foreground shadow-none hover:border-muted-foreground/60 hover:text-foreground"
                   >
-                    Send Reset Link
+                    {sendingReset ? 'Sending...' : 'Send Reset Link'}
                   </Button>
                 </div>
 
