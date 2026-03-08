@@ -309,9 +309,11 @@ export function Sidebar({
           const isActive = location.pathname === item.path;
           const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
             (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
-            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0);
+            (profile?.role === 'exam_cell' && item.path === '/inbox' && reviewRequestedCount > 0) ||
+            (profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' && unreadAlertsCount > 0);
           const badgeCount = profile?.role === 'teacher' && item.path === '/teacher/calendar' ? pendingCalendarCount
             : profile?.role === 'exam_cell' && item.path === '/inbox' ? reviewRequestedCount
+            : profile?.role === 'exam_cell' && item.path === '/exam-cell/alerts' ? unreadAlertsCount
             : pendingRequestsCount;
           const link = (
             <Link
