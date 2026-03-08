@@ -97,6 +97,39 @@ export type Database = {
           },
         ]
       }
+      datesheets: {
+        Row: {
+          annotations: Json | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          annotations?: Json | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          annotations?: Json | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       department_exam_sessions: {
         Row: {
           created_at: string
