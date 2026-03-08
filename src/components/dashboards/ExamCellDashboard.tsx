@@ -1543,7 +1543,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
                           <Download className="h-[18px] w-[18px]" />
                         </Button>
                         <RequestNewPaperDialog
-                          examId={exam.id}
+                          examId={exam.isStandalone ? null : exam.id}
                           subjectId={exam.subjectId}
                           subjectName={exam.subjectName}
                           examType={exam.examType}
