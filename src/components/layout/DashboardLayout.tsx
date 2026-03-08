@@ -168,6 +168,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         toggleRead({ notificationId: n.id, userId: profile.id, markRead: true })
       )
     );
+    toast({
+      title: 'All notifications marked as read',
+      description: `${unreadNotifications.length} notification${unreadNotifications.length !== 1 ? 's' : ''} marked as read.`,
+    });
   };
 
   const renderNotificationsContent = () => (
