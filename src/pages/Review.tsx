@@ -449,6 +449,7 @@ export default function Review() {
     approved: papers.filter((p) => p.status === 'approved').length,
     selected: papers.filter((p) => p.status === 'locked' && p.isSelected).length,
     rejected: papers.filter((p) => p.status === 'rejected').length,
+    reviewRequested: papers.filter((p) => p.status === 'review_requested').length,
   };
 
   return (
