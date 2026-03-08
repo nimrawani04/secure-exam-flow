@@ -31,6 +31,7 @@ import {
   Lock,
   Filter,
   ArrowUpDown,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
