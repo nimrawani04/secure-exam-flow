@@ -302,7 +302,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
         .from('exam_papers')
         .select('id, subject_id, exam_type, status, is_selected, file_path, feedback, uploaded_at, subjects ( id, name, code, department_id )')
         .eq('is_selected', true)
-        .in('status', ['approved', 'locked']);
+        .in('status', ['approved', 'locked', 'review_requested']);
 
       if (selectedPapersError) {
         console.error('Error fetching selected papers:', selectedPapersError);
