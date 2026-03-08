@@ -204,25 +204,12 @@ export function FileUploadZone({ file, setFile, action }: FileUploadZoneProps) {
         </div>
       )}
 
-      {/* Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) closePreview(); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Preview: {file?.name}</DialogTitle>
-          </DialogHeader>
-          {previewUrl ? (
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border">
-              <iframe
-                src={previewUrl}
-                title="PDF preview"
-                className="h-full w-full"
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No preview available.</p>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Preview Dialog - Canvas-based for mobile compatibility */}
+      <PdfPreviewDialog
+        open={previewOpen}
+        onClose={closePreview}
+        file={file}
+      />
     </div>
   );
 }
