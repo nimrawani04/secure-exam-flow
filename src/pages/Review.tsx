@@ -72,8 +72,6 @@ interface ReviewCardProps {
 }
 
 function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, onRequestReview, isProcessing }: ReviewCardProps) {
-
-function ReviewCard({ paper, onPreview, onApprove, onReject, onSelect, isProcessing }: ReviewCardProps) {
   const config = statusConfig[paper.status];
   const formattedDate = paper.uploadedAt.toLocaleDateString('en-GB', {
     day: '2-digit',
