@@ -62,7 +62,7 @@ export function useHODPapers() {
           )
         `)
         .eq('subjects.department_id', profile.department_id)
-        .in('status', ['pending_review', 'approved', 'rejected', 'locked'])
+        .in('status', ['pending_review', 'approved', 'rejected', 'resubmission_requested', 'locked', 'review_requested'])
         .order('uploaded_at', { ascending: false });
 
       if (fetchError) {
@@ -187,40 +187,32 @@ export function useHODPapers() {
     }
   };
 
-  const selectPaper = async (paperId: string, subjectId: string, examType: ExamType): Promise<boolean> => {
+  const selectPaper = async (
+    paperId: string,
+    subjectId: string,
+    examType: ExamType,
+    remark?: string
+  ): Promise<boolean> => {
     if (!user) return false;
 
     try {
-      // First, deselect any previously selected papers for this subject/exam type
-      await supabase
-        .from('exam_papers')
-        .update({ is_selected: false })
-        .eq('subject_id', subjectId)
-        .eq('exam_type', examType);
+      // Use server-side function to atomically select + reject
+      const { error: rpcError } = await supabase.rpc(
+        'select_paper_and_reject_others' as any,
+        {
+          _paper_id: paperId,
+          _subject_id: subjectId,
+          _exam_type: examType,
+          _hod_id: user.id,
+          _remark: remark?.trim() || null,
+        }
+      );
 
-      // Select this paper and lock it
-      const { error: updateError } = await supabase
-        .from('exam_papers')
-        .update({
-          is_selected: true,
-          status: 'locked',
-        })
-        .eq('id', paperId);
-
-      if (updateError) {
-        console.error('Error selecting paper:', updateError);
+      if (rpcError) {
+        console.error('Error selecting paper:', rpcError);
         toast.error('Failed to select paper');
         return false;
       }
-
-      // Reject other approved papers for this subject/exam type
-      await supabase
-        .from('exam_papers')
-        .update({ status: 'rejected', feedback: 'Another paper was selected for this exam' })
-        .eq('subject_id', subjectId)
-        .eq('exam_type', examType)
-        .eq('status', 'approved')
-        .neq('id', paperId);
 
       // Create audit log
       await supabase.from('audit_logs').insert({
@@ -228,7 +220,35 @@ export function useHODPapers() {
         action: 'select',
         entity_type: 'paper',
         entity_id: paperId,
-        details: { action: 'Paper selected and locked by HOD' },
+        details: {
+          action: 'Paper selected and locked by HOD',
+          remark: remark?.trim() || null,
+        },
+      });
+
+      // Notify Exam Cell that a paper is locked and ready, including optional HOD remark.
+      const normalizedRemark = remark?.trim();
+      await supabase.from('notifications').insert({
+        created_by: user.id,
+        title: 'Paper Locked by HOD',
+        message: normalizedRemark
+          ? `A paper has been locked and sent to Exam Cell. HOD remark: ${normalizedRemark}`
+          : 'A paper has been locked and sent to Exam Cell.',
+        target_roles: ['exam_cell'],
+        target_departments: null,
+        type: 'info',
+        user_id: null,
+      });
+
+      // Also send email to registered Exam Cell addresses.
+      await supabase.functions.invoke('send-registered-email', {
+        body: {
+          subject: 'Paper Locked by HOD',
+          message: normalizedRemark
+            ? `A paper has been locked and sent to Exam Cell.\n\nHOD remark: ${normalizedRemark}`
+            : 'A paper has been locked and sent to Exam Cell.',
+          targetRoles: ['exam_cell'],
+        },
       });
 
       toast.success('Paper selected and locked');
@@ -236,6 +256,61 @@ export function useHODPapers() {
       return true;
     } catch (err) {
       console.error('Error in selectPaper:', err);
+      toast.error('An unexpected error occurred');
+      return false;
+    }
+  };
+
+  const requestReview = async (paperId: string, comment?: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      // Find the paper to include details in the notification
+      const paper = papers.find((p) => p.id === paperId);
+
+      const { error: updateError } = await supabase
+        .from('exam_papers')
+        .update({
+          status: 'review_requested' as any,
+          feedback: comment?.trim() || null,
+        })
+        .eq('id', paperId);
+
+      if (updateError) {
+        console.error('Error requesting review:', updateError);
+        toast.error('Failed to request review');
+        return false;
+      }
+
+      // Create audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'request_review',
+        entity_type: 'paper',
+        entity_id: paperId,
+        details: { action: 'HOD requested exam cell review', comment: comment?.trim() || null },
+      });
+
+      // Notify Exam Cell
+      const notifMessage = paper
+        ? `HOD has requested a review for ${paper.subjectName} (${paper.subjectCode}) - ${paper.examType.replace('_', ' ')}.${comment?.trim() ? `\n\nHOD Comment: ${comment.trim()}` : ''}`
+        : `A paper has been sent for review by HOD.${comment?.trim() ? `\n\nHOD Comment: ${comment.trim()}` : ''}`;
+
+      await supabase.from('notifications').insert({
+        created_by: user.id,
+        title: 'Review Requested by HOD',
+        message: notifMessage,
+        target_roles: ['exam_cell'],
+        target_departments: null,
+        type: 'warning',
+        user_id: null,
+      });
+
+      toast.success('Review request sent to Exam Cell');
+      await fetchPapers();
+      return true;
+    } catch (err) {
+      console.error('Error in requestReview:', err);
       toast.error('An unexpected error occurred');
       return false;
     }
@@ -249,5 +324,6 @@ export function useHODPapers() {
     approvePaper,
     rejectPaper,
     selectPaper,
+    requestReview,
   };
 }

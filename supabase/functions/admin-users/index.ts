@@ -1,12 +1,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const adminClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false },
 });
+
+const jsonResponse = (body: Record<string, unknown>, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 const getUserFromToken = async (token: string) => {
   if (!token) return null;
@@ -15,21 +26,25 @@ const getUserFromToken = async (token: string) => {
   return data.user;
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "").trim();
     if (!token) {
-      return new Response("Unauthorized", { status: 401 });
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
     const user = await getUserFromToken(token);
     if (!user) {
-      return new Response("Unauthorized", { status: 401 });
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
     const { data: roleCheck, error: roleError } = await adminClient
@@ -40,7 +55,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (roleError || !roleCheck) {
-      return new Response("Forbidden", { status: 403 });
+      return jsonResponse({ error: "Forbidden" }, 403);
     }
 
     const body = await req.json();
@@ -59,7 +74,7 @@ serve(async (req) => {
         },
       });
       if (error || !data?.user) {
-        return new Response(JSON.stringify({ error: error?.message || "Failed to create user" }), { status: 400 });
+        return jsonResponse({ error: error?.message || "Failed to create user" }, 400);
       }
 
       const userId = data.user.id;
@@ -70,18 +85,18 @@ serve(async (req) => {
         department_id: departmentId ?? null,
       });
       if (profileError) {
-        return new Response(JSON.stringify({ error: profileError.message }), { status: 400 });
+        return jsonResponse({ error: profileError.message }, 400);
       }
 
-      const { error: roleError } = await adminClient.from("user_roles").insert({
+      const { error: roleInsertError } = await adminClient.from("user_roles").insert({
         user_id: userId,
         role,
       });
-      if (roleError) {
-        return new Response(JSON.stringify({ error: roleError.message }), { status: 400 });
+      if (roleInsertError) {
+        return jsonResponse({ error: roleInsertError.message }, 400);
       }
 
-      return new Response(JSON.stringify({ success: true, userId }), { status: 200 });
+      return jsonResponse({ success: true, userId }, 200);
     }
 
     if (action === "update") {
@@ -96,7 +111,7 @@ serve(async (req) => {
         },
       });
       if (authUpdateError) {
-        return new Response(JSON.stringify({ error: authUpdateError.message }), { status: 400 });
+        return jsonResponse({ error: authUpdateError.message }, 400);
       }
 
       const { error: profileError } = await adminClient
@@ -104,29 +119,29 @@ serve(async (req) => {
         .update({ full_name: fullName, email, department_id: departmentId ?? null })
         .eq("id", userId);
       if (profileError) {
-        return new Response(JSON.stringify({ error: profileError.message }), { status: 400 });
+        return jsonResponse({ error: profileError.message }, 400);
       }
 
       await adminClient.from("user_roles").delete().eq("user_id", userId);
-      const { error: roleError } = await adminClient.from("user_roles").insert({ user_id: userId, role });
-      if (roleError) {
-        return new Response(JSON.stringify({ error: roleError.message }), { status: 400 });
+      const { error: roleInsertError } = await adminClient.from("user_roles").insert({ user_id: userId, role });
+      if (roleInsertError) {
+        return jsonResponse({ error: roleInsertError.message }, 400);
       }
 
-      return new Response(JSON.stringify({ success: true }), { status: 200 });
+      return jsonResponse({ success: true }, 200);
     }
 
     if (action === "delete") {
       const { userId } = body;
       const { error } = await adminClient.auth.admin.deleteUser(userId);
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 400 });
+        return jsonResponse({ error: error.message }, 400);
       }
-      return new Response(JSON.stringify({ success: true }), { status: 200 });
+      return jsonResponse({ success: true }, 200);
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400 });
+    return jsonResponse({ error: "Invalid action" }, 400);
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500 });
+    return jsonResponse({ error: (error as Error).message }, 500);
   }
 });

@@ -19,6 +19,9 @@ const roleOptions: { value: AppRole; label: string }[] = [
   { value: 'exam_cell', label: 'Examination Cell' },
 ];
 
+const INSTITUTION_NAME = 'Central University of Kashmir';
+const PLATFORM_NAME = 'Examination Management Platform';
+
 export default function Landing() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -33,6 +36,28 @@ export default function Landing() {
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Detect any auth-related hash fragments or query params and redirect to /auth
+  useEffect(() => {
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    const hasAuthHash = 
+      hash.includes('type=recovery') ||
+      hash.includes('type=signup') ||
+      hash.includes('error=') ||
+      hash.includes('access_token=');
+    
+    // PKCE flow uses ?code= query param for token exchange
+    const hasAuthCode = searchParams.has('code');
+    const hasResetParam = searchParams.get('reset') === 'true';
+    
+    if (hasAuthHash || hasAuthCode || hasResetParam) {
+      // Preserve both query params and hash fragment, redirect to /auth
+      navigate('/auth' + search + hash, { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -66,7 +91,7 @@ export default function Landing() {
           return;
         }
 
-        const { error } = await signUp(
+        const { error, needsEmailVerification } = await signUp(
           email,
           password,
           fullName,
@@ -81,8 +106,16 @@ export default function Landing() {
             toast({ title: 'Sign up failed', description: error.message, variant: 'destructive' });
           }
         } else {
-          toast({ title: 'Account created!', description: 'Welcome to ExamSecure.' });
-          navigate('/dashboard');
+          if (needsEmailVerification) {
+            toast({
+              title: 'Check your email',
+              description: 'We sent a verification link to your registered email address.',
+            });
+            setIsSignUp(false);
+          } else {
+            toast({ title: 'Account created!', description: 'Welcome to ExamSecure.' });
+            navigate('/dashboard');
+          }
         }
       } else {
         const { error } = await signIn(email, password);
@@ -112,30 +145,34 @@ export default function Landing() {
   };
 
   return (
-    <div className="h-screen overflow-hidden">
-      <section className="relative h-screen bg-slate-900 text-white">
+    <div className="min-h-screen overflow-x-hidden sm:h-screen sm:overflow-hidden">
+      <section className="relative min-h-screen sm:h-screen bg-slate-900 text-white">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/cuk.png')" }}
         />
         <div className="absolute inset-0 bg-black/45" />
 
-        <div className="relative z-10 grid h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid min-h-screen sm:h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left panel */}
-          <div className="flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16">
+          <div
+            className={`flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16 ${
+              isSignUp ? 'lg:pb-28' : ''
+            }`}
+          >
             <div className="max-w-2xl">
               <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/70 mb-2">
-                Central University of Kashmir
+                {INSTITUTION_NAME}
               </p>
               <h1 className="text-base sm:text-xl lg:text-4xl font-semibold leading-tight uppercase">
-                Examination Management Platform
+                {PLATFORM_NAME}
               </h1>
             </div>
           </div>
 
           {/* Right panel */}
           <div className="flex items-start lg:items-center justify-center p-4 sm:p-6 lg:p-12">
-            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-4 sm:p-6 lg:p-8 backdrop-blur max-h-[92vh] overflow-y-auto">
+            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-4 sm:p-6 lg:p-8 max-h-none overflow-visible sm:max-h-[92vh] sm:overflow-y-auto sm:backdrop-blur">
               <div className="flex flex-col items-center text-center">
                 <img
                   src="/cuk-favicon.png"
@@ -150,6 +187,27 @@ export default function Landing() {
                 <p className="mt-2 text-[10px] sm:text-xs text-white/80">
                   End-to-end encrypted | Activity logged | Role-based access
                 </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 rounded-lg border border-white/20 bg-slate-900/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(false)}
+                  className={`rounded-md py-2 text-sm font-semibold transition ${
+                    !isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(true)}
+                  className={`rounded-md py-2 text-sm font-semibold transition ${
+                    isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Sign Up
+                </button>
               </div>
 
               <form
@@ -267,16 +325,6 @@ export default function Landing() {
                   </div>
                 )}
 
-                {!isSignUp && (
-                  <label className="flex items-center gap-2 text-sm text-white/80">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-white/40 bg-transparent"
-                    />
-                    Keep me signed in
-                  </label>
-                )}
-
                 <Button
                   className="w-full bg-white text-slate-900 hover:bg-white/90"
                   size="lg"
@@ -285,17 +333,6 @@ export default function Landing() {
                 >
                   {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
                 </Button>
-
-                <p className="text-center text-sm text-white/80">
-                  {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}{' '}
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp((prev) => !prev)}
-                    className="underline"
-                  >
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                  </button>
-                </p>
               </form>
             </div>
           </div>

@@ -1,0 +1,1 @@
+ALTER TABLE public.exam_papers DROP CONSTRAINT IF EXISTS exam_papers_subject_id_exam_type_set_name_uploaded_by_key;

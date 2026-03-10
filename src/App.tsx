@@ -16,6 +16,10 @@ import Profile from "./pages/Profile";
 import Department from "./pages/Department";
 import Subjects from "./pages/Subjects";
 import ApprovedPapers from "./pages/ApprovedPapers";
+import HODExamSessions from "./pages/HODExamSessions";
+import HODCalendar from "./pages/HODCalendar";
+import TeacherCalendar from "./pages/TeacherCalendar";
+import DatesheetManagement from "./pages/DatesheetManagement";
 import { applyStoredAccent } from "./lib/theme";
 
 const queryClient = new QueryClient();
@@ -44,8 +48,12 @@ const App = () => {
               <Route path="/subjects" element={<Subjects />} />
               <Route path="/department" element={<Department />} />
               <Route path="/hod/alerts" element={<Dashboard />} />
+              <Route path="/hod/sessions" element={<HODExamSessions />} />
+              <Route path="/hod/calendar" element={<HODCalendar />} />
               <Route path="/approved" element={<ApprovedPapers />} />
-              <Route path="/calendar" element={<Dashboard />} />
+              <Route path="/teacher/calendar" element={<TeacherCalendar />} />
+              
+              <Route path="/exam-cell/datesheets" element={<DatesheetManagement />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
               <Route path="/exam-cell/alerts" element={<Dashboard />} />
               <Route path="/inbox" element={<Dashboard />} />

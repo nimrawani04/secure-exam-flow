@@ -3,6 +3,7 @@ import { PaperCard } from '@/components/dashboard/PaperCard';
 import { DeadlineTimer } from '@/components/dashboard/DeadlineTimer';
 import { Button } from '@/components/ui/button';
 import { useTeacherPapers } from '@/hooks/useTeacherPapers';
+import { EXAM_TYPE_LABELS } from '@/types';
 import type { ExamPaper } from '@/types';
 import {
   FileText,
@@ -26,7 +27,7 @@ export function TeacherDashboard() {
   const upcoming = papers
     .map((paper) => ({
       deadline: paper.deadline,
-      label: `${paper.subjectName} - ${paper.examType.replace('_', ' ')}`,
+      label: `${paper.subjectName} - ${EXAM_TYPE_LABELS[paper.examType] || paper.examType}`,
     }))
     .filter((item) => item.deadline.getTime() > now.getTime())
     .sort((a, b) => a.deadline.getTime() - b.deadline.getTime())[0];

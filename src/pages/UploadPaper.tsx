@@ -6,7 +6,7 @@ import { Upload, Loader2 } from 'lucide-react';
 import { useTeacherSubjects } from '@/hooks/useTeacherSubjects';
 import { useUploadPaper } from '@/hooks/useUploadPaper';
 import { useAuth } from '@/contexts/AuthContext';
-import { PaperDetailsForm } from '@/components/upload/PaperDetailsForm';
+import { PaperDetailsForm, UploadExamTypeOption } from '@/components/upload/PaperDetailsForm';
 import { FileUploadZone } from '@/components/upload/FileUploadZone';
 import { UploadSidebar } from '@/components/upload/UploadSidebar';
 import { UploadSuccess } from '@/components/upload/UploadSuccess';
@@ -15,7 +15,22 @@ import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 
 type ExamType = Database['public']['Enums']['exam_type'];
-type ExamSession = Database['public']['Tables']['exam_sessions']['Row'];
+type ExamSession = {
+  id: string;
+  name: string;
+  exam_type: ExamType;
+  submission_start: string;
+  submission_end: string;
+  is_active: boolean | null;
+  exam_date: string | null;
+};
+const uploadExamTypeToDbExamType: Record<UploadExamTypeOption, ExamType> = {
+  cia_1: 'cia_1',
+  cia_2: 'cia_2',
+  end_semester: 'end_term',
+  external_practical: 'practical_external',
+  internal_practical: 'practical',
+};
 
 // Default deadline: 5 days from now
 const getDefaultDeadline = () => {
@@ -32,7 +47,7 @@ export default function UploadPaper() {
 
   const [selectedSemester, setSelectedSemester] = useState<number | ''>('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedExamType, setSelectedExamType] = useState<ExamType | ''>('');
+  const [selectedExamType, setSelectedExamType] = useState<UploadExamTypeOption | ''>('');
   const [paperOption, setPaperOption] = useState<'single' | 'paper1' | 'paper2'>('single');
   const [file, setFile] = useState<File | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -87,6 +102,8 @@ export default function UploadPaper() {
       setSelectedSubject('');
     }
   }, [filteredSubjects, selectedSubject]);
+
+  const selectedDbExamType = selectedExamType ? uploadExamTypeToDbExamType[selectedExamType] : '';
 
   useEffect(() => {
     let isMounted = true;
@@ -147,7 +164,7 @@ export default function UploadPaper() {
     let isMounted = true;
 
     async function fetchExistingSets() {
-      if (!selectedSubject || !selectedExamType || !user) {
+      if (!selectedSubject || !selectedDbExamType || !user) {
         if (isMounted) setExistingSetNames([]);
         return;
       }
@@ -156,7 +173,7 @@ export default function UploadPaper() {
         .from('exam_papers')
         .select('set_name')
         .eq('subject_id', selectedSubject)
-        .eq('exam_type', selectedExamType)
+        .eq('exam_type', selectedDbExamType)
         .eq('uploaded_by', user.id);
 
       if (!error && data && isMounted) {
@@ -170,7 +187,7 @@ export default function UploadPaper() {
     return () => {
       isMounted = false;
     };
-  }, [selectedSubject, selectedExamType, user]);
+  }, [selectedSubject, selectedDbExamType, user]);
 
   const dateSheet = useMemo(() => {
     const subjectMap = new Map(subjects.map((s) => [s.id, s]));
@@ -184,13 +201,13 @@ export default function UploadPaper() {
   }, [examSchedule, subjects]);
 
   const deadline = useMemo(() => {
-    if (!selectedExamType) {
+    if (!selectedDbExamType) {
       return defaultDeadline;
     }
 
     const now = Date.now();
     const matching = sessions.filter(
-      (session) => session.exam_type === selectedExamType && (session.is_active ?? true)
+      (session) => session.exam_type === selectedDbExamType && (session.is_active ?? true)
     );
     const upcoming = matching
       .map((session) => ({ session, end: new Date(session.submission_end) }))
@@ -198,7 +215,7 @@ export default function UploadPaper() {
       .sort((a, b) => a.end.getTime() - b.end.getTime())[0];
 
     return upcoming ? upcoming.end : defaultDeadline;
-  }, [selectedExamType, sessions, defaultDeadline]);
+  }, [selectedDbExamType, sessions, defaultDeadline]);
 
   const isFormValid = file && selectedSubject && selectedExamType;
   const existingSetLookup = useMemo(() => new Set(existingSetNames), [existingSetNames]);
@@ -208,6 +225,19 @@ export default function UploadPaper() {
   const allowSingle = !(hasPaper1 || hasPaper2);
   const allowPaper1 = !hasSingle;
   const allowPaper2 = !hasSingle;
+
+  // Visual mutual-exclusivity hints based on current selection
+  const paperOptionDisabledMap = {
+    single: !allowSingle || paperOption === 'paper1' || paperOption === 'paper2',
+    paper1: !allowPaper1 || paperOption === 'single',
+    paper2: !allowPaper2 || paperOption === 'single',
+  };
+  // Only truly disable (prevent click) for DB conflicts
+  const paperOptionHardDisabled = {
+    single: !allowSingle,
+    paper1: !allowPaper1,
+    paper2: !allowPaper2,
+  };
 
   useEffect(() => {
     const isCurrentAllowed =
@@ -236,7 +266,7 @@ export default function UploadPaper() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!file || !selectedSubject || !selectedExamType) {
+    if (!file || !selectedSubject || !selectedDbExamType) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -253,7 +283,7 @@ export default function UploadPaper() {
 
     const result = await uploadPaper({
       subjectId: selectedSubject,
-      examType: selectedExamType,
+      examType: selectedDbExamType,
       setName: setNameForOption(paperOption),
       deadline,
       file,
@@ -310,11 +340,8 @@ export default function UploadPaper() {
               setSelectedExamType={setSelectedExamType}
               paperOption={paperOption}
               setPaperOption={setPaperOption}
-              paperOptionDisabled={{
-                single: !allowSingle,
-                paper1: !allowPaper1,
-                paper2: !allowPaper2,
-              }}
+              paperOptionDisabled={paperOptionHardDisabled}
+              paperOptionMuted={paperOptionDisabledMap}
             />
 
             <FileUploadZone
@@ -351,11 +378,8 @@ export default function UploadPaper() {
                 setSelectedExamType={setSelectedExamType}
                 paperOption={paperOption}
                 setPaperOption={setPaperOption}
-                paperOptionDisabled={{
-                  single: !allowSingle,
-                  paper1: !allowPaper1,
-                  paper2: !allowPaper2,
-                }}
+                paperOptionDisabled={paperOptionHardDisabled}
+                paperOptionMuted={paperOptionDisabledMap}
               />
 
               <FileUploadZone
