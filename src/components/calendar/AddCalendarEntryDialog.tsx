@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { CalendarIcon, Plus, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,7 @@ export function AddCalendarEntryDialog({
   const [saving, setSaving] = useState(false);
 
   const isEditing = !!editEntry;
+  const today = startOfDay(new Date());
 
   const resetForm = () => {
     if (!isEditing) {
@@ -96,6 +97,18 @@ export function AddCalendarEntryDialog({
     }
     if (!deadline) {
       toast.error('Please select a submission deadline');
+      return;
+    }
+    if (startOfDay(deadline) < today) {
+      toast.error('Deadline cannot be in the past');
+      return;
+    }
+    if (examDate && startOfDay(examDate) < today) {
+      toast.error('Exam date cannot be in the past');
+      return;
+    }
+    if (examDate && startOfDay(deadline) > startOfDay(examDate)) {
+      toast.error('Deadline must be on or before the exam date');
       return;
     }
 
@@ -124,6 +137,14 @@ export function AddCalendarEntryDialog({
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeadlineChange = (date: Date | undefined) => {
+    setDeadline(date);
+    // Clear exam date if it's now before the new deadline
+    if (date && examDate && startOfDay(examDate) < startOfDay(date)) {
+      setExamDate(undefined);
     }
   };
 
@@ -219,8 +240,10 @@ export function AddCalendarEntryDialog({
                   <Calendar
                     mode="single"
                     selected={deadline}
-                    onSelect={setDeadline}
+                    onSelect={handleDeadlineChange}
                     initialFocus
+                    disabled={(date) => startOfDay(date) < today}
+                    fromDate={today}
                     className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
@@ -249,6 +272,13 @@ export function AddCalendarEntryDialog({
                     selected={examDate}
                     onSelect={setExamDate}
                     initialFocus
+                    disabled={(date) => {
+                      const d = startOfDay(date);
+                      if (d < today) return true;
+                      if (deadline && d < startOfDay(deadline)) return true;
+                      return false;
+                    }}
+                    fromDate={deadline ?? today}
                     className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>

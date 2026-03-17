@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { startOfDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -78,6 +79,18 @@ export function useTeacherCustomEntries() {
 
   const addEntry = async (input: CustomEntryInput) => {
     if (!user) return { success: false };
+
+    const today = startOfDay(new Date());
+    if (startOfDay(input.submissionDeadline) < today) {
+      return { success: false, error: 'Deadline cannot be in the past' };
+    }
+    if (input.examDate && startOfDay(input.examDate) < today) {
+      return { success: false, error: 'Exam date cannot be in the past' };
+    }
+    if (input.examDate && startOfDay(input.submissionDeadline) > startOfDay(input.examDate)) {
+      return { success: false, error: 'Deadline must be on or before the exam date' };
+    }
+
     const { error } = await supabase.from('teacher_calendar_entries').insert({
       teacher_id: user.id,
       title: input.title,
@@ -98,6 +111,19 @@ export function useTeacherCustomEntries() {
 
   const updateEntry = async (id: string, input: Partial<CustomEntryInput>) => {
     if (!user) return { success: false };
+
+    const today = startOfDay(new Date());
+    if (input.submissionDeadline && startOfDay(input.submissionDeadline) < today) {
+      return { success: false, error: 'Deadline cannot be in the past' };
+    }
+    if (input.examDate && startOfDay(input.examDate) < today) {
+      return { success: false, error: 'Exam date cannot be in the past' };
+    }
+    if (input.examDate && input.submissionDeadline &&
+        startOfDay(input.submissionDeadline) > startOfDay(input.examDate)) {
+      return { success: false, error: 'Deadline must be on or before the exam date' };
+    }
+
     const updateData: Record<string, unknown> = {};
     if (input.title !== undefined) updateData.title = input.title;
     if (input.subjectId !== undefined) updateData.subject_id = input.subjectId || null;

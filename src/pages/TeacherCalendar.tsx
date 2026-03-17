@@ -10,7 +10,7 @@ import { useTeacherCustomEntries } from '@/hooks/useTeacherCustomEntries';
 import { useTeacherSubjects } from '@/hooks/useTeacherSubjects';
 import { AddCalendarEntryDialog } from '@/components/calendar/AddCalendarEntryDialog';
 
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Clock, CheckCircle2, Upload, Pencil, Trash2, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -57,6 +57,7 @@ interface UnifiedEvent {
 
 export default function TeacherCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const today = startOfDay(new Date());
   const { events: hodEvents, isLoading: hodLoading, refetch: refetchHOD } = useTeacherCalendar();
   const {
     entries: customEntries,
@@ -207,6 +208,8 @@ export default function TeacherCalendar() {
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 className="pointer-events-auto"
+                disabled={(date) => startOfDay(date) < today}
+                fromDate={today}
                 modifiers={{
                   hasEvent: (date) => eventsByDate.has(format(date, 'yyyy-MM-dd')),
                 }}
