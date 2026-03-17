@@ -169,19 +169,22 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-[62%] relative overflow-hidden">
-        <img
-          src="/cuk.png"
-          alt="Central University of Kashmir"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+    <div className="min-h-screen relative">
+      {/* Left Panel - Branding - COMPLETELY STATIC BACKGROUND */}
+      <div className="absolute left-0 top-0 hidden lg:block lg:w-[62%] h-full overflow-hidden">
+        <div className="absolute inset-0 w-full h-full auth-bg-static" />
         <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute bottom-8 left-8 text-white">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="w-8 h-8" />
+            <span className="text-sm font-medium tracking-wide">CENTRAL UNIVERSITY OF KASHMIR</span>
+          </div>
+          <h1 className="text-4xl font-bold mb-2">EXAMINATION MANAGEMENT PLATFORM</h1>
+        </div>
       </div>
 
-      {/* Right Panel */}
-      <div className="flex-1 flex items-start sm:items-center justify-end p-4 sm:p-8 lg:pr-16 lg:pl-12 bg-muted/30 overflow-y-auto">
+      {/* Right Panel - Positioned absolutely to not affect background */}
+      <div className="absolute right-0 top-0 w-full lg:w-[38%] min-h-screen flex items-center justify-center p-4 sm:p-8 lg:pr-16 lg:pl-12 bg-muted/30">
         <div className="w-full max-w-md space-y-8">
           <div className="flex justify-center mb-6 lg:mb-8">
             <Link to="/">
