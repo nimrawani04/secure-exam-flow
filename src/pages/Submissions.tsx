@@ -109,6 +109,29 @@ function PaperRow({ paper, onRollback }: { paper: TeacherPaper; onRollback?: (id
 export default function Submissions() {
   const { papers, isLoading, error, refetch } = useTeacherPapers();
   const [activeTab, setActiveTab] = useState('all');
+  const [rollingBack, setRollingBack] = useState<string | null>(null);
+
+  const handleRollback = async (paperId: string) => {
+    setRollingBack(paperId);
+    try {
+      const { error: updateError } = await supabase
+        .from('exam_papers')
+        .update({ status: 'draft' as any })
+        .eq('id', paperId);
+
+      if (updateError) {
+        toast.error('Failed to cancel paper: ' + updateError.message);
+        return;
+      }
+
+      toast.success('Paper cancelled and moved back to draft. You can now upload a replacement.');
+      refetch();
+    } catch {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setRollingBack(null);
+    }
+  };
 
   const filteredPapers = papers.filter((paper) => {
     if (activeTab === 'all') return true;
