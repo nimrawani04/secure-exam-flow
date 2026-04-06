@@ -252,7 +252,7 @@ export default function Submissions() {
             ) : (
               <div className="space-y-4">
                 {filteredPapers.map((paper) => (
-                  <PaperRow key={paper.id} paper={paper} />
+                  <PaperRow key={paper.id} paper={paper} onRollback={handleRollback} />
                 ))}
               </div>
             )}
