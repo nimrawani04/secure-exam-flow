@@ -3,6 +3,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTeacherPapers, TeacherPaper } from '@/hooks/useTeacherPapers';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   FileText, 
   Clock, 
@@ -10,9 +12,21 @@ import {
   Upload,
   RefreshCw,
   Loader2,
+  Undo2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 import { EXAM_TYPE_LABELS } from '@/types';
 
