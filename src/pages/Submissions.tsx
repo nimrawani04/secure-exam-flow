@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Loader2,
   Undo2,
+  FilePlus2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ import { EXAM_TYPE_LABELS } from '@/types';
 
 function PaperRow({ paper, onRollback }: { paper: TeacherPaper; onRollback?: (id: string) => void }) {
   const isPending = paper.status === 'pending_review';
+  const isDraft = paper.status === 'draft';
 
   return (
     <div className="group rounded-xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
@@ -59,6 +61,12 @@ function PaperRow({ paper, onRollback }: { paper: TeacherPaper; onRollback?: (id
                 Pending
               </span>
             )}
+            {isDraft && (
+              <span className="inline-flex h-6 items-center rounded-full bg-destructive/10 px-3 text-xs font-medium text-destructive border border-destructive/20">
+                <Undo2 className="h-3 w-3 mr-1" />
+                Cancelled
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
@@ -72,6 +80,14 @@ function PaperRow({ paper, onRollback }: { paper: TeacherPaper; onRollback?: (id
                 })}
               </span>
             </div>
+            {isDraft && (
+              <Link to="/upload">
+                <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10">
+                  <FilePlus2 className="h-3.5 w-3.5" />
+                  Upload New Paper
+                </Button>
+              </Link>
+            )}
             {isPending && onRollback && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -136,12 +152,14 @@ export default function Submissions() {
   const filteredPapers = papers.filter((paper) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'pending') return paper.status === 'pending_review';
+    if (activeTab === 'draft') return paper.status === 'draft';
     return true;
   });
 
   const stats = {
     total: papers.length,
     pending: papers.filter((p) => p.status === 'pending_review').length,
+    draft: papers.filter((p) => p.status === 'draft').length,
   };
 
   return (
@@ -200,7 +218,7 @@ export default function Submissions() {
 
         {/* Tabs & List */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full rounded-full bg-secondary/70 p-1 grid grid-cols-2 gap-1 sm:inline-grid sm:w-auto">
+          <TabsList className="w-full rounded-full bg-secondary/70 p-1 grid grid-cols-3 gap-1 sm:inline-grid sm:w-auto">
             <TabsTrigger
               value="all"
               className="w-full rounded-full text-sm data-[state=active]:bg-accent/10 data-[state=active]:text-accent data-[state=active]:shadow-none"
@@ -212,6 +230,12 @@ export default function Submissions() {
               className="w-full rounded-full text-sm data-[state=active]:bg-accent/10 data-[state=active]:text-accent data-[state=active]:shadow-none"
             >
               Pending ({stats.pending})
+            </TabsTrigger>
+            <TabsTrigger
+              value="draft"
+              className="w-full rounded-full text-sm data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-none"
+            >
+              Cancelled ({stats.draft})
             </TabsTrigger>
           </TabsList>
 
