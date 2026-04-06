@@ -3,6 +3,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTeacherPapers, TeacherPaper } from '@/hooks/useTeacherPapers';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   FileText, 
   Clock, 
@@ -10,14 +12,28 @@ import {
   Upload,
   RefreshCw,
   Loader2,
+  Undo2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 import { EXAM_TYPE_LABELS } from '@/types';
 
 
-function PaperRow({ paper }: { paper: TeacherPaper }) {
+function PaperRow({ paper, onRollback }: { paper: TeacherPaper; onRollback?: (id: string) => void }) {
+  const isPending = paper.status === 'pending_review';
+
   return (
     <div className="group rounded-xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_6px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -38,17 +54,51 @@ function PaperRow({ paper }: { paper: TeacherPaper }) {
             <span className="inline-flex h-6 items-center rounded-full bg-primary/10 px-3 text-xs font-medium text-primary">
               v{paper.version}
             </span>
+            {isPending && (
+              <span className="inline-flex h-6 items-center rounded-full bg-warning/10 px-3 text-xs font-medium text-warning">
+                Pending
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-            <Clock className="h-3.5 w-3.5" />
-            <span>
-              Uploaded{' '}
-              {paper.uploadedAt.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                Uploaded{' '}
+                {paper.uploadedAt.toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+            {isPending && onRollback && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Undo2 className="h-3.5 w-3.5" />
+                    Cancel Paper
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel this submission?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will withdraw <strong>{paper.subjectName} ({paper.setName})</strong> from review and move it back to draft. You can then upload a replacement paper.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep Submitted</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onRollback(paper.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Yes, Cancel Paper
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>
@@ -59,6 +109,29 @@ function PaperRow({ paper }: { paper: TeacherPaper }) {
 export default function Submissions() {
   const { papers, isLoading, error, refetch } = useTeacherPapers();
   const [activeTab, setActiveTab] = useState('all');
+  const [rollingBack, setRollingBack] = useState<string | null>(null);
+
+  const handleRollback = async (paperId: string) => {
+    setRollingBack(paperId);
+    try {
+      const { error: updateError } = await supabase
+        .from('exam_papers')
+        .update({ status: 'draft' as any })
+        .eq('id', paperId);
+
+      if (updateError) {
+        toast.error('Failed to cancel paper: ' + updateError.message);
+        return;
+      }
+
+      toast.success('Paper cancelled and moved back to draft. You can now upload a replacement.');
+      refetch();
+    } catch {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setRollingBack(null);
+    }
+  };
 
   const filteredPapers = papers.filter((paper) => {
     if (activeTab === 'all') return true;
@@ -179,7 +252,7 @@ export default function Submissions() {
             ) : (
               <div className="space-y-4">
                 {filteredPapers.map((paper) => (
-                  <PaperRow key={paper.id} paper={paper} />
+                  <PaperRow key={paper.id} paper={paper} onRollback={handleRollback} />
                 ))}
               </div>
             )}
