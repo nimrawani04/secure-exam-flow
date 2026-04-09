@@ -417,6 +417,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </div>
       </main>
+      <ChatBubble />
     </div>
   );
 }
