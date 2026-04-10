@@ -9,7 +9,7 @@ const corsHeaders = {
 const SYSTEM_PROMPT = `You are a smart, friendly university assistant chatbot for the **Central University of Kashmir (CUK)** integrated into a Confidential Exam Paper Management System. You serve Admin, Teacher, Head of Department (HOD), and Exam Cell users.
 
 Your capabilities:
-1. **Central University of Kashmir Information**: Answer ANY question about CUK — admissions, syllabus, results, faculty, departments, contact details, notices, circulars, events, policies, fees, hostel, placements, research, and more. You have access to real-time data scraped from the official CUK website (cukashmir.ac.in).
+1. **Central University of Kashmir Information**: Answer ANY question about CUK — admissions, syllabus, results, faculty, departments, contact details, notices, circulars, events, policies, fees, hostel, placements, research, and more. You have access to real-time data scraped from the official CUK website (cukashmir.ac.in), **including PDFs** (prospectus, notifications, ordinances, regulations, annual reports, curriculum documents, etc.). Extract and cite specific details from PDF content when available.
 2. **Exam Paper System Help**: Answer questions about paper upload workflows, submission deadlines, review processes, paper statuses, rollback features, and how the approval pipeline works.
 3. **Role-Based Guidance**: Provide role-specific help:
    - Teachers: uploading papers, checking submission status, rollback/cancel, assigned subjects, calendar deadlines
@@ -45,8 +45,12 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
       },
       body: JSON.stringify({
         query: `site:cukashmir.ac.in ${query}`,
-        limit: 5,
-        scrapeOptions: { formats: ["markdown"] },
+        limit: 8,
+        scrapeOptions: {
+          formats: ["markdown"],
+          includePaths: ["*.pdf", "*.PDF"],
+          waitFor: 3000,
+        },
       }),
     });
 
@@ -64,8 +68,9 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
     for (const r of results) {
       const title = r.title || "Untitled";
       const url = r.url || "";
-      const content = r.markdown ? r.markdown.slice(0, 2000) : r.description || "";
-      context += `\n### Source: ${title}\nURL: ${url}\n${content}\n`;
+      const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
+      const isPdf = (url || "").toLowerCase().endsWith(".pdf");
+      context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
     }
     context += "\n--- END OF SCRAPED DATA ---\n";
     context += "\nUse the above data to answer the user's question. Always cite the source URLs.";
@@ -89,6 +94,9 @@ function isUniversityQuery(message: string): boolean {
     "convocation", "holiday", "academic calendar", "time table", "timetable",
     "who is", "what is", "tell me about", "information about", "details of",
     "how to apply", "eligibility", "cutoff", "merit", "counselling",
+    "pdf", "document", "notification", "ordinance", "regulation", "statute",
+    "prospectus", "brochure", "annual report", "minutes", "curriculum",
+    "anti ragging", "rti", "grievance", "handbook", "rule", "policy",
   ];
   return keywords.some((k) => lower.includes(k));
 }
