@@ -68,8 +68,9 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
     for (const r of results) {
       const title = r.title || "Untitled";
       const url = r.url || "";
-      const content = r.markdown ? r.markdown.slice(0, 2000) : r.description || "";
-      context += `\n### Source: ${title}\nURL: ${url}\n${content}\n`;
+      const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
+      const isPdf = (url || "").toLowerCase().endsWith(".pdf");
+      context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
     }
     context += "\n--- END OF SCRAPED DATA ---\n";
     context += "\nUse the above data to answer the user's question. Always cite the source URLs.";
