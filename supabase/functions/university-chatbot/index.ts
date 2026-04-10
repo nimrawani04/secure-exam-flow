@@ -94,6 +94,9 @@ function isUniversityQuery(message: string): boolean {
     "convocation", "holiday", "academic calendar", "time table", "timetable",
     "who is", "what is", "tell me about", "information about", "details of",
     "how to apply", "eligibility", "cutoff", "merit", "counselling",
+    "pdf", "document", "notification", "ordinance", "regulation", "statute",
+    "prospectus", "brochure", "annual report", "minutes", "curriculum",
+    "anti ragging", "rti", "grievance", "handbook", "rule", "policy",
   ];
   return keywords.some((k) => lower.includes(k));
 }
