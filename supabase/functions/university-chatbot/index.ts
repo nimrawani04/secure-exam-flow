@@ -45,8 +45,12 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
       },
       body: JSON.stringify({
         query: `site:cukashmir.ac.in ${query}`,
-        limit: 5,
-        scrapeOptions: { formats: ["markdown"] },
+        limit: 8,
+        scrapeOptions: {
+          formats: ["markdown"],
+          includePaths: ["*.pdf", "*.PDF"],
+          waitFor: 3000,
+        },
       }),
     });
 
