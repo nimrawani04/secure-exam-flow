@@ -70,9 +70,9 @@ async function streamChat({
 
 const SUGGESTIONS = [
   'How do I upload a paper?',
-  'What happens after paper submission?',
-  'How does paper rollback work?',
-  'Guide me through the review process',
+  'CUK admission process & eligibility',
+  'Contact details of CUK departments',
+  'Latest notices from Central University of Kashmir',
 ];
 
 export function ChatBubble() {
