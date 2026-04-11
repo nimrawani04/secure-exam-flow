@@ -321,6 +321,9 @@ function isUniversityQuery(message: string): boolean {
     "pdf", "document", "notification", "ordinance", "regulation", "statute",
     "prospectus", "brochure", "annual report", "minutes", "curriculum",
     "anti ragging", "rti", "grievance", "handbook", "rule", "policy",
+    "datesheet", "date sheet", "backlog", "backlogs", "notices", "notifications",
+    "results", "exam result", "exam results", "syllabi", "exam notice", "exam notices",
+    "supplementary", "reappear", "arrear", "schedule", "exam schedule",
   ];
   return keywords.some((k) => lower.includes(k));
 }
