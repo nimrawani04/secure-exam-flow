@@ -40,35 +40,46 @@ Important Rules:
 
 async function searchCUK(query: string, apiKey: string): Promise<string> {
   try {
-    const response = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: `site:cukashmir.ac.in ${query}`,
-        limit: 8,
-        scrapeOptions: {
-          formats: ["markdown"],
-          includePaths: ["*.pdf", "*.PDF"],
-          waitFor: 3000,
+    // Run two searches in parallel: web pages + PDFs
+    const [webRes, pdfRes] = await Promise.all([
+      fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          query: `site:cukashmir.ac.in ${query}`,
+          limit: 5,
+          scrapeOptions: { formats: ["markdown"] },
+        }),
       }),
-    });
+      fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: `site:cukashmir.ac.in filetype:pdf ${query}`,
+          limit: 5,
+          scrapeOptions: { formats: ["markdown"] },
+        }),
+      }),
+    ]);
 
-    if (!response.ok) {
-      console.error("Firecrawl search failed:", response.status);
-      return "";
-    }
+    const webData = webRes.ok ? await webRes.json() : { data: [] };
+    const pdfData = pdfRes.ok ? await pdfRes.json() : { data: [] };
 
-    const data = await response.json();
-    const results = data.data || [];
+    if (!webRes.ok) console.error("Firecrawl web search failed:", webRes.status);
+    if (!pdfRes.ok) console.error("Firecrawl PDF search failed:", pdfRes.status);
 
-    if (results.length === 0) return "";
+    const allResults = [...(webData.data || []), ...(pdfData.data || [])];
+
+    if (allResults.length === 0) return "";
 
     let context = "\n\n--- LIVE DATA FROM CUK WEBSITE (cukashmir.ac.in) ---\n";
-    for (const r of results) {
+    for (const r of allResults) {
       const title = r.title || "Untitled";
       const url = r.url || "";
       const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
