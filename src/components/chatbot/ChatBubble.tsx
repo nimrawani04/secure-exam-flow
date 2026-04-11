@@ -212,8 +212,16 @@ export function ChatBubble() {
                       : 'bg-muted rounded-bl-sm'
                   )}>
                     {m.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0">
-                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >{m.content}</ReactMarkdown>
                       </div>
                     ) : (
                       <span>{m.content}</span>

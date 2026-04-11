@@ -76,7 +76,7 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
       context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
     }
     context += "\n--- END OF SCRAPED DATA ---\n";
-    context += "\nUse the above data to answer the user's question. Always cite the source URLs.";
+    context += "\nIMPORTANT: Use the above data to answer the user's question. For EVERY source you reference, you MUST format it as a clickable markdown link using the EXACT URL from above: [Source Title](https://exact-url-from-above). NEVER list source titles without their URLs. If you cannot find the URL, do not list that source.";
 
     return context;
   } catch (e) {
