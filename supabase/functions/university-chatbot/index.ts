@@ -21,24 +21,205 @@ Your capabilities:
 Response Format:
 - **Answer**: Give the direct answer first — no preamble, no steps
 - **Details**: Key extracted information as bullet points if needed
-- **Sources**: ALWAYS end your response with a "**Sources:**" section containing DIRECT CLICKABLE LINKS. Format each link as a markdown hyperlink: [Title](https://full-url). Use the EXACT URLs from the scraped data. For PDFs, link directly to the PDF URL. For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
+- **Sources**: If a VERIFIED SOURCE CATALOG is provided, do NOT output a Sources section because the system will append verified links automatically. Otherwise, ALWAYS end your response with a "**Sources:**" section containing DIRECT CLICKABLE LINKS. Format each link as a markdown hyperlink: [Title](https://full-url). Use the EXACT URLs from the scraped data. For PDFs, link directly to the PDF URL. For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
 - NEVER give numbered step-by-step walkthroughs or instructions unless explicitly asked
 - NEVER say "visit the website" or "go to" — instead provide the direct clickable link
 - Be concise — answer in 2-4 sentences when possible
-- Every response MUST include at least one direct source link
+- Every response MUST include at least one direct source link unless a VERIFIED SOURCE CATALOG is provided, in which case the system will append the direct links
 
 Important Rules:
 - Use the provided CUK website context to answer university-related questions accurately
-- ALWAYS include the actual source URLs from scraped data as clickable markdown links — this is MANDATORY
+- ALWAYS use the actual source URLs from scraped data — this is MANDATORY
 - If multiple sources exist, list ALL relevant direct links
 - If the scraped data doesn't contain the answer, provide a direct link to the most relevant CUK page and say the specific info wasn't found
 - Do NOT make up information about specific dates, results, or data you don't have
 - If asked about real-time system data (like specific paper statuses), link directly to the relevant dashboard section
 - Keep responses focused, direct, and actionable
 - Prefer direct links and answers over explanations
-- NEVER omit source links — they are the most important part of every response`;
+- NEVER invent, rewrite, truncate, or generalize source URLs. If a VERIFIED SOURCE CATALOG is present, only rely on it for external links and do not create your own external links.`;
 
-async function searchCUK(query: string, apiKey: string): Promise<string> {
+type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+type FirecrawlSearchResult = {
+  title?: string;
+  url?: string;
+  markdown?: string;
+  description?: string;
+};
+
+type VerifiedSource = {
+  title: string;
+  url: string;
+  content: string;
+  isPdf: boolean;
+  score: number;
+};
+
+type SearchContext = {
+  context: string;
+  verifiedSources: VerifiedSource[];
+};
+
+const STOPWORDS = new Set([
+  "about", "after", "all", "and", "any", "are", "can", "cuk", "for", "from", "how",
+  "into", "latest", "more", "not", "official", "the", "their", "this", "university", "what",
+  "when", "where", "which", "with", "you",
+]);
+
+function tokenize(text: string): string[] {
+  return [...new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length > 2 && !STOPWORDS.has(token)),
+  )];
+}
+
+function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | null {
+  if (!rawUrl) return null;
+
+  const trimmed = rawUrl.trim().replace(/^<|>$/g, "");
+  if (!trimmed || trimmed.startsWith("javascript:") || trimmed.startsWith("mailto:")) {
+    return null;
+  }
+
+  try {
+    const url = baseUrl ? new URL(trimmed, baseUrl) : new URL(trimmed);
+    if (!["http:", "https:"].includes(url.protocol)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isPdfUrl(url: string): boolean {
+  return /\.pdf(?:$|[?#])/i.test(url);
+}
+
+function deriveTitleFromUrl(url: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const lastSegment = pathname.split("/").filter(Boolean).pop() || "Source";
+    return decodeURIComponent(lastSegment)
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return "Source";
+  }
+}
+
+function cleanTitle(title: string | undefined, url: string): string {
+  const cleaned = (title || "")
+    .replace(/[*_`>#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned || /^(click here|read more|download|view|open)$/i.test(cleaned)) {
+    return deriveTitleFromUrl(url);
+  }
+
+  return cleaned;
+}
+
+function escapeLinkTitle(title: string): string {
+  return title.replace(/[\[\]]/g, "").trim();
+}
+
+function scoreSource(query: string, candidate: { title: string; url: string; content: string; isPdf: boolean }): number {
+  const haystack = `${candidate.title} ${candidate.url} ${candidate.content}`.toLowerCase();
+  const queryLower = query.toLowerCase();
+  const queryTerms = tokenize(query);
+
+  let score = 0;
+
+  for (const term of queryTerms) {
+    if (haystack.includes(term)) score += 4;
+  }
+
+  if (candidate.isPdf) score += queryLower.includes("pdf") ? 8 : 4;
+  if (/notice|notification|circular/.test(haystack) && /notice|notification|circular/.test(queryLower)) score += 6;
+  if (/result|results/.test(haystack) && /result/.test(queryLower)) score += 6;
+  if (/syllabus|curriculum/.test(haystack) && /syllabus|curriculum/.test(queryLower)) score += 6;
+  if (/datesheet|date sheet|schedule/.test(haystack) && /datesheet|date sheet|schedule|backlog/.test(queryLower)) score += 6;
+  if (/admission|eligibility|prospectus/.test(haystack) && /admission|eligibility|prospectus/.test(queryLower)) score += 6;
+  if (/displayevents\.aspx|examination\.aspx/.test(candidate.url)) score += 2;
+  if (/contactus|gallery|tender|home|index/.test(candidate.url)) score -= 3;
+
+  return score;
+}
+
+function extractMarkdownLinks(markdown: string, baseUrl: string, parentTitle: string, query: string): VerifiedSource[] {
+  const candidates: VerifiedSource[] = [];
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const directUrlRegex = /https?:\/\/[^\s)\]]+/g;
+
+  for (const match of markdown.matchAll(markdownLinkRegex)) {
+    const url = normalizeUrl(match[2], baseUrl);
+    if (!url) continue;
+
+    const title = cleanTitle(match[1], url);
+    const content = markdown.slice(0, 4000);
+    candidates.push({
+      title,
+      url,
+      content,
+      isPdf: isPdfUrl(url),
+      score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }),
+    });
+  }
+
+  for (const match of markdown.matchAll(directUrlRegex)) {
+    const url = normalizeUrl(match[0], baseUrl);
+    if (!url) continue;
+
+    const title = cleanTitle(parentTitle, url);
+    const content = markdown.slice(0, 4000);
+    candidates.push({
+      title,
+      url,
+      content,
+      isPdf: isPdfUrl(url),
+      score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }),
+    });
+  }
+
+  return candidates;
+}
+
+function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
+  const deduped = new Map<string, VerifiedSource>();
+
+  for (const source of sources) {
+    const existing = deduped.get(source.url);
+    if (!existing || source.score > existing.score || source.title.length > existing.title.length) {
+      deduped.set(source.url, source);
+    }
+  }
+
+  return [...deduped.values()]
+    .sort((a, b) => b.score - a.score || Number(b.isPdf) - Number(a.isPdf) || a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+function formatSourcesSection(sources: VerifiedSource[]): string {
+  return `**Sources:**\n${sources
+    .map((source) => `- [${escapeLinkTitle(source.title)}](${source.url})`)
+    .join("\n")}`;
+}
+
+function stripSourcesSection(content: string): string {
+  return content
+    .replace(/\n{0,2}\*\*Sources:\*\*[\s\S]*$/i, "")
+    .replace(/\n{0,2}Sources:[\s\S]*$/i, "")
+    .trim();
+}
+
+async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
   try {
     // Run two searches in parallel: web pages + PDFs
     const [webRes, pdfRes] = await Promise.all([
@@ -50,7 +231,7 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
         },
         body: JSON.stringify({
           query: `site:cukashmir.ac.in ${query}`,
-          limit: 5,
+          limit: 8,
           scrapeOptions: { formats: ["markdown"] },
         }),
       }),
@@ -62,7 +243,7 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
         },
         body: JSON.stringify({
           query: `site:cukashmir.ac.in filetype:pdf ${query}`,
-          limit: 5,
+          limit: 8,
           scrapeOptions: { formats: ["markdown"] },
         }),
       }),
@@ -74,25 +255,54 @@ async function searchCUK(query: string, apiKey: string): Promise<string> {
     if (!webRes.ok) console.error("Firecrawl web search failed:", webRes.status);
     if (!pdfRes.ok) console.error("Firecrawl PDF search failed:", pdfRes.status);
 
-    const allResults = [...(webData.data || []), ...(pdfData.data || [])];
+    const webResults = Array.isArray(webData.data) ? webData.data : [];
+    const pdfResults = Array.isArray(pdfData.data) ? pdfData.data : [];
+    const allResults = [...webResults, ...pdfResults] as FirecrawlSearchResult[];
 
-    if (allResults.length === 0) return "";
+    if (allResults.length === 0) return { context: "", verifiedSources: [] };
+
+    const verifiedCandidates: VerifiedSource[] = [];
 
     let context = "\n\n--- LIVE DATA FROM CUK WEBSITE (cukashmir.ac.in) ---\n";
     for (const r of allResults) {
       const title = r.title || "Untitled";
-      const url = r.url || "";
+      const url = normalizeUrl(r.url) || "";
       const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
       const isPdf = (url || "").toLowerCase().endsWith(".pdf");
+
+      if (url) {
+        verifiedCandidates.push({
+          title: cleanTitle(title, url),
+          url,
+          content,
+          isPdf,
+          score: scoreSource(query, { title, url, content, isPdf }),
+        });
+      }
+
+      if (url && content) {
+        verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
+      }
+
       context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
     }
-    context += "\n--- END OF SCRAPED DATA ---\n";
-    context += "\nIMPORTANT: Use the above data to answer the user's question. For EVERY source you reference, you MUST format it as a clickable markdown link using the EXACT URL from above: [Source Title](https://exact-url-from-above). NEVER list source titles without their URLs. If you cannot find the URL, do not list that source.";
 
-    return context;
+    const verifiedSources = dedupeAndRankSources(verifiedCandidates, 6);
+
+    if (verifiedSources.length > 0) {
+      context += "\n--- VERIFIED SOURCE CATALOG ---\n";
+      for (const source of verifiedSources) {
+        context += `- ${source.title}${source.isPdf ? " (PDF)" : ""}: ${source.url}\n`;
+      }
+    }
+
+    context += "\n--- END OF SCRAPED DATA ---\n";
+    context += "\nIMPORTANT: Use the above data to answer the user's question. If a VERIFIED SOURCE CATALOG is present, rely on it for external links and do not generate your own Sources section because verified links will be appended automatically. Never mention a source title unless it exists in the data above.";
+
+    return { context, verifiedSources };
   } catch (e) {
     console.error("CUK search error:", e);
-    return "";
+    return { context: "", verifiedSources: [] };
   }
 }
 
@@ -139,8 +349,9 @@ serve(async (req) => {
     }
 
     // Get the latest user message to determine if we need to search CUK
-    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user");
+    const lastUserMessage = [...messages].reverse().find((m: ChatMessage) => m.role === "user");
     let cukContext = "";
+    let verifiedSources: VerifiedSource[] = [];
 
     if (lastUserMessage) {
       const userText = lastUserMessage.content || "";
@@ -148,7 +359,9 @@ serve(async (req) => {
 
       if (FIRECRAWL_KEY && isUniversityQuery(userText)) {
         console.log("Searching CUK website for:", userText);
-        cukContext = await searchCUK(userText, FIRECRAWL_KEY);
+        const searchResult = await searchCUK(userText, FIRECRAWL_KEY);
+        cukContext = searchResult.context;
+        verifiedSources = searchResult.verifiedSources;
       }
     }
 
@@ -168,7 +381,7 @@ serve(async (req) => {
           { role: "system", content: systemMessage },
           ...messages,
         ],
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -193,7 +406,47 @@ serve(async (req) => {
       );
     }
 
-    return new Response(response.body, {
+    const completion = await response.json();
+    const aiContent = completion?.choices?.[0]?.message?.content;
+
+    if (!aiContent || typeof aiContent !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Invalid AI response" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const cleanContent = stripSourcesSection(aiContent);
+    const fallbackSources = verifiedSources.length > 0
+      ? verifiedSources
+      : (lastUserMessage && isUniversityQuery(lastUserMessage.content || ""))
+        ? [{
+            title: "Central University of Kashmir",
+            url: "https://www.cukashmir.ac.in",
+            content: "",
+            isPdf: false,
+            score: 0,
+          }]
+        : [];
+
+    const finalContent = fallbackSources.length > 0
+      ? `${cleanContent}\n\n${formatSourcesSection(fallbackSources)}`
+      : aiContent;
+
+    const ssePayload = [
+      `data: ${JSON.stringify({
+        id: completion?.id || crypto.randomUUID(),
+        object: "chat.completion.chunk",
+        created: completion?.created || Math.floor(Date.now() / 1000),
+        model: completion?.model || "google/gemini-3-flash-preview",
+        choices: [{ index: 0, delta: { role: "assistant", content: finalContent }, finish_reason: "stop" }],
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    return new Response(ssePayload, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
