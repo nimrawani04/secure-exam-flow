@@ -63,6 +63,13 @@ type SearchContext = {
   verifiedSources: VerifiedSource[];
 };
 
+const ALLOWED_SOURCE_HOSTS = [
+  "cukashmir.ac.in",
+  "www.cukashmir.ac.in",
+  "cukashmir.samarth.edu.in",
+  "cuet.samarth.ac.in",
+];
+
 const STOPWORDS = new Set([
   "about", "after", "all", "and", "any", "are", "can", "cuk", "for", "from", "how",
   "into", "latest", "more", "not", "official", "the", "their", "this", "university", "what",
@@ -92,6 +99,15 @@ function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | nu
     return url.toString();
   } catch {
     return null;
+  }
+}
+
+function isAllowedSourceUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return ALLOWED_SOURCE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
   }
 }
 
@@ -206,6 +222,51 @@ function dedupeAndRankSources(sources: VerifiedSource[], limit: number): Verifie
     .slice(0, limit);
 }
 
+async function verifySourceUrl(url: string): Promise<boolean> {
+  if (!isAllowedSourceUrl(url)) return false;
+
+  try {
+    const headResponse = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 LovableBot/1.0" },
+    });
+
+    if (headResponse.ok) return true;
+  } catch {
+    // fall through to GET fallback
+  }
+
+  try {
+    const getResponse = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        Range: "bytes=0-0",
+        "User-Agent": "Mozilla/5.0 LovableBot/1.0",
+      },
+    });
+
+    return getResponse.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function filterWorkingSources(sources: VerifiedSource[], limit: number): Promise<VerifiedSource[]> {
+  const checked = await Promise.all(
+    sources.slice(0, 12).map(async (source) => ({
+      source,
+      ok: await verifySourceUrl(source.url),
+    })),
+  );
+
+  return checked
+    .filter((entry) => entry.ok)
+    .map((entry) => entry.source)
+    .slice(0, limit);
+}
+
 function formatSourcesSection(sources: VerifiedSource[]): string {
   return `**Sources:**\n${sources
     .map((source) => `- [${escapeLinkTitle(source.title)}](${source.url})`)
@@ -287,7 +348,8 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
     }
 
-    const verifiedSources = dedupeAndRankSources(verifiedCandidates, 6);
+    const rankedSources = dedupeAndRankSources(verifiedCandidates, 10);
+    const verifiedSources = await filterWorkingSources(rankedSources, 6);
 
     if (verifiedSources.length > 0) {
       context += "\n--- VERIFIED SOURCE CATALOG ---\n";
