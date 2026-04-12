@@ -241,8 +241,10 @@ export function ChatBubble() {
                 <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Bot className="h-3 w-3 text-primary" />
                 </div>
-                <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2.5 space-y-2 w-[70%]">
+                  <Skeleton className="h-3 w-[90%]" />
+                  <Skeleton className="h-3 w-[75%]" />
+                  <Skeleton className="h-3 w-[60%]" />
                 </div>
               </div>
             )}
