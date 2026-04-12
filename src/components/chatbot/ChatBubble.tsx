@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
