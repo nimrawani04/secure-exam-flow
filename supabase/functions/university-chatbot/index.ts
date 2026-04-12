@@ -280,56 +280,144 @@ function stripSourcesSection(content: string): string {
     .trim();
 }
 
+async function firecrawlSearch(apiKey: string, searchQuery: string, limit = 8): Promise<FirecrawlSearchResult[]> {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: searchQuery,
+        limit,
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+    if (!res.ok) {
+      console.error("Firecrawl search failed:", res.status);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data.data) ? data.data : [];
+  } catch (e) {
+    console.error("Firecrawl search error:", e);
+    return [];
+  }
+}
+
+async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSearchResult | null> {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["markdown"],
+        onlyMainContent: true,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      title: data.data?.metadata?.title || "CUK Page",
+      url: data.data?.metadata?.sourceURL || url,
+      markdown: data.data?.markdown || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Known CUK notice/resource pages for fallback deep scraping
+const FALLBACK_PAGES: Record<string, string[]> = {
+  notice: [
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+    "https://www.cukashmir.ac.in/notices.aspx",
+    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
+  ],
+  datesheet: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+  ],
+  result: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
+  ],
+  syllabus: [
+    "https://www.cukashmir.ac.in/departments.aspx",
+    "https://www.cukashmir.ac.in/academics.aspx",
+  ],
+  admission: [
+    "https://www.cukashmir.ac.in/admissions.aspx",
+    "https://cuet.samarth.ac.in",
+  ],
+  examination: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+  ],
+};
+
+function getFallbackCategories(query: string): string[] {
+  const lower = query.toLowerCase();
+  const categories: string[] = [];
+  if (/notice|notification|circular|announcement/.test(lower)) categories.push("notice");
+  if (/datesheet|date sheet|backlog|schedule/.test(lower)) categories.push("datesheet");
+  if (/result|grade|marks|transcript/.test(lower)) categories.push("result");
+  if (/syllabus|syllabi|curriculum|course/.test(lower)) categories.push("syllabus");
+  if (/admission|eligibility|apply|cuet|prospectus/.test(lower)) categories.push("admission");
+  if (/exam|examination/.test(lower)) categories.push("examination");
+  return categories;
+}
+
 async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
   try {
-    // Run two searches in parallel: web pages + PDFs
-    const [webRes, pdfRes] = await Promise.all([
-      fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: `site:cukashmir.ac.in ${query}`,
-          limit: 8,
-          scrapeOptions: { formats: ["markdown"] },
-        }),
-      }),
-      fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: `site:cukashmir.ac.in filetype:pdf ${query}`,
-          limit: 8,
-          scrapeOptions: { formats: ["markdown"] },
-        }),
-      }),
+    // Phase 1: Parallel web + PDF search
+    const [webResults, pdfResults] = await Promise.all([
+      firecrawlSearch(apiKey, `site:cukashmir.ac.in ${query}`, 8),
+      firecrawlSearch(apiKey, `site:cukashmir.ac.in filetype:pdf ${query}`, 5),
     ]);
 
-    const webData = webRes.ok ? await webRes.json() : { data: [] };
-    const pdfData = pdfRes.ok ? await pdfRes.json() : { data: [] };
+    let allResults: FirecrawlSearchResult[] = [...webResults, ...pdfResults];
 
-    if (!webRes.ok) console.error("Firecrawl web search failed:", webRes.status);
-    if (!pdfRes.ok) console.error("Firecrawl PDF search failed:", pdfRes.status);
+    // Phase 2: If results are sparse, scrape fallback pages for deeper content
+    if (allResults.length < 3) {
+      console.log("Sparse results, trying fallback page scraping...");
+      const categories = getFallbackCategories(query);
+      const fallbackUrls = new Set<string>();
+      for (const cat of categories) {
+        for (const url of FALLBACK_PAGES[cat] || []) {
+          fallbackUrls.add(url);
+        }
+      }
+      // Also try broader search without site: restriction on CUK domains
+      const broadResults = await firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5);
+      allResults.push(...broadResults);
 
-    const webResults = Array.isArray(webData.data) ? webData.data : [];
-    const pdfResults = Array.isArray(pdfData.data) ? pdfData.data : [];
-    const allResults = [...webResults, ...pdfResults] as FirecrawlSearchResult[];
+      // Scrape up to 3 fallback pages in parallel for deeper content
+      const urlsToScrape = [...fallbackUrls].slice(0, 3);
+      if (urlsToScrape.length > 0) {
+        const scraped = await Promise.all(
+          urlsToScrape.map((url) => firecrawlScrape(apiKey, url))
+        );
+        for (const result of scraped) {
+          if (result) allResults.push(result);
+        }
+      }
+    }
 
     if (allResults.length === 0) return { context: "", verifiedSources: [] };
 
     const verifiedCandidates: VerifiedSource[] = [];
-
     let context = "\n\n--- LIVE DATA FROM CUK WEBSITE (cukashmir.ac.in) ---\n";
+
     for (const r of allResults) {
       const title = r.title || "Untitled";
       const url = normalizeUrl(r.url) || "";
       const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
-      const isPdf = (url || "").toLowerCase().endsWith(".pdf");
+      const isPdf = isPdfUrl(url || "");
 
       if (url) {
         verifiedCandidates.push({

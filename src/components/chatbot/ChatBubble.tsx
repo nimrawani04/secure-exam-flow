@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -240,8 +241,10 @@ export function ChatBubble() {
                 <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Bot className="h-3 w-3 text-primary" />
                 </div>
-                <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2.5 space-y-2 w-[70%]">
+                  <Skeleton className="h-3 w-[90%]" />
+                  <Skeleton className="h-3 w-[75%]" />
+                  <Skeleton className="h-3 w-[60%]" />
                 </div>
               </div>
             )}
