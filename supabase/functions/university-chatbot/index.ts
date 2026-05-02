@@ -6,157 +6,239 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are a smart, friendly university assistant chatbot for the **Central University of Kashmir (CUK)** integrated into a Confidential Exam Paper Management System. You serve Admin, Teacher, Head of Department (HOD), and Exam Cell users.
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-Your capabilities:
-1. **Central University of Kashmir Information**: Answer ANY question about CUK — admissions, syllabus, results, faculty, departments, contact details, notices, circulars, events, policies, fees, hostel, placements, research, and more. You have access to real-time data scraped from the official CUK website (cukashmir.ac.in), **including PDFs** (prospectus, notifications, ordinances, regulations, annual reports, curriculum documents, etc.). Extract and cite specific details from PDF content when available.
-2. **Exam Paper System Help**: Answer questions about paper upload workflows, submission deadlines, review processes, paper statuses, rollback features, and how the approval pipeline works.
-3. **Role-Based Guidance**: Provide role-specific help:
-   - Teachers: uploading papers, checking submission status, rollback/cancel, assigned subjects, calendar deadlines
-   - HODs: reviewing papers, selecting/rejecting papers, department management, exam sessions, alerts
-   - Exam Cell: managing datesheets, paper inbox, exam sessions, HOD alerts, archive
-   - Admin: user management, departments, audit logs, broadcasts, security
-4. **System Navigation**: Guide users on how to use different features of the platform.
+type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; description?: string };
+type VerifiedSource = { title: string; url: string; content: string; isPdf: boolean; score: number };
+type SearchContext = { context: string; verifiedSources: VerifiedSource[] };
 
-Response Format:
-- **Answer**: Give the direct answer first — no preamble, no steps
-- **Details**: Key extracted information as bullet points if needed
-- **Sources**: If a VERIFIED SOURCE CATALOG is provided, do NOT output a Sources section because the system will append verified links automatically. Otherwise, ALWAYS end your response with a "**Sources:**" section containing DIRECT CLICKABLE LINKS. Format each link as a markdown hyperlink: [Title](https://full-url). Use the EXACT URLs from the scraped data. For PDFs, link directly to the PDF URL. For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
-- NEVER give numbered step-by-step walkthroughs or instructions unless explicitly asked
-- NEVER say "visit the website" or "go to" — instead provide the direct clickable link
-- Be concise — answer in 2-4 sentences when possible
-- Every response MUST include at least one direct source link unless a VERIFIED SOURCE CATALOG is provided, in which case the system will append the direct links
+// ─── RAG-Style Prompt (ported from prompt.py) ────────────────────────────────
 
-Important Rules:
-- Use the provided CUK website context to answer university-related questions accurately
-- ALWAYS use the actual source URLs from scraped data — this is MANDATORY
-- If multiple sources exist, list ALL relevant direct links
-- If the scraped data doesn't contain the answer, provide a direct link to the most relevant CUK page and say the specific info wasn't found
-- Do NOT make up information about specific dates, results, or data you don't have
-- If asked about real-time system data (like specific paper statuses), link directly to the relevant dashboard section
-- Keep responses focused, direct, and actionable
-- Prefer direct links and answers over explanations
-- NEVER invent, rewrite, truncate, or generalize source URLs. If a VERIFIED SOURCE CATALOG is present, only rely on it for external links and do not create your own external links.`;
+const SYSTEM_PROMPT = `You are the official AI assistant for the Central University of Kashmir (CUK), integrated into a Confidential Exam Paper Management System.
 
-type ChatMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
+Answer only from the supplied context when context is provided.
+
+Rules:
+- If the answer is supported by the context, answer clearly and cite sources like [1] or [2].
+- If the answer is only partially supported, say what is confirmed and what is missing.
+- If the answer is not in the context, say exactly: "I don't have that information. Please contact the university office directly."
+- Prefer exact facts, dates, eligibility rules, and links when they exist in the context.
+- Do not invent contact details, deadlines, fees, or policies.
+- For staff/faculty/contact questions, prefer official role/designation and direct contact fields from the context.
+- When the context contains table rows or row-like records, keep values matched to the correct row; do not mix cells from different rows.
+- For count questions, only count what is explicitly listed or stated, and say when the total is incomplete.
+- Start with a direct answer, then add short, well-grouped details that are easy to scan.
+- Use bullets for steps, requirements, dates, or lists when the context contains them.
+- Cite grounded claims. Keep citations tidy — prefer one citation block at the end of a sentence or bullet.
+- Mention official URLs from the context when they directly help the student act on the answer.
+- If a VERIFIED SOURCE CATALOG is provided, do NOT output a Sources section — the system will append verified links automatically. Never invent external links.
+- NEVER give numbered step-by-step walkthroughs unless explicitly asked.
+- NEVER say "visit the website" or "go to" — instead provide the direct clickable link.
+- Be concise — answer in 2-4 sentences when possible, then bullets for details.
+
+Exam Paper System Help:
+- Teachers: uploading papers, checking submission status, rollback/cancel, assigned subjects, calendar deadlines
+- HODs: reviewing papers, selecting/rejecting papers, department management, exam sessions, alerts
+- Exam Cell: managing datesheets, paper inbox, exam sessions, HOD alerts, archive
+- Admin: user management, departments, audit logs, broadcasts, security
+- For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)`;
+
+// ─── Category synonyms (from crawler.py) ────────────────────────────────────
+
+const CATEGORY_SYNONYMS: Record<string, string[]> = {
+  admissions: ["admission", "admissions", "apply", "application", "entrance", "cuet", "merit list", "selection list", "counselling", "prospectus", "eligibility"],
+  fees: ["fee", "fees", "fee structure", "challan", "payment", "tuition", "hostel fee", "refund"],
+  results: ["result", "results", "marksheet", "grade card", "score card", "transcript", "revaluation"],
+  examinations: ["exam", "examination", "datesheet", "date sheet", "schedule", "timetable", "admit card", "hall ticket", "backlog", "supplementary", "reappear"],
+  academics: ["academic", "syllabus", "course", "courses", "programme", "curriculum", "ordinance", "regulation"],
+  faculty: ["faculty", "teacher", "professor", "assistant professor", "associate professor"],
+  departments: ["department", "departments", "school", "schools", "centre", "center"],
+  scholarships: ["scholarship", "fellowship", "stipend", "financial aid"],
+  notices: ["notice", "notification", "circular", "announcement", "office order"],
+  recruitment: ["job", "jobs", "career", "recruitment", "vacancy", "employment", "walk-in"],
+  tenders: ["tender", "tenders", "quotation", "bid", "procurement"],
+  research: ["research", "project", "publication", "phd", "doctoral"],
+  library: ["library", "opac", "e-resource", "journal"],
+  hostels: ["hostel", "hostels", "accommodation"],
+  placements: ["placement", "placements", "internship", "training"],
+  contact: ["contact", "email", "phone", "telephone", "address", "directory"],
+  downloads: ["download", "form", "brochure", "bulletin"],
+  about: ["about", "profile", "vision", "mission", "statute", "act", "chancellor", "vice chancellor", "registrar"],
 };
 
-type FirecrawlSearchResult = {
-  title?: string;
-  url?: string;
-  markdown?: string;
-  description?: string;
-};
+// ─── Follow-up question rewriting (ported from memory.py) ────────────────────
 
-type VerifiedSource = {
-  title: string;
-  url: string;
-  content: string;
-  isPdf: boolean;
-  score: number;
-};
+const REFERENCE_WORD_RE = /\b(he|she|his|her|hers|him|they|them|their|theirs)\b/i;
+const CONTEXTUAL_WORD_RE = /\b(it|its|this|that|these|those|there|same|former|latter|mentioned|above|below)\b/i;
+const FOLLOW_UP_PREFIX_RE = /^\s*(and|also|what about|how about|then|now)\b/i;
+const AMBIGUOUS_FOLLOW_UP_RE = /\b(form\s*(?:no|nos|number)|application\s*(?:no|number)|list|names?|candidates?|selected|eligible|date|time|venue|link|details?)\b/i;
+const SPECIFIC_CONTEXT_RE = /\b(ph\.?\s*d|phd|media studies|communication|journalism|department|school|programme|program|admission|selection|selected|eligible|eligibility|interview|cuet|ug|pg|faculty|professor|teacher|contact|email|phone|syllabus|result|datesheet|notice|exam)\b/i;
+const PERSON_WITH_TITLE_RE = /\b(?:Prof\.?|Professor|Dr\.?|Mr\.?|Mrs\.?|Ms\.?)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/g;
 
-type SearchContext = {
-  context: string;
-  verifiedSources: VerifiedSource[];
-};
-
-const ALLOWED_SOURCE_HOSTS = [
-  "cukashmir.ac.in",
-  "www.cukashmir.ac.in",
-  "cukashmir.samarth.edu.in",
-  "cuet.samarth.ac.in",
-];
-
-const STOPWORDS = new Set([
-  "about", "after", "all", "and", "any", "are", "can", "cuk", "for", "from", "how",
-  "into", "latest", "more", "not", "official", "the", "their", "this", "university", "what",
-  "when", "where", "which", "with", "you",
+const NON_PERSON_PHRASES = new Set([
+  "central university", "university office", "school of", "media studies",
+  "department of", "associate professor", "assistant professor", "professor",
+  "dean", "director", "coordinator", "controller of examinations",
 ]);
 
+function looksContextDependent(query: string): boolean {
+  const clean = (query || "").trim();
+  if (!clean) return false;
+  if (REFERENCE_WORD_RE.test(clean) || CONTEXTUAL_WORD_RE.test(clean) || FOLLOW_UP_PREFIX_RE.test(clean)) return true;
+  return AMBIGUOUS_FOLLOW_UP_RE.test(clean) && !SPECIFIC_CONTEXT_RE.test(clean);
+}
+
+function extractRecentPerson(history: ChatMessage[]): string | null {
+  for (let i = history.length - 1; i >= Math.max(0, history.length - 6); i--) {
+    const text = history[i].content || "";
+    const titled = text.match(PERSON_WITH_TITLE_RE);
+    if (titled) {
+      const candidate = titled[titled.length - 1].trim();
+      const lower = candidate.toLowerCase();
+      if (![...NON_PERSON_PHRASES].some((p) => lower.includes(p))) return candidate;
+    }
+  }
+  return null;
+}
+
+function extractRecentTopic(history: ChatMessage[]): string | null {
+  for (let i = history.length - 1; i >= Math.max(0, history.length - 4); i--) {
+    const text = (history[i].content || "").replace(/\s*Sources:\s*\[\d+(?:,\s*\d+)*\].*$/i, "").replace(/\[[0-9,\s]+\]/g, "").trim();
+    if (SPECIFIC_CONTEXT_RE.test(text)) {
+      return text.length > 220 ? text.slice(0, 220).trim() : text;
+    }
+  }
+  return null;
+}
+
+function rewriteQuery(query: string, history: ChatMessage[]): string {
+  if (!history.length || !looksContextDependent(query)) return query;
+
+  let rewritten = query;
+  const person = extractRecentPerson(history);
+  if (person) {
+    rewritten = rewritten.replace(/\bhis\b/gi, `${person}'s`);
+    rewritten = rewritten.replace(/\bher\b/gi, `${person}'s`);
+    rewritten = rewritten.replace(/\bhim\b/gi, person);
+    rewritten = rewritten.replace(/\bhe\b/gi, person);
+    rewritten = rewritten.replace(/\bshe\b/gi, person);
+  }
+
+  const topic = extractRecentTopic(history);
+  const stillAmbiguous = /\b(they|them|their|theirs|there|these|those|mentioned|above|below)\b/i.test(rewritten)
+    || AMBIGUOUS_FOLLOW_UP_RE.test(rewritten)
+    || CONTEXTUAL_WORD_RE.test(rewritten)
+    || FOLLOW_UP_PREFIX_RE.test(rewritten);
+
+  if (topic && stillAmbiguous && !rewritten.toLowerCase().includes(topic.toLowerCase().slice(0, 40))) {
+    rewritten = `${rewritten.replace(/[?\s]+$/, "")}; context: ${topic}`;
+  }
+
+  return rewritten;
+}
+
+// ─── Follow-up suggestions (ported from app.py) ─────────────────────────────
+
+const FOLLOW_UP_LIBRARY: Record<string, string[]> = {
+  admissions: [
+    "What documents are required for admission?",
+    "What is the eligibility criteria?",
+    "Where can I find the official admission notice?",
+  ],
+  departments: [
+    "Which department should I contact for this?",
+    "Show me the relevant faculty or office details.",
+    "What programmes are offered in this department?",
+  ],
+  contact: [
+    "Do you have the official email or phone number?",
+    "Which office handles this process?",
+  ],
+  examinations: [
+    "Where can I check the latest exam notice?",
+    "What dates are confirmed in the official notice?",
+  ],
+  general: [
+    "Can you summarize the most important points?",
+    "Show me the official sources for this answer.",
+  ],
+};
+
+function detectCategory(query: string): string {
+  const lower = (query || "").toLowerCase();
+  if (/admission|apply|eligibility|cuet/.test(lower)) return "admissions";
+  if (/faculty|teacher|professor|contact|email|phone/.test(lower)) return "contact";
+  if (/exam|examination|datesheet|result/.test(lower)) return "examinations";
+  if (/department|programme|course|school/.test(lower)) return "departments";
+  return "general";
+}
+
+function getFollowUpSuggestions(query: string): string[] {
+  const category = detectCategory(query);
+  const pool = [...(FOLLOW_UP_LIBRARY[category] || []), ...(FOLLOW_UP_LIBRARY.general || [])];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const s of pool) {
+    const key = s.toLowerCase();
+    if (seen.has(key) || key === query.toLowerCase()) continue;
+    seen.add(key);
+    result.push(s);
+    if (result.length === 3) break;
+  }
+  return result;
+}
+
+// ─── URL & Source Helpers ────────────────────────────────────────────────────
+
+const ALLOWED_SOURCE_HOSTS = ["cukashmir.ac.in", "www.cukashmir.ac.in", "cukashmir.samarth.edu.in", "cuet.samarth.ac.in", "results.cukashmir.in"];
+const STOPWORDS = new Set(["about", "after", "all", "and", "any", "are", "can", "cuk", "for", "from", "how", "into", "latest", "more", "not", "official", "the", "their", "this", "university", "what", "when", "where", "which", "with", "you"]);
+
 function tokenize(text: string): string[] {
-  return [...new Set(
-    text
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((token) => token.length > 2 && !STOPWORDS.has(token)),
-  )];
+  return [...new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t)))];
 }
 
 function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | null {
   if (!rawUrl) return null;
-
   const trimmed = rawUrl.trim().replace(/^<|>$/g, "");
-  if (!trimmed || trimmed.startsWith("javascript:") || trimmed.startsWith("mailto:")) {
-    return null;
-  }
-
+  if (!trimmed || trimmed.startsWith("javascript:") || trimmed.startsWith("mailto:")) return null;
   try {
     const url = baseUrl ? new URL(trimmed, baseUrl) : new URL(trimmed);
     if (!["http:", "https:"].includes(url.protocol)) return null;
     return url.toString();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function isAllowedSourceUrl(url: string): boolean {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    return ALLOWED_SOURCE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
-  } catch {
-    return false;
-  }
+    return ALLOWED_SOURCE_HOSTS.some((h) => hostname === h || hostname.endsWith(`.${h}`));
+  } catch { return false; }
 }
 
-function isPdfUrl(url: string): boolean {
-  return /\.pdf(?:$|[?#])/i.test(url);
-}
+function isPdfUrl(url: string): boolean { return /\.pdf(?:$|[?#])/i.test(url); }
 
 function deriveTitleFromUrl(url: string): string {
   try {
-    const pathname = new URL(url).pathname;
-    const lastSegment = pathname.split("/").filter(Boolean).pop() || "Source";
-    return decodeURIComponent(lastSegment)
-      .replace(/\.[a-z0-9]+$/i, "")
-      .replace(/[-_]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  } catch {
-    return "Source";
-  }
+    const seg = new URL(url).pathname.split("/").filter(Boolean).pop() || "Source";
+    return decodeURIComponent(seg).replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  } catch { return "Source"; }
 }
 
 function cleanTitle(title: string | undefined, url: string): string {
-  const cleaned = (title || "")
-    .replace(/[*_`>#]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!cleaned || /^(click here|read more|download|view|open)$/i.test(cleaned)) {
-    return deriveTitleFromUrl(url);
-  }
-
+  const cleaned = (title || "").replace(/[*_`>#]/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned || /^(click here|read more|download|view|open)$/i.test(cleaned)) return deriveTitleFromUrl(url);
   return cleaned;
 }
 
-function escapeLinkTitle(title: string): string {
-  return title.replace(/[\[\]]/g, "").trim();
-}
+function escapeLinkTitle(title: string): string { return title.replace(/[\[\]]/g, "").trim(); }
 
 function scoreSource(query: string, candidate: { title: string; url: string; content: string; isPdf: boolean }): number {
   const haystack = `${candidate.title} ${candidate.url} ${candidate.content}`.toLowerCase();
   const queryLower = query.toLowerCase();
   const queryTerms = tokenize(query);
-
   let score = 0;
-
-  for (const term of queryTerms) {
-    if (haystack.includes(term)) score += 4;
-  }
-
+  for (const term of queryTerms) { if (haystack.includes(term)) score += 4; }
   if (candidate.isPdf) score += queryLower.includes("pdf") ? 8 : 4;
   if (/notice|notification|circular/.test(haystack) && /notice|notification|circular/.test(queryLower)) score += 6;
   if (/result|results/.test(haystack) && /result/.test(queryLower)) score += 6;
@@ -165,253 +247,168 @@ function scoreSource(query: string, candidate: { title: string; url: string; con
   if (/admission|eligibility|prospectus/.test(haystack) && /admission|eligibility|prospectus/.test(queryLower)) score += 6;
   if (/displayevents\.aspx|examination\.aspx/.test(candidate.url)) score += 2;
   if (/contactus|gallery|tender|home|index/.test(candidate.url)) score -= 3;
-
   return score;
 }
 
 function extractMarkdownLinks(markdown: string, baseUrl: string, parentTitle: string, query: string): VerifiedSource[] {
   const candidates: VerifiedSource[] = [];
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const directUrlRegex = /https?:\/\/[^\s)\]]+/g;
+  const mdLinkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const directUrlRe = /https?:\/\/[^\s)\]]+/g;
+  const content = markdown.slice(0, 4000);
 
-  for (const match of markdown.matchAll(markdownLinkRegex)) {
-    const url = normalizeUrl(match[2], baseUrl);
+  for (const m of markdown.matchAll(mdLinkRe)) {
+    const url = normalizeUrl(m[2], baseUrl);
     if (!url) continue;
-
-    const title = cleanTitle(match[1], url);
-    const content = markdown.slice(0, 4000);
-    candidates.push({
-      title,
-      url,
-      content,
-      isPdf: isPdfUrl(url),
-      score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }),
-    });
+    const title = cleanTitle(m[1], url);
+    candidates.push({ title, url, content, isPdf: isPdfUrl(url), score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) });
   }
-
-  for (const match of markdown.matchAll(directUrlRegex)) {
-    const url = normalizeUrl(match[0], baseUrl);
+  for (const m of markdown.matchAll(directUrlRe)) {
+    const url = normalizeUrl(m[0], baseUrl);
     if (!url) continue;
-
     const title = cleanTitle(parentTitle, url);
-    const content = markdown.slice(0, 4000);
-    candidates.push({
-      title,
-      url,
-      content,
-      isPdf: isPdfUrl(url),
-      score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }),
-    });
+    candidates.push({ title, url, content, isPdf: isPdfUrl(url), score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) });
   }
-
   return candidates;
 }
 
 function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
   const deduped = new Map<string, VerifiedSource>();
-
-  for (const source of sources) {
-    const existing = deduped.get(source.url);
-    if (!existing || source.score > existing.score || source.title.length > existing.title.length) {
-      deduped.set(source.url, source);
-    }
+  for (const s of sources) {
+    const existing = deduped.get(s.url);
+    if (!existing || s.score > existing.score || s.title.length > existing.title.length) deduped.set(s.url, s);
   }
-
-  return [...deduped.values()]
-    .sort((a, b) => b.score - a.score || Number(b.isPdf) - Number(a.isPdf) || a.title.localeCompare(b.title))
-    .slice(0, limit);
+  return [...deduped.values()].sort((a, b) => b.score - a.score || Number(b.isPdf) - Number(a.isPdf)).slice(0, limit);
 }
 
 async function verifySourceUrl(url: string): Promise<boolean> {
   if (!isAllowedSourceUrl(url)) return false;
-
   try {
-    const headResponse = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      headers: { "User-Agent": "Mozilla/5.0 LovableBot/1.0" },
-    });
-
-    if (headResponse.ok) return true;
-  } catch {
-    // fall through to GET fallback
-  }
-
+    const r = await fetch(url, { method: "HEAD", redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
+    if (r.ok) return true;
+  } catch { /* fall through */ }
   try {
-    const getResponse = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        Range: "bytes=0-0",
-        "User-Agent": "Mozilla/5.0 LovableBot/1.0",
-      },
-    });
-
-    return getResponse.ok;
-  } catch {
-    return false;
-  }
+    const r = await fetch(url, { method: "GET", redirect: "follow", headers: { Range: "bytes=0-0", "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
+    return r.ok;
+  } catch { return false; }
 }
 
 async function filterWorkingSources(sources: VerifiedSource[], limit: number): Promise<VerifiedSource[]> {
-  const checked = await Promise.all(
-    sources.slice(0, 12).map(async (source) => ({
-      source,
-      ok: await verifySourceUrl(source.url),
-    })),
-  );
-
-  return checked
-    .filter((entry) => entry.ok)
-    .map((entry) => entry.source)
-    .slice(0, limit);
+  const checked = await Promise.all(sources.slice(0, 12).map(async (s) => ({ s, ok: await verifySourceUrl(s.url) })));
+  return checked.filter((e) => e.ok).map((e) => e.s).slice(0, limit);
 }
 
 function formatSourcesSection(sources: VerifiedSource[]): string {
-  return `**Sources:**\n${sources
-    .map((source) => `- [${escapeLinkTitle(source.title)}](${source.url})`)
-    .join("\n")}`;
+  return `**Sources:**\n${sources.map((s) => `- [${escapeLinkTitle(s.title)}](${s.url})`).join("\n")}`;
 }
 
 function stripSourcesSection(content: string): string {
-  return content
-    .replace(/\n{0,2}\*\*Sources:\*\*[\s\S]*$/i, "")
-    .replace(/\n{0,2}Sources:[\s\S]*$/i, "")
-    .trim();
+  return content.replace(/\n{0,2}\*\*Sources:\*\*[\s\S]*$/i, "").replace(/\n{0,2}Sources:[\s\S]*$/i, "").trim();
 }
+
+// ─── Firecrawl helpers ───────────────────────────────────────────────────────
 
 async function firecrawlSearch(apiKey: string, searchQuery: string, limit = 8): Promise<FirecrawlSearchResult[]> {
   try {
     const res = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit,
-        scrapeOptions: { formats: ["markdown"] },
-      }),
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: searchQuery, limit, scrapeOptions: { formats: ["markdown"] } }),
     });
-    if (!res.ok) {
-      console.error("Firecrawl search failed:", res.status);
-      return [];
-    }
+    if (!res.ok) { console.error("Firecrawl search failed:", res.status); return []; }
     const data = await res.json();
     return Array.isArray(data.data) ? data.data : [];
-  } catch (e) {
-    console.error("Firecrawl search error:", e);
-    return [];
-  }
+  } catch (e) { console.error("Firecrawl search error:", e); return []; }
 }
 
 async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSearchResult | null> {
   try {
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        formats: ["markdown"],
-        onlyMainContent: true,
-      }),
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return {
-      title: data.data?.metadata?.title || "CUK Page",
-      url: data.data?.metadata?.sourceURL || url,
-      markdown: data.data?.markdown || "",
-    };
-  } catch {
-    return null;
-  }
+    return { title: data.data?.metadata?.title || "CUK Page", url: data.data?.metadata?.sourceURL || url, markdown: data.data?.markdown || "" };
+  } catch { return null; }
 }
 
-// Known CUK notice/resource pages for fallback deep scraping
+// ─── Search expansion (category-aware, from crawler.py synonyms) ─────────────
+
+function expandQueryForSearch(query: string): string[] {
+  const lower = query.toLowerCase();
+  const extraTerms: string[] = [];
+  for (const [, synonyms] of Object.entries(CATEGORY_SYNONYMS)) {
+    if (synonyms.some((s) => lower.includes(s))) {
+      for (const s of synonyms) {
+        if (!lower.includes(s) && s.length > 3) extraTerms.push(s);
+      }
+    }
+  }
+  // Return top 3 expansion terms
+  return extraTerms.slice(0, 3);
+}
+
+// ─── Fallback pages ──────────────────────────────────────────────────────────
+
 const FALLBACK_PAGES: Record<string, string[]> = {
-  notice: [
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-    "https://www.cukashmir.ac.in/notices.aspx",
-    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
-  ],
-  datesheet: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-  ],
-  result: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
-  ],
-  syllabus: [
-    "https://www.cukashmir.ac.in/departments.aspx",
-    "https://www.cukashmir.ac.in/academics.aspx",
-  ],
-  admission: [
-    "https://www.cukashmir.ac.in/admissions.aspx",
-    "https://cuet.samarth.ac.in",
-  ],
-  examination: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-  ],
+  notice: ["https://www.cukashmir.ac.in/displayevents.aspx", "https://www.cukashmir.ac.in/notices.aspx", "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard"],
+  datesheet: ["https://www.cukashmir.ac.in/examination.aspx", "https://www.cukashmir.ac.in/displayevents.aspx"],
+  result: ["https://www.cukashmir.ac.in/examination.aspx", "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard"],
+  syllabus: ["https://www.cukashmir.ac.in/departments.aspx", "https://www.cukashmir.ac.in/academics.aspx"],
+  admission: ["https://www.cukashmir.ac.in/admissions.aspx", "https://cuet.samarth.ac.in"],
+  examination: ["https://www.cukashmir.ac.in/examination.aspx"],
 };
 
 function getFallbackCategories(query: string): string[] {
   const lower = query.toLowerCase();
-  const categories: string[] = [];
-  if (/notice|notification|circular|announcement/.test(lower)) categories.push("notice");
-  if (/datesheet|date sheet|backlog|schedule/.test(lower)) categories.push("datesheet");
-  if (/result|grade|marks|transcript/.test(lower)) categories.push("result");
-  if (/syllabus|syllabi|curriculum|course/.test(lower)) categories.push("syllabus");
-  if (/admission|eligibility|apply|cuet|prospectus/.test(lower)) categories.push("admission");
-  if (/exam|examination/.test(lower)) categories.push("examination");
-  return categories;
+  const cats: string[] = [];
+  if (/notice|notification|circular|announcement/.test(lower)) cats.push("notice");
+  if (/datesheet|date sheet|backlog|schedule/.test(lower)) cats.push("datesheet");
+  if (/result|grade|marks|transcript/.test(lower)) cats.push("result");
+  if (/syllabus|syllabi|curriculum|course/.test(lower)) cats.push("syllabus");
+  if (/admission|eligibility|apply|cuet|prospectus/.test(lower)) cats.push("admission");
+  if (/exam|examination/.test(lower)) cats.push("examination");
+  return cats;
 }
+
+// ─── Main search ─────────────────────────────────────────────────────────────
 
 async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
   try {
+    // Expand query with category synonyms
+    const expansions = expandQueryForSearch(query);
+    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.join(" ")}` : query;
+
     // Phase 1: Parallel web + PDF search
     const [webResults, pdfResults] = await Promise.all([
-      firecrawlSearch(apiKey, `site:cukashmir.ac.in ${query}`, 8),
+      firecrawlSearch(apiKey, `site:cukashmir.ac.in ${expandedQuery}`, 8),
       firecrawlSearch(apiKey, `site:cukashmir.ac.in filetype:pdf ${query}`, 5),
     ]);
 
     let allResults: FirecrawlSearchResult[] = [...webResults, ...pdfResults];
 
-    // Phase 2: If results are sparse, scrape fallback pages for deeper content
+    // Phase 2: Fallback if sparse
     if (allResults.length < 3) {
-      console.log("Sparse results, trying fallback page scraping...");
+      console.log("Sparse results, trying fallback...");
       const categories = getFallbackCategories(query);
       const fallbackUrls = new Set<string>();
       for (const cat of categories) {
-        for (const url of FALLBACK_PAGES[cat] || []) {
-          fallbackUrls.add(url);
-        }
+        for (const url of FALLBACK_PAGES[cat] || []) fallbackUrls.add(url);
       }
-      // Also try broader search without site: restriction on CUK domains
-      const broadResults = await firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5);
+      const [broadResults, ...scraped] = await Promise.all([
+        firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5),
+        ...[...fallbackUrls].slice(0, 3).map((url) => firecrawlScrape(apiKey, url)),
+      ]);
       allResults.push(...broadResults);
-
-      // Scrape up to 3 fallback pages in parallel for deeper content
-      const urlsToScrape = [...fallbackUrls].slice(0, 3);
-      if (urlsToScrape.length > 0) {
-        const scraped = await Promise.all(
-          urlsToScrape.map((url) => firecrawlScrape(apiKey, url))
-        );
-        for (const result of scraped) {
-          if (result) allResults.push(result);
-        }
-      }
+      for (const r of scraped) { if (r) allResults.push(r); }
     }
 
     if (allResults.length === 0) return { context: "", verifiedSources: [] };
 
     const verifiedCandidates: VerifiedSource[] = [];
-    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE (cukashmir.ac.in) ---\n";
+    const contextParts: string[] = [];
+    let idx = 0;
 
     for (const r of allResults) {
       const title = r.title || "Untitled";
@@ -420,34 +417,30 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       const isPdf = isPdfUrl(url || "");
 
       if (url) {
-        verifiedCandidates.push({
-          title: cleanTitle(title, url),
-          url,
-          content,
-          isPdf,
-          score: scoreSource(query, { title, url, content, isPdf }),
-        });
+        verifiedCandidates.push({ title: cleanTitle(title, url), url, content, isPdf, score: scoreSource(query, { title, url, content, isPdf }) });
       }
-
       if (url && content) {
         verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
       }
 
-      context += `\n### Source${isPdf ? " (PDF)" : ""}: ${title}\nURL: ${url}\n${content}\n`;
+      idx++;
+      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content}`);
     }
 
     const rankedSources = dedupeAndRankSources(verifiedCandidates, 10);
     const verifiedSources = await filterWorkingSources(rankedSources, 6);
 
+    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
+
     if (verifiedSources.length > 0) {
-      context += "\n--- VERIFIED SOURCE CATALOG ---\n";
-      for (const source of verifiedSources) {
-        context += `- ${source.title}${source.isPdf ? " (PDF)" : ""}: ${source.url}\n`;
+      context += "\n\n--- VERIFIED SOURCE CATALOG ---\n";
+      for (const s of verifiedSources) {
+        context += `- ${s.title}${s.isPdf ? " (PDF)" : ""}: ${s.url}\n`;
       }
     }
 
     context += "\n--- END OF SCRAPED DATA ---\n";
-    context += "\nIMPORTANT: Use the above data to answer the user's question. If a VERIFIED SOURCE CATALOG is present, rely on it for external links and do not generate your own Sources section because verified links will be appended automatically. Never mention a source title unless it exists in the data above.";
+    context += "\nIMPORTANT: Use the above data to answer. If a VERIFIED SOURCE CATALOG is present, rely on it for external links. Never mention a source title unless it exists in the data above.";
 
     return { context, verifiedSources };
   } catch (e) {
@@ -456,27 +449,27 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
   }
 }
 
+// ─── University query detection ──────────────────────────────────────────────
+
 function isUniversityQuery(message: string): boolean {
   const lower = message.toLowerCase();
-  const keywords = [
-    "cuk", "central university", "kashmir", "admission", "syllabus", "result",
-    "faculty", "department", "contact", "notice", "circular", "fee", "hostel",
-    "placement", "research", "campus", "exam date", "course", "program",
-    "phd", "mba", "mca", "btech", "bsc", "msc", "semester", "university",
-    "chancellor", "vice chancellor", "registrar", "dean", "professor",
-    "scholarship", "library", "nss", "ncc", "sports", "tender", "recruitment",
-    "convocation", "holiday", "academic calendar", "time table", "timetable",
-    "who is", "what is", "tell me about", "information about", "details of",
-    "how to apply", "eligibility", "cutoff", "merit", "counselling",
-    "pdf", "document", "notification", "ordinance", "regulation", "statute",
-    "prospectus", "brochure", "annual report", "minutes", "curriculum",
-    "anti ragging", "rti", "grievance", "handbook", "rule", "policy",
-    "datesheet", "date sheet", "backlog", "backlogs", "notices", "notifications",
-    "results", "exam result", "exam results", "syllabi", "exam notice", "exam notices",
-    "supplementary", "reappear", "arrear", "schedule", "exam schedule",
-  ];
-  return keywords.some((k) => lower.includes(k));
+  const allKeywords = new Set<string>();
+  for (const synonyms of Object.values(CATEGORY_SYNONYMS)) {
+    for (const s of synonyms) allKeywords.add(s);
+  }
+  // Add extra keywords
+  for (const k of [
+    "cuk", "central university", "kashmir", "university", "chancellor", "vice chancellor",
+    "phd", "mba", "mca", "btech", "bsc", "msc", "semester", "nss", "ncc", "sports",
+    "convocation", "holiday", "academic calendar", "anti ragging", "rti", "grievance",
+    "handbook", "rule", "policy", "who is", "what is", "tell me about", "how to apply",
+    "cutoff", "merit", "annual report", "minutes", "pdf", "document",
+  ]) allKeywords.add(k);
+
+  return [...allKeywords].some((k) => lower.includes(k));
 }
+
+// ─── Serve ───────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -487,99 +480,81 @@ serve(async (req) => {
     const { messages } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Messages array is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Messages array is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "AI service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Get the latest user message to determine if we need to search CUK
     const lastUserMessage = [...messages].reverse().find((m: ChatMessage) => m.role === "user");
     let cukContext = "";
     let verifiedSources: VerifiedSource[] = [];
+    let followUpSuggestions: string[] = [];
 
     if (lastUserMessage) {
       const userText = lastUserMessage.content || "";
       const FIRECRAWL_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
-      if (FIRECRAWL_KEY && isUniversityQuery(userText)) {
-        console.log("Searching CUK website for:", userText);
-        const searchResult = await searchCUK(userText, FIRECRAWL_KEY);
+      // Rewrite follow-up queries using conversation history
+      const searchQuery = rewriteQuery(userText, messages.slice(0, -1));
+      if (searchQuery !== userText) {
+        console.log("Rewritten query:", searchQuery);
+      }
+
+      if (FIRECRAWL_KEY && isUniversityQuery(searchQuery)) {
+        console.log("Searching CUK website for:", searchQuery);
+        const searchResult = await searchCUK(searchQuery, FIRECRAWL_KEY);
         cukContext = searchResult.context;
         verifiedSources = searchResult.verifiedSources;
       }
+
+      followUpSuggestions = getFollowUpSuggestions(userText);
     }
 
-    const systemMessage = cukContext
-      ? SYSTEM_PROMPT + cukContext
-      : SYSTEM_PROMPT;
+    const systemMessage = cukContext ? SYSTEM_PROMPT + cukContext : SYSTEM_PROMPT;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemMessage },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemMessage }, ...messages],
         stream: false,
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI service credits exhausted. Please contact admin." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "AI service credits exhausted. Please contact admin." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const text = await response.text();
       console.error("AI gateway error:", response.status, text);
-      return new Response(
-        JSON.stringify({ error: "AI service error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "AI service error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const completion = await response.json();
     const aiContent = completion?.choices?.[0]?.message?.content;
 
     if (!aiContent || typeof aiContent !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Invalid AI response" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid AI response" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const cleanContent = stripSourcesSection(aiContent);
     const fallbackSources = verifiedSources.length > 0
       ? verifiedSources
       : (lastUserMessage && isUniversityQuery(lastUserMessage.content || ""))
-        ? [{
-            title: "Central University of Kashmir",
-            url: "https://www.cukashmir.ac.in",
-            content: "",
-            isPdf: false,
-            score: 0,
-          }]
+        ? [{ title: "Central University of Kashmir", url: "https://www.cukashmir.ac.in", content: "", isPdf: false, score: 0 }]
         : [];
 
     const finalContent = fallbackSources.length > 0
@@ -593,6 +568,7 @@ serve(async (req) => {
         created: completion?.created || Math.floor(Date.now() / 1000),
         model: completion?.model || "google/gemini-3-flash-preview",
         choices: [{ index: 0, delta: { role: "assistant", content: finalContent }, finish_reason: "stop" }],
+        follow_up_suggestions: followUpSuggestions,
       })}`,
       "",
       "data: [DONE]",
@@ -604,9 +580,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Chatbot error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
