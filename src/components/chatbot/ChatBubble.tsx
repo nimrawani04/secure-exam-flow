@@ -16,7 +16,7 @@ async function streamChat({
   onError,
 }: {
   messages: Message[];
-  onDelta: (text: string) => void;
+  onDelta: (text: string, suggestions?: string[]) => void;
   onDone: () => void;
   onError: (msg: string) => void;
 }) {
@@ -59,7 +59,8 @@ async function streamChat({
       try {
         const parsed = JSON.parse(json);
         const content = parsed.choices?.[0]?.delta?.content;
-        if (content) onDelta(content);
+        const suggestions = parsed.follow_up_suggestions;
+        if (content) onDelta(content, suggestions);
       } catch {
         buffer = line + '\n' + buffer;
         break;
@@ -81,6 +82,7 @@ export function ChatBubble() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [followUps, setFollowUps] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -88,7 +90,7 @@ export function ChatBubble() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, followUps]);
 
   useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
@@ -100,10 +102,14 @@ export function ChatBubble() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
+    setFollowUps([]);
 
     let assistantSoFar = '';
-    const upsert = (chunk: string) => {
+    let latestSuggestions: string[] = [];
+
+    const upsert = (chunk: string, suggestions?: string[]) => {
       assistantSoFar += chunk;
+      if (suggestions && suggestions.length > 0) latestSuggestions = suggestions;
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
@@ -117,7 +123,10 @@ export function ChatBubble() {
       await streamChat({
         messages: [...messages, userMsg],
         onDelta: upsert,
-        onDone: () => setIsLoading(false),
+        onDone: () => {
+          setIsLoading(false);
+          if (latestSuggestions.length > 0) setFollowUps(latestSuggestions);
+        },
         onError: (msg) => {
           upsert(`⚠️ ${msg}`);
           setIsLoading(false);
@@ -138,7 +147,6 @@ export function ChatBubble() {
 
   return (
     <>
-      {/* Floating button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -149,7 +157,6 @@ export function ChatBubble() {
         </button>
       )}
 
-      {/* Chat panel */}
       {open && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
@@ -165,7 +172,7 @@ export function ChatBubble() {
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMessages([])} title="Clear chat">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setMessages([]); setFollowUps([]); }} title="Clear chat">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -184,7 +191,7 @@ export function ChatBubble() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">How can I help you?</p>
-                  <p className="text-xs text-muted-foreground mt-1">Ask anything about the exam paper system</p>
+                  <p className="text-xs text-muted-foreground mt-1">Ask anything about CUK or the exam paper system</p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 w-full max-w-[280px]">
                   {SUGGESTIONS.map(s => (
@@ -199,42 +206,59 @@ export function ChatBubble() {
                 </div>
               </div>
             ) : (
-              messages.map((m, i) => (
-                <div key={i} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                  {m.role === 'assistant' && (
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-3 w-3 text-primary" />
-                    </div>
-                  )}
-                  <div className={cn(
-                    'max-w-[80%] rounded-xl px-3 py-2 text-sm',
-                    m.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-sm'
-                      : 'bg-muted rounded-bl-sm'
-                  )}>
-                    {m.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
-                        <ReactMarkdown
-                          components={{
-                            a: ({ href, children }) => (
-                              <a href={href} target="_blank" rel="noopener noreferrer">
-                                {children}
-                              </a>
-                            ),
-                          }}
-                        >{m.content}</ReactMarkdown>
+              <>
+                {messages.map((m, i) => (
+                  <div key={i} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                    {m.role === 'assistant' && (
+                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <Bot className="h-3 w-3 text-primary" />
                       </div>
-                    ) : (
-                      <span>{m.content}</span>
+                    )}
+                    <div className={cn(
+                      'max-w-[80%] rounded-xl px-3 py-2 text-sm',
+                      m.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-sm'
+                        : 'bg-muted rounded-bl-sm'
+                    )}>
+                      {m.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
+                          <ReactMarkdown
+                            components={{
+                              a: ({ href, children }) => (
+                                <a href={href} target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                            }}
+                          >{m.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <span>{m.content}</span>
+                      )}
+                    </div>
+                    {m.role === 'user' && (
+                      <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
+                        <User className="h-3 w-3" />
+                      </div>
                     )}
                   </div>
-                  {m.role === 'user' && (
-                    <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="h-3 w-3" />
-                    </div>
-                  )}
-                </div>
-              ))
+                ))}
+
+                {/* Follow-up suggestion chips */}
+                {!isLoading && followUps.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pl-8">
+                    {followUps.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => sendMessage(s)}
+                        className="text-[11px] px-2.5 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
               <div className="flex gap-2">
@@ -242,6 +266,7 @@ export function ChatBubble() {
                   <Bot className="h-3 w-3 text-primary" />
                 </div>
                 <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2.5 space-y-2 w-[70%]">
+                  <p className="text-[10px] text-muted-foreground mb-1.5">Searching CUK website...</p>
                   <Skeleton className="h-3 w-[90%]" />
                   <Skeleton className="h-3 w-[75%]" />
                   <Skeleton className="h-3 w-[60%]" />
