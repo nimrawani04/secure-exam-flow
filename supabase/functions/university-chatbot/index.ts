@@ -616,17 +616,24 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       allResults.push(...broadResults);
 
       // Phase 3: One-level-deeper hop. From each scraped index page, pick the
-      // most promising sub-links (PDFs and category-relevant pages) and scrape them.
+      // most promising sub-links (category-relevant pages) AND any direct .pdf
+      // links the PDF detector finds in HTML/markdown, then scrape them.
       const deepTargets = new Set<string>();
       for (const page of indexScrapes) {
-        if (!page?.markdown || !page.url) continue;
+        if (!page?.url) continue;
         allResults.push(page);
-        for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
-          deepTargets.add(link);
+        // Direct PDF hits get priority — add them straight to deep targets
+        const pdfHits = extractPdfLinks({ html: page.html, markdown: page.markdown, baseUrl: page.url, parentTitle: page.title });
+        for (const h of pdfHits) deepTargets.add(h.url);
+        // Then category-relevant sub-pages from markdown
+        if (page.markdown) {
+          for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
+            deepTargets.add(link);
+          }
         }
       }
       // Cap deep hop to keep latency bounded
-      const deepUrls = [...deepTargets].slice(0, 5);
+      const deepUrls = [...deepTargets].slice(0, 6);
       if (deepUrls.length > 0) {
         console.log("Deep hop into", deepUrls.length, "discovered links");
         const deepScrapes = await Promise.all(deepUrls.map((url) => firecrawlScrape(apiKey, url)));
