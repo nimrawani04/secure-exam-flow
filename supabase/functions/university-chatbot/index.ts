@@ -9,7 +9,7 @@ const corsHeaders = {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; description?: string };
+type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; html?: string; description?: string };
 type VerifiedSource = { title: string; url: string; content: string; isPdf: boolean; score: number };
 type SearchContext = { context: string; verifiedSources: VerifiedSource[] };
 
