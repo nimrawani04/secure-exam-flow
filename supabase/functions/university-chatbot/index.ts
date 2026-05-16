@@ -352,24 +352,137 @@ function expandQueryForSearch(query: string): string[] {
 // ─── Fallback pages ──────────────────────────────────────────────────────────
 
 const FALLBACK_PAGES: Record<string, string[]> = {
-  notice: ["https://www.cukashmir.ac.in/displayevents.aspx", "https://www.cukashmir.ac.in/notices.aspx", "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard"],
-  datesheet: ["https://www.cukashmir.ac.in/examination.aspx", "https://www.cukashmir.ac.in/displayevents.aspx"],
-  result: ["https://www.cukashmir.ac.in/examination.aspx", "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard"],
-  syllabus: ["https://www.cukashmir.ac.in/departments.aspx", "https://www.cukashmir.ac.in/academics.aspx"],
-  admission: ["https://www.cukashmir.ac.in/admissions.aspx", "https://cuet.samarth.ac.in"],
-  examination: ["https://www.cukashmir.ac.in/examination.aspx"],
+  notice: [
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+    "https://www.cukashmir.ac.in/notices.aspx",
+    "https://www.cukashmir.ac.in/news.aspx",
+    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
+  ],
+  datesheet: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+    "https://www.cukashmir.ac.in/examnotices.aspx",
+  ],
+  result: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+    "https://www.cukashmir.ac.in/results.aspx",
+    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
+  ],
+  syllabus: [
+    "https://www.cukashmir.ac.in/departments.aspx",
+    "https://www.cukashmir.ac.in/academics.aspx",
+    "https://www.cukashmir.ac.in/schools.aspx",
+    "https://www.cukashmir.ac.in/courses.aspx",
+  ],
+  admission: [
+    "https://www.cukashmir.ac.in/admissions.aspx",
+    "https://www.cukashmir.ac.in/prospectus.aspx",
+    "https://cuet.samarth.ac.in",
+  ],
+  examination: [
+    "https://www.cukashmir.ac.in/examination.aspx",
+    "https://www.cukashmir.ac.in/examnotices.aspx",
+  ],
+  recruitment: [
+    "https://www.cukashmir.ac.in/recruitment.aspx",
+    "https://www.cukashmir.ac.in/careers.aspx",
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+  ],
+  tender: [
+    "https://www.cukashmir.ac.in/tenders.aspx",
+    "https://www.cukashmir.ac.in/displayevents.aspx",
+  ],
+  scholarship: [
+    "https://www.cukashmir.ac.in/scholarships.aspx",
+    "https://www.cukashmir.ac.in/students.aspx",
+  ],
+  fees: [
+    "https://www.cukashmir.ac.in/feestructure.aspx",
+    "https://www.cukashmir.ac.in/admissions.aspx",
+  ],
+  faculty: [
+    "https://www.cukashmir.ac.in/departments.aspx",
+    "https://www.cukashmir.ac.in/schools.aspx",
+    "https://www.cukashmir.ac.in/faculty.aspx",
+  ],
+  department: [
+    "https://www.cukashmir.ac.in/departments.aspx",
+    "https://www.cukashmir.ac.in/schools.aspx",
+  ],
+  download: [
+    "https://www.cukashmir.ac.in/downloads.aspx",
+    "https://www.cukashmir.ac.in/forms.aspx",
+  ],
+  contact: [
+    "https://www.cukashmir.ac.in/contactus.aspx",
+    "https://www.cukashmir.ac.in/directory.aspx",
+  ],
+  about: [
+    "https://www.cukashmir.ac.in/aboutus.aspx",
+    "https://www.cukashmir.ac.in/administration.aspx",
+  ],
 };
 
 function getFallbackCategories(query: string): string[] {
   const lower = query.toLowerCase();
   const cats: string[] = [];
-  if (/notice|notification|circular|announcement/.test(lower)) cats.push("notice");
-  if (/datesheet|date sheet|backlog|schedule/.test(lower)) cats.push("datesheet");
-  if (/result|grade|marks|transcript/.test(lower)) cats.push("result");
-  if (/syllabus|syllabi|curriculum|course/.test(lower)) cats.push("syllabus");
-  if (/admission|eligibility|apply|cuet|prospectus/.test(lower)) cats.push("admission");
-  if (/exam|examination/.test(lower)) cats.push("examination");
+  if (/notice|notification|circular|announcement|office order/.test(lower)) cats.push("notice");
+  if (/datesheet|date sheet|backlog|schedule|timetable|hall ticket|admit card/.test(lower)) cats.push("datesheet");
+  if (/result|grade|marks|transcript|revaluation/.test(lower)) cats.push("result");
+  if (/syllabus|syllabi|curriculum|course|ordinance|regulation/.test(lower)) cats.push("syllabus");
+  if (/admission|eligibility|apply|cuet|prospectus|merit list|selection list|counselling/.test(lower)) cats.push("admission");
+  if (/exam|examination|supplementary|reappear/.test(lower)) cats.push("examination");
+  if (/recruitment|vacancy|job|career|walk[- ]?in|employment/.test(lower)) cats.push("recruitment");
+  if (/tender|quotation|bid|procurement/.test(lower)) cats.push("tender");
+  if (/scholarship|fellowship|stipend|financial aid/.test(lower)) cats.push("scholarship");
+  if (/fee|fees|tuition|challan|payment|refund/.test(lower)) cats.push("fees");
+  if (/faculty|teacher|professor|assistant professor|associate professor/.test(lower)) cats.push("faculty");
+  if (/department|school|centre|center/.test(lower)) cats.push("department");
+  if (/download|form|brochure|bulletin/.test(lower)) cats.push("download");
+  if (/contact|email|phone|telephone|address|directory/.test(lower)) cats.push("contact");
+  if (/about|vision|mission|chancellor|registrar|administration/.test(lower)) cats.push("about");
   return cats;
+}
+
+// True if the user is likely looking for a downloadable document (PDF)
+function expectsPdf(query: string): boolean {
+  const lower = query.toLowerCase();
+  return /\bpdf\b|notice|notification|circular|datesheet|date sheet|timetable|admit card|hall ticket|result|syllabus|prospectus|brochure|form|tender|recruitment|office order|ordinance|regulation|merit list|selection list/.test(lower);
+}
+
+// Pick the most promising on-page links discovered while scraping an index page,
+// to follow one level deeper toward the actual document.
+function pickDeepLinksFromMarkdown(markdown: string, baseUrl: string, query: string, max: number): string[] {
+  const queryTerms = tokenize(query);
+  const scored: { url: string; isPdf: boolean; score: number }[] = [];
+  const seen = new Set<string>();
+
+  const consider = (rawUrl: string, label: string) => {
+    const url = normalizeUrl(rawUrl, baseUrl);
+    if (!url || seen.has(url)) return;
+    if (!isAllowedSourceUrl(url)) return;
+    if (url === baseUrl) return;
+    seen.add(url);
+    const hay = `${label} ${url}`.toLowerCase();
+    let score = 0;
+    for (const t of queryTerms) if (hay.includes(t)) score += 5;
+    const isPdf = isPdfUrl(url);
+    if (isPdf) score += 6;
+    // Prefer document/notice-like sub-pages
+    if (/notice|notification|circular|datesheet|result|syllabus|admission|recruitment|tender|prospectus|download|examnotice/.test(hay)) score += 3;
+    // Skip obvious chrome
+    if (/contactus|gallery|home\.aspx|index\.aspx|aboutus|sitemap/.test(url)) score -= 4;
+    if (score <= 0 && !isPdf) return;
+    scored.push({ url, isPdf, score });
+  };
+
+  for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) consider(m[2], m[1] || "");
+  for (const m of markdown.matchAll(/https?:\/\/[^\s)\]]+/g)) consider(m[0], "");
+
+  return scored
+    .sort((a, b) => Number(b.isPdf) - Number(a.isPdf) || b.score - a.score)
+    .slice(0, max)
+    .map((s) => s.url);
 }
 
 // ─── Main search ─────────────────────────────────────────────────────────────
