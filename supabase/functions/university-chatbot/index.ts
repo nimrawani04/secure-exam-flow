@@ -501,20 +501,42 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
 
     let allResults: FirecrawlSearchResult[] = [...webResults, ...pdfResults];
 
-    // Phase 2: Fallback if sparse
-    if (allResults.length < 3) {
-      console.log("Sparse results, trying fallback...");
+    // Phase 2: Category-aware fallback — trigger when results are sparse OR
+    // when the query expects a PDF but none were found in phase 1.
+    const hasPdfInResults = allResults.some((r) => isPdfUrl(r.url || ""));
+    const needsFallback = allResults.length < 3 || (expectsPdf(query) && !hasPdfInResults);
+
+    if (needsFallback) {
+      console.log("Triggering deep fallback. sparse=", allResults.length < 3, " missingPdf=", expectsPdf(query) && !hasPdfInResults);
       const categories = getFallbackCategories(query);
       const fallbackUrls = new Set<string>();
       for (const cat of categories) {
         for (const url of FALLBACK_PAGES[cat] || []) fallbackUrls.add(url);
       }
-      const [broadResults, ...scraped] = await Promise.all([
+
+      const [broadResults, ...indexScrapes] = await Promise.all([
         firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5),
-        ...[...fallbackUrls].slice(0, 3).map((url) => firecrawlScrape(apiKey, url)),
+        ...[...fallbackUrls].slice(0, 4).map((url) => firecrawlScrape(apiKey, url)),
       ]);
       allResults.push(...broadResults);
-      for (const r of scraped) { if (r) allResults.push(r); }
+
+      // Phase 3: One-level-deeper hop. From each scraped index page, pick the
+      // most promising sub-links (PDFs and category-relevant pages) and scrape them.
+      const deepTargets = new Set<string>();
+      for (const page of indexScrapes) {
+        if (!page?.markdown || !page.url) continue;
+        allResults.push(page);
+        for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
+          deepTargets.add(link);
+        }
+      }
+      // Cap deep hop to keep latency bounded
+      const deepUrls = [...deepTargets].slice(0, 5);
+      if (deepUrls.length > 0) {
+        console.log("Deep hop into", deepUrls.length, "discovered links");
+        const deepScrapes = await Promise.all(deepUrls.map((url) => firecrawlScrape(apiKey, url)));
+        for (const r of deepScrapes) { if (r) allResults.push(r); }
+      }
     }
 
     if (allResults.length === 0) return { context: "", verifiedSources: [] };
