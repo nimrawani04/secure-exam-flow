@@ -413,11 +413,18 @@ async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSe
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+      // Request html too so the PDF detector can scan raw href/src attributes
+      // that markdown conversion sometimes drops (iframes, embeds, JS links).
+      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false }),
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return { title: data.data?.metadata?.title || "CUK Page", url: data.data?.metadata?.sourceURL || url, markdown: data.data?.markdown || "" };
+    return {
+      title: data.data?.metadata?.title || "CUK Page",
+      url: data.data?.metadata?.sourceURL || url,
+      markdown: data.data?.markdown || "",
+      html: data.data?.html || "",
+    };
   } catch { return null; }
 }
 
