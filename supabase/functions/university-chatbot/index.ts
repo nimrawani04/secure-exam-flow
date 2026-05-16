@@ -271,6 +271,94 @@ function extractMarkdownLinks(markdown: string, baseUrl: string, parentTitle: st
   return candidates;
 }
 
+// ─── Dedicated PDF link detector ─────────────────────────────────────────────
+// Scans BOTH raw HTML and markdown for direct .pdf URLs regardless of link
+// text. Catches: <a href="*.pdf">, <iframe src="*.pdf">, <embed src="*.pdf">,
+// data-href / data-url attributes, plain-text URLs, query-stringed PDFs,
+// percent-encoded "%2Epdf", and anchor fragments (#page=2).
+
+const PDF_PATH_RE = /(?:\.pdf|%2epdf)(?:$|[?#"'\s)\]<>])/i;
+
+function looksLikePdfHref(href: string): boolean {
+  return PDF_PATH_RE.test(href);
+}
+
+type PdfHit = { url: string; title: string; via: "html-attr" | "md-link" | "plain-url" };
+
+function extractPdfLinks(opts: {
+  html?: string;
+  markdown?: string;
+  baseUrl: string;
+  parentTitle?: string;
+}): PdfHit[] {
+  const { html = "", markdown = "", baseUrl, parentTitle = "" } = opts;
+  const hits = new Map<string, PdfHit>();
+
+  const push = (rawUrl: string, title: string, via: PdfHit["via"]) => {
+    if (!rawUrl) return;
+    // Strip surrounding quotes / brackets / whitespace
+    const cleaned = rawUrl.trim().replace(/^['"<(\[]+|['">)\]]+$/g, "");
+    if (!looksLikePdfHref(cleaned)) return;
+    const normalized = normalizeUrl(cleaned, baseUrl);
+    if (!normalized) return;
+    if (!isAllowedSourceUrl(normalized)) return;
+    // Re-confirm after normalization (URL constructor may add trailing slashes etc.)
+    if (!isPdfUrl(normalized)) return;
+    const existing = hits.get(normalized);
+    const cleanedTitle = cleanTitle(title || parentTitle, normalized);
+    if (!existing || cleanedTitle.length > existing.title.length) {
+      hits.set(normalized, { url: normalized, title: cleanedTitle, via });
+    }
+  };
+
+  // 1) HTML attribute scan: href, src, data-href, data-url, data-file
+  if (html) {
+    const attrRe = /(?:href|src|data-href|data-url|data-file)\s*=\s*("([^"]+)"|'([^']+)'|([^\s"'>]+))/gi;
+    for (const m of html.matchAll(attrRe)) {
+      const val = m[2] || m[3] || m[4] || "";
+      if (!looksLikePdfHref(val)) continue;
+      // Try to recover anchor inner text as a title: ...>TITLE</a>
+      const idx = m.index ?? 0;
+      const tail = html.slice(idx, idx + 600);
+      const labelMatch = tail.match(/>([^<>{}]{3,160})<\/(?:a|button|span)>/i);
+      const label = labelMatch ? labelMatch[1] : "";
+      push(val, label, "html-attr");
+    }
+    // Plain-text URLs inside HTML (e.g. inside <pre>, attribute values we missed)
+    for (const m of html.matchAll(/https?:\/\/[^\s"'<>)\]]+/g)) {
+      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+    }
+  }
+
+  // 2) Markdown link form: [label](url.pdf)
+  if (markdown) {
+    for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+      if (looksLikePdfHref(m[2])) push(m[2], m[1] || "", "md-link");
+    }
+    // 3) Plain URLs (autolinks, raw text)
+    for (const m of markdown.matchAll(/https?:\/\/[^\s)\]<>"']+/g)) {
+      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+    }
+    // 4) Angle-bracket autolinks <https://...pdf>
+    for (const m of markdown.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
+      if (looksLikePdfHref(m[1])) push(m[1], "", "plain-url");
+    }
+  }
+
+  return [...hits.values()];
+}
+
+// Convert PdfHit[] into rankable VerifiedSource[]
+function pdfHitsToSources(hits: PdfHit[], contextSnippet: string, query: string): VerifiedSource[] {
+  return hits.map((h) => ({
+    title: h.title,
+    url: h.url,
+    content: contextSnippet.slice(0, 2000),
+    isPdf: true,
+    score: scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true }) + 3, // small bonus: direct PDF
+  }));
+}
+
 function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
   const deduped = new Map<string, VerifiedSource>();
   for (const s of sources) {
