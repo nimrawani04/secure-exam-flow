@@ -9,7 +9,7 @@ const corsHeaders = {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; description?: string };
+type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; html?: string; description?: string };
 type VerifiedSource = { title: string; url: string; content: string; isPdf: boolean; score: number };
 type SearchContext = { context: string; verifiedSources: VerifiedSource[] };
 
@@ -271,6 +271,94 @@ function extractMarkdownLinks(markdown: string, baseUrl: string, parentTitle: st
   return candidates;
 }
 
+// ─── Dedicated PDF link detector ─────────────────────────────────────────────
+// Scans BOTH raw HTML and markdown for direct .pdf URLs regardless of link
+// text. Catches: <a href="*.pdf">, <iframe src="*.pdf">, <embed src="*.pdf">,
+// data-href / data-url attributes, plain-text URLs, query-stringed PDFs,
+// percent-encoded "%2Epdf", and anchor fragments (#page=2).
+
+const PDF_PATH_RE = /(?:\.pdf|%2epdf)(?:$|[?#"'\s)\]<>])/i;
+
+function looksLikePdfHref(href: string): boolean {
+  return PDF_PATH_RE.test(href);
+}
+
+type PdfHit = { url: string; title: string; via: "html-attr" | "md-link" | "plain-url" };
+
+function extractPdfLinks(opts: {
+  html?: string;
+  markdown?: string;
+  baseUrl: string;
+  parentTitle?: string;
+}): PdfHit[] {
+  const { html = "", markdown = "", baseUrl, parentTitle = "" } = opts;
+  const hits = new Map<string, PdfHit>();
+
+  const push = (rawUrl: string, title: string, via: PdfHit["via"]) => {
+    if (!rawUrl) return;
+    // Strip surrounding quotes / brackets / whitespace
+    const cleaned = rawUrl.trim().replace(/^['"<(\[]+|['">)\]]+$/g, "");
+    if (!looksLikePdfHref(cleaned)) return;
+    const normalized = normalizeUrl(cleaned, baseUrl);
+    if (!normalized) return;
+    if (!isAllowedSourceUrl(normalized)) return;
+    // Re-confirm after normalization (URL constructor may add trailing slashes etc.)
+    if (!isPdfUrl(normalized)) return;
+    const existing = hits.get(normalized);
+    const cleanedTitle = cleanTitle(title || parentTitle, normalized);
+    if (!existing || cleanedTitle.length > existing.title.length) {
+      hits.set(normalized, { url: normalized, title: cleanedTitle, via });
+    }
+  };
+
+  // 1) HTML attribute scan: href, src, data-href, data-url, data-file
+  if (html) {
+    const attrRe = /(?:href|src|data-href|data-url|data-file)\s*=\s*("([^"]+)"|'([^']+)'|([^\s"'>]+))/gi;
+    for (const m of html.matchAll(attrRe)) {
+      const val = m[2] || m[3] || m[4] || "";
+      if (!looksLikePdfHref(val)) continue;
+      // Try to recover anchor inner text as a title: ...>TITLE</a>
+      const idx = m.index ?? 0;
+      const tail = html.slice(idx, idx + 600);
+      const labelMatch = tail.match(/>([^<>{}]{3,160})<\/(?:a|button|span)>/i);
+      const label = labelMatch ? labelMatch[1] : "";
+      push(val, label, "html-attr");
+    }
+    // Plain-text URLs inside HTML (e.g. inside <pre>, attribute values we missed)
+    for (const m of html.matchAll(/https?:\/\/[^\s"'<>)\]]+/g)) {
+      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+    }
+  }
+
+  // 2) Markdown link form: [label](url.pdf)
+  if (markdown) {
+    for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+      if (looksLikePdfHref(m[2])) push(m[2], m[1] || "", "md-link");
+    }
+    // 3) Plain URLs (autolinks, raw text)
+    for (const m of markdown.matchAll(/https?:\/\/[^\s)\]<>"']+/g)) {
+      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+    }
+    // 4) Angle-bracket autolinks <https://...pdf>
+    for (const m of markdown.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
+      if (looksLikePdfHref(m[1])) push(m[1], "", "plain-url");
+    }
+  }
+
+  return [...hits.values()];
+}
+
+// Convert PdfHit[] into rankable VerifiedSource[]
+function pdfHitsToSources(hits: PdfHit[], contextSnippet: string, query: string): VerifiedSource[] {
+  return hits.map((h) => ({
+    title: h.title,
+    url: h.url,
+    content: contextSnippet.slice(0, 2000),
+    isPdf: true,
+    score: scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true }) + 3, // small bonus: direct PDF
+  }));
+}
+
 function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
   const deduped = new Map<string, VerifiedSource>();
   for (const s of sources) {
@@ -325,11 +413,18 @@ async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSe
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+      // Request html too so the PDF detector can scan raw href/src attributes
+      // that markdown conversion sometimes drops (iframes, embeds, JS links).
+      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false }),
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return { title: data.data?.metadata?.title || "CUK Page", url: data.data?.metadata?.sourceURL || url, markdown: data.data?.markdown || "" };
+    return {
+      title: data.data?.metadata?.title || "CUK Page",
+      url: data.data?.metadata?.sourceURL || url,
+      markdown: data.data?.markdown || "",
+      html: data.data?.html || "",
+    };
   } catch { return null; }
 }
 
@@ -521,17 +616,24 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       allResults.push(...broadResults);
 
       // Phase 3: One-level-deeper hop. From each scraped index page, pick the
-      // most promising sub-links (PDFs and category-relevant pages) and scrape them.
+      // most promising sub-links (category-relevant pages) AND any direct .pdf
+      // links the PDF detector finds in HTML/markdown, then scrape them.
       const deepTargets = new Set<string>();
       for (const page of indexScrapes) {
-        if (!page?.markdown || !page.url) continue;
+        if (!page?.url) continue;
         allResults.push(page);
-        for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
-          deepTargets.add(link);
+        // Direct PDF hits get priority — add them straight to deep targets
+        const pdfHits = extractPdfLinks({ html: page.html, markdown: page.markdown, baseUrl: page.url, parentTitle: page.title });
+        for (const h of pdfHits) deepTargets.add(h.url);
+        // Then category-relevant sub-pages from markdown
+        if (page.markdown) {
+          for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
+            deepTargets.add(link);
+          }
         }
       }
       // Cap deep hop to keep latency bounded
-      const deepUrls = [...deepTargets].slice(0, 5);
+      const deepUrls = [...deepTargets].slice(0, 6);
       if (deepUrls.length > 0) {
         console.log("Deep hop into", deepUrls.length, "discovered links");
         const deepScrapes = await Promise.all(deepUrls.map((url) => firecrawlScrape(apiKey, url)));
@@ -556,6 +658,14 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       }
       if (url && content) {
         verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
+      }
+      // Dedicated PDF detector: pulls direct .pdf URLs from HTML attributes
+      // and markdown regardless of link text or surrounding labels.
+      if (url) {
+        const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
+        if (pdfHits.length) {
+          verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
+        }
       }
 
       idx++;
