@@ -659,6 +659,14 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       if (url && content) {
         verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
       }
+      // Dedicated PDF detector: pulls direct .pdf URLs from HTML attributes
+      // and markdown regardless of link text or surrounding labels.
+      if (url) {
+        const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
+        if (pdfHits.length) {
+          verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
+        }
+      }
 
       idx++;
       contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content}`);
