@@ -349,60 +349,121 @@ function extractPdfLinks(opts: {
   parentTitle?: string;
 }): PdfHit[] {
   const { html = "", markdown = "", baseUrl, parentTitle = "" } = opts;
-  const hits = new Map<string, PdfHit>();
+  const hits = new Map<string, PdfHit & { candidates: string[] }>();
 
-  const push = (rawUrl: string, title: string, via: PdfHit["via"]) => {
+  const push = (rawUrl: string, candidateTitles: Array<string | undefined>, via: PdfHit["via"]) => {
     if (!rawUrl) return;
-    // Strip surrounding quotes / brackets / whitespace
     const cleaned = rawUrl.trim().replace(/^['"<(\[]+|['">)\]]+$/g, "");
     if (!looksLikePdfHref(cleaned)) return;
     const normalized = normalizeUrl(cleaned, baseUrl);
     if (!normalized) return;
     if (!isAllowedSourceUrl(normalized)) return;
-    // Re-confirm after normalization (URL constructor may add trailing slashes etc.)
     if (!isPdfUrl(normalized)) return;
+    const incoming = candidateTitles.filter((t): t is string => !!t && t.trim().length > 0);
     const existing = hits.get(normalized);
-    const cleanedTitle = cleanTitle(title || parentTitle, normalized);
-    if (!existing || cleanedTitle.length > existing.title.length) {
-      hits.set(normalized, { url: normalized, title: cleanedTitle, via });
+    if (existing) {
+      existing.candidates.push(...incoming);
+      const best = pickBestTitle([...existing.candidates, parentTitle], normalized);
+      existing.title = best;
+    } else {
+      const title = pickBestTitle([...incoming, parentTitle], normalized);
+      hits.set(normalized, { url: normalized, title, via, candidates: [...incoming] });
     }
   };
 
-  // 1) HTML attribute scan: href, src, data-href, data-url, data-file
+  // Build a lookup of nearby headings/captions for HTML by scanning preceding text
+  const findNearestHeading = (text: string, idx: number): string => {
+    const window = text.slice(Math.max(0, idx - 1500), idx);
+    // Pick the LAST heading or strong/caption before the link
+    const matches = [...window.matchAll(/<(h[1-6]|strong|b|caption|figcaption|legend|th|td|li)[^>]*>([\s\S]{3,200}?)<\/\1>/gi)];
+    if (matches.length === 0) return "";
+    const last = matches[matches.length - 1][2] || "";
+    return last.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  };
+
+  // 1) HTML: anchor with rich label + surrounding context (title attr, aria-label, parent row)
   if (html) {
+    // Full anchor tag: <a ...href="...pdf"...>INNER</a>
+    const anchorRe = /<a\b([^>]*?)\bhref\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))([^>]*)>([\s\S]{0,600}?)<\/a>/gi;
+    for (const m of html.matchAll(anchorRe)) {
+      const beforeAttrs = m[1] || "";
+      const afterAttrs = m[6] || "";
+      const href = m[3] || m[4] || m[5] || "";
+      if (!looksLikePdfHref(href)) continue;
+      const inner = (m[7] || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const allAttrs = beforeAttrs + " " + afterAttrs;
+      const titleAttr = allAttrs.match(/\btitle\s*=\s*("([^"]+)"|'([^']+)')/i);
+      const ariaAttr = allAttrs.match(/\baria-label\s*=\s*("([^"]+)"|'([^']+)')/i);
+      const idx = m.index ?? 0;
+      const heading = findNearestHeading(html, idx);
+      push(href, [
+        inner,
+        titleAttr?.[2] || titleAttr?.[3],
+        ariaAttr?.[2] || ariaAttr?.[3],
+        heading,
+      ], "html-attr");
+    }
+    // Bare href/src/data-* (iframes, embeds, link tags) — use nearest heading as context
     const attrRe = /(?:href|src|data-href|data-url|data-file)\s*=\s*("([^"]+)"|'([^']+)'|([^\s"'>]+))/gi;
     for (const m of html.matchAll(attrRe)) {
       const val = m[2] || m[3] || m[4] || "";
       if (!looksLikePdfHref(val)) continue;
-      // Try to recover anchor inner text as a title: ...>TITLE</a>
       const idx = m.index ?? 0;
-      const tail = html.slice(idx, idx + 600);
-      const labelMatch = tail.match(/>([^<>{}]{3,160})<\/(?:a|button|span)>/i);
-      const label = labelMatch ? labelMatch[1] : "";
-      push(val, label, "html-attr");
+      // Skip if already captured as a full anchor (we re-push, dedupe takes best title)
+      const heading = findNearestHeading(html, idx);
+      push(val, [heading], "html-attr");
     }
-    // Plain-text URLs inside HTML (e.g. inside <pre>, attribute values we missed)
     for (const m of html.matchAll(/https?:\/\/[^\s"'<>)\]]+/g)) {
-      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+      if (looksLikePdfHref(m[0])) {
+        const heading = findNearestHeading(html, m.index ?? 0);
+        push(m[0], [heading], "plain-url");
+      }
     }
   }
 
-  // 2) Markdown link form: [label](url.pdf)
+  // 2) Markdown: pull the link label AND the nearest heading/list-item line above it
   if (markdown) {
-    for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
-      if (looksLikePdfHref(m[2])) push(m[2], m[1] || "", "md-link");
+    // Pre-index heading positions
+    const headings: Array<{ idx: number; text: string }> = [];
+    for (const m of markdown.matchAll(/^(#{1,6})\s+(.+?)\s*$/gm)) {
+      headings.push({ idx: m.index ?? 0, text: m[2] });
     }
-    // 3) Plain URLs (autolinks, raw text)
+    const nearestMdHeading = (idx: number): string => {
+      let best = "";
+      for (const h of headings) { if (h.idx <= idx) best = h.text; else break; }
+      return best;
+    };
+    const lineContext = (idx: number): string => {
+      const start = markdown.lastIndexOf("\n", idx - 1) + 1;
+      const end = markdown.indexOf("\n", idx);
+      const line = markdown.slice(start, end === -1 ? markdown.length : end);
+      // Strip the link itself, list markers, bullets
+      return line.replace(/\[[^\]]*\]\([^)]*\)/g, " ")
+                 .replace(/^[\s>*\-+\d.]+/, "")
+                 .replace(/\s+/g, " ").trim();
+    };
+
+    for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g)) {
+      const url = m[2];
+      if (!looksLikePdfHref(url)) continue;
+      const label = m[1] || "";
+      const linkTitle = m[3] || "";
+      const idx = m.index ?? 0;
+      push(url, [label, linkTitle, lineContext(idx), nearestMdHeading(idx)], "md-link");
+    }
     for (const m of markdown.matchAll(/https?:\/\/[^\s)\]<>"']+/g)) {
-      if (looksLikePdfHref(m[0])) push(m[0], "", "plain-url");
+      if (!looksLikePdfHref(m[0])) continue;
+      const idx = m.index ?? 0;
+      push(m[0], [lineContext(idx), nearestMdHeading(idx)], "plain-url");
     }
-    // 4) Angle-bracket autolinks <https://...pdf>
     for (const m of markdown.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
-      if (looksLikePdfHref(m[1])) push(m[1], "", "plain-url");
+      if (!looksLikePdfHref(m[1])) continue;
+      const idx = m.index ?? 0;
+      push(m[1], [lineContext(idx), nearestMdHeading(idx)], "plain-url");
     }
   }
 
-  return [...hits.values()];
+  return [...hits.values()].map(({ url, title, via }) => ({ url, title, via }));
 }
 
 // Convert PdfHit[] into rankable VerifiedSource[]
