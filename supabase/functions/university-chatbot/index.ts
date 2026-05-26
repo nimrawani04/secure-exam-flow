@@ -510,22 +510,55 @@ function extractPdfLinks(opts: {
 
 // Convert PdfHit[] into rankable VerifiedSource[]
 function pdfHitsToSources(hits: PdfHit[], contextSnippet: string, query: string): VerifiedSource[] {
-  return hits.map((h) => ({
-    title: h.title,
-    url: h.url,
-    content: contextSnippet.slice(0, 2000),
-    isPdf: true,
-    score: scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true }) + 3, // small bonus: direct PDF
-  }));
+  return hits.map((h) => {
+    const base = scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true });
+    // Direct .pdf filenames beat wrapper pages
+    const directBonus = isDirectPdfUrl(h.url) ? 5 : 2;
+    return {
+      title: h.title,
+      url: h.url,
+      content: contextSnippet.slice(0, 2000),
+      isPdf: true,
+      score: base + directBonus,
+    };
+  });
+}
+
+function pickBetterSource(a: VerifiedSource, b: VerifiedSource): VerifiedSource {
+  // Prefer direct PDF, then higher score, then longer (more descriptive) title
+  const aDirect = isDirectPdfUrl(a.url) ? 1 : 0;
+  const bDirect = isDirectPdfUrl(b.url) ? 1 : 0;
+  if (aDirect !== bDirect) return aDirect > bDirect ? a : b;
+  if (a.score !== b.score) return a.score > b.score ? a : b;
+  if (a.title.length !== b.title.length) return a.title.length > b.title.length ? a : b;
+  return a;
 }
 
 function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
-  const deduped = new Map<string, VerifiedSource>();
+  // Pass 1: collapse by normalized URL (drops fragments, tracking, casing differences)
+  const byUrl = new Map<string, VerifiedSource>();
   for (const s of sources) {
-    const existing = deduped.get(s.url);
-    if (!existing || s.score > existing.score || s.title.length > existing.title.length) deduped.set(s.url, s);
+    const key = dedupKeyForUrl(s.url);
+    const existing = byUrl.get(key);
+    byUrl.set(key, existing ? pickBetterSource(existing, s) : s);
   }
-  return [...deduped.values()].sort((a, b) => b.score - a.score || Number(b.isPdf) - Number(a.isPdf)).slice(0, limit);
+  // Pass 2: collapse wrapper pages that reference the same PDF stem as a direct PDF we already have
+  const byStem = new Map<string, VerifiedSource>();
+  const stemless: VerifiedSource[] = [];
+  for (const s of byUrl.values()) {
+    const stem = pdfStemFromUrl(s.url);
+    if (!stem) { stemless.push(s); continue; }
+    const existing = byStem.get(stem);
+    byStem.set(stem, existing ? pickBetterSource(existing, s) : s);
+  }
+  const merged = [...byStem.values(), ...stemless];
+  return merged
+    .sort((a, b) =>
+      Number(isDirectPdfUrl(b.url)) - Number(isDirectPdfUrl(a.url)) ||
+      b.score - a.score ||
+      Number(b.isPdf) - Number(a.isPdf)
+    )
+    .slice(0, limit);
 }
 
 async function verifySourceUrl(url: string): Promise<boolean> {
