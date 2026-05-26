@@ -198,6 +198,8 @@ function tokenize(text: string): string[] {
   return [...new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t)))];
 }
 
+const TRACKING_PARAM_RE = /^(utm_|fbclid$|gclid$|mc_eid$|mc_cid$|igshid$|_hs|ref$|ref_src$|share$|spm$)/i;
+
 function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | null {
   if (!rawUrl) return null;
   const trimmed = rawUrl.trim().replace(/^<|>$/g, "");
@@ -205,7 +207,43 @@ function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | nu
   try {
     const url = baseUrl ? new URL(trimmed, baseUrl) : new URL(trimmed);
     if (!["http:", "https:"].includes(url.protocol)) return null;
+    url.hostname = url.hostname.toLowerCase();
     return url.toString();
+  } catch { return null; }
+}
+
+// Aggressive normalization for dedup keys: drops fragment, tracking params,
+// trailing slashes, lowercases host + path, sorts remaining query params.
+function dedupKeyForUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    u.hash = "";
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+    const keep: [string, string][] = [];
+    for (const [k, v] of u.searchParams) {
+      if (TRACKING_PARAM_RE.test(k)) continue;
+      keep.push([k.toLowerCase(), v]);
+    }
+    keep.sort(([a], [b]) => a.localeCompare(b));
+    u.search = "";
+    for (const [k, v] of keep) u.searchParams.append(k, v);
+    let path = u.pathname.replace(/\/+$/, "") || "/";
+    try { path = decodeURIComponent(path); } catch { /* ignore */ }
+    path = path.toLowerCase();
+    return `${u.protocol}//${u.hostname}${path}${u.search}`;
+  } catch { return rawUrl.toLowerCase(); }
+}
+
+// Extract a stable filename stem (e.g., "syllabus-cse-2023") so a wrapper page
+// pointing to the same PDF dedupes against the direct PDF link.
+function pdfStemFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    // Check path AND query string for a .pdf reference
+    const haystack = decodeURIComponent(u.pathname + " " + u.search);
+    const m = haystack.match(/([^/\\?&=\s]+)\.pdf\b/i);
+    if (!m) return null;
+    return m[1].toLowerCase().replace(/[^a-z0-9]+/g, "");
   } catch { return null; }
 }
 
@@ -217,6 +255,10 @@ function isAllowedSourceUrl(url: string): boolean {
 }
 
 function isPdfUrl(url: string): boolean { return /\.pdf(?:$|[?#])/i.test(url); }
+// Direct PDF = path ends in .pdf (not a wrapper like download.aspx?file=...pdf)
+function isDirectPdfUrl(url: string): boolean {
+  try { return /\.pdf$/i.test(new URL(url).pathname); } catch { return false; }
+}
 
 function smartCase(s: string): string {
   const SMALL = new Set(["a","an","and","or","of","for","the","in","on","to","at","by","with","from","is"]);
@@ -468,22 +510,55 @@ function extractPdfLinks(opts: {
 
 // Convert PdfHit[] into rankable VerifiedSource[]
 function pdfHitsToSources(hits: PdfHit[], contextSnippet: string, query: string): VerifiedSource[] {
-  return hits.map((h) => ({
-    title: h.title,
-    url: h.url,
-    content: contextSnippet.slice(0, 2000),
-    isPdf: true,
-    score: scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true }) + 3, // small bonus: direct PDF
-  }));
+  return hits.map((h) => {
+    const base = scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true });
+    // Direct .pdf filenames beat wrapper pages
+    const directBonus = isDirectPdfUrl(h.url) ? 5 : 2;
+    return {
+      title: h.title,
+      url: h.url,
+      content: contextSnippet.slice(0, 2000),
+      isPdf: true,
+      score: base + directBonus,
+    };
+  });
+}
+
+function pickBetterSource(a: VerifiedSource, b: VerifiedSource): VerifiedSource {
+  // Prefer direct PDF, then higher score, then longer (more descriptive) title
+  const aDirect = isDirectPdfUrl(a.url) ? 1 : 0;
+  const bDirect = isDirectPdfUrl(b.url) ? 1 : 0;
+  if (aDirect !== bDirect) return aDirect > bDirect ? a : b;
+  if (a.score !== b.score) return a.score > b.score ? a : b;
+  if (a.title.length !== b.title.length) return a.title.length > b.title.length ? a : b;
+  return a;
 }
 
 function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
-  const deduped = new Map<string, VerifiedSource>();
+  // Pass 1: collapse by normalized URL (drops fragments, tracking, casing differences)
+  const byUrl = new Map<string, VerifiedSource>();
   for (const s of sources) {
-    const existing = deduped.get(s.url);
-    if (!existing || s.score > existing.score || s.title.length > existing.title.length) deduped.set(s.url, s);
+    const key = dedupKeyForUrl(s.url);
+    const existing = byUrl.get(key);
+    byUrl.set(key, existing ? pickBetterSource(existing, s) : s);
   }
-  return [...deduped.values()].sort((a, b) => b.score - a.score || Number(b.isPdf) - Number(a.isPdf)).slice(0, limit);
+  // Pass 2: collapse wrapper pages that reference the same PDF stem as a direct PDF we already have
+  const byStem = new Map<string, VerifiedSource>();
+  const stemless: VerifiedSource[] = [];
+  for (const s of byUrl.values()) {
+    const stem = pdfStemFromUrl(s.url);
+    if (!stem) { stemless.push(s); continue; }
+    const existing = byStem.get(stem);
+    byStem.set(stem, existing ? pickBetterSource(existing, s) : s);
+  }
+  const merged = [...byStem.values(), ...stemless];
+  return merged
+    .sort((a, b) =>
+      Number(isDirectPdfUrl(b.url)) - Number(isDirectPdfUrl(a.url)) ||
+      b.score - a.score ||
+      Number(b.isPdf) - Number(a.isPdf)
+    )
+    .slice(0, limit);
 }
 
 async function verifySourceUrl(url: string): Promise<boolean> {
