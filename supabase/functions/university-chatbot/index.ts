@@ -218,17 +218,74 @@ function isAllowedSourceUrl(url: string): boolean {
 
 function isPdfUrl(url: string): boolean { return /\.pdf(?:$|[?#])/i.test(url); }
 
+function smartCase(s: string): string {
+  const SMALL = new Set(["a","an","and","or","of","for","the","in","on","to","at","by","with","from","is"]);
+  const UPPER = new Set(["cuk","cse","ece","eee","it","mca","bca","mba","bba","ba","ma","msc","bsc","phd","ug","pg","hod","cuet","ugc","nta","aicte","naac","jk","cia","cgpa","sgpa","pdf","ews","obc","sc","st","nirf"]);
+  return s.split(/\s+/).filter(Boolean).map((w, i) => {
+    const lw = w.toLowerCase();
+    if (UPPER.has(lw)) return lw.toUpperCase();
+    if (i > 0 && SMALL.has(lw)) return lw;
+    return lw.charAt(0).toUpperCase() + lw.slice(1);
+  }).join(" ");
+}
+
 function deriveTitleFromUrl(url: string): string {
   try {
-    const seg = new URL(url).pathname.split("/").filter(Boolean).pop() || "Source";
-    return decodeURIComponent(seg).replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+    const u = new URL(url);
+    const parts = u.pathname.split("/").filter(Boolean);
+    const last = parts.pop() || "Source";
+    const base = decodeURIComponent(last).replace(/\.[a-z0-9]+$/i, "").replace(/[-_+]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!base) return "Source";
+    const looksOpaque = /^[a-z]{0,4}\d{2,}$/i.test(base.replace(/\s+/g, "")) || /^\d+$/.test(base) || base.length < 4;
+    const parentSeg = parts.pop();
+    if (looksOpaque && parentSeg) {
+      const parent = decodeURIComponent(parentSeg).replace(/[-_+]+/g, " ").trim();
+      return smartCase(`${parent} ${base}`.trim());
+    }
+    return smartCase(base);
   } catch { return "Source"; }
 }
 
+const NOISE_TITLE_RE = /^(click here|read more|download(?: pdf)?|view(?: pdf| more)?|open|here|details|link|pdf|notice|attachment|file|more|see more|continue|→|>>|»|new)$/i;
+const DATE_ONLY_RE = /^[\d\s/.\-,:()]+$/;
+
 function cleanTitle(title: string | undefined, url: string): string {
-  const cleaned = (title || "").replace(/[*_`>#]/g, " ").replace(/\s+/g, " ").trim();
-  if (!cleaned || /^(click here|read more|download|view|open)$/i.test(cleaned)) return deriveTitleFromUrl(url);
+  let cleaned = (title || "")
+    .replace(/&nbsp;|&amp;|&#\d+;/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[*_`>#]/g, " ")
+    .replace(/\s*\(\s*pdf\s*\)\s*$/i, "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || NOISE_TITLE_RE.test(cleaned) || DATE_ONLY_RE.test(cleaned) || cleaned.length < 4) {
+    return deriveTitleFromUrl(url);
+  }
+  cleaned = cleaned.replace(/\s*[-|–]\s*(click here|download|view|read more|pdf)\s*$/i, "").trim();
+  if (cleaned.length > 140) cleaned = cleaned.slice(0, 137).trim() + "…";
   return cleaned;
+}
+
+// Pick the most informative title from a list of candidates (anchor text, nearby heading, parent title, url-derived)
+function pickBestTitle(candidates: Array<string | undefined>, url: string): string {
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const c of candidates) {
+    const t = cleanTitle(c, url);
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    cleaned.push(t);
+  }
+  if (!cleaned.length) return deriveTitleFromUrl(url);
+  const fallback = deriveTitleFromUrl(url).toLowerCase();
+  cleaned.sort((a, b) => {
+    const af = a.toLowerCase() === fallback ? 1 : 0;
+    const bf = b.toLowerCase() === fallback ? 1 : 0;
+    if (af !== bf) return af - bf;
+    return b.length - a.length;
+  });
+  return cleaned[0];
 }
 
 function escapeLinkTitle(title: string): string { return title.replace(/[\[\]]/g, "").trim(); }
