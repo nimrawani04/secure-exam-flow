@@ -786,126 +786,97 @@ function pickDeepLinksFromMarkdown(markdown: string, baseUrl: string, query: str
 // ─── Main search ─────────────────────────────────────────────────────────────
 
 async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
+  // 30-min in-memory cache — repeat queries skip Firecrawl entirely.
+  const cached = getCachedSearch(query);
+  if (cached) { console.log("CUK cache hit"); return cached; }
+
   try {
-    // Expand query with category synonyms
+    // Single search round-trip. Firecrawl returns markdown for each hit,
+    // so we don't need follow-up scrapes for the general case.
     const expansions = expandQueryForSearch(query);
-    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.join(" ")}` : query;
+    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.slice(0, 2).join(" ")}` : query;
+    const searchQuery = expectsPdf(query)
+      ? `site:cukashmir.ac.in ${expandedQuery} (filetype:pdf OR notice OR notification)`
+      : `site:cukashmir.ac.in ${expandedQuery}`;
 
-    // Phase 1: Parallel web + PDF search
-    const [webResults, pdfResults] = await Promise.all([
-      firecrawlSearch(apiKey, `site:cukashmir.ac.in ${expandedQuery}`, 8),
-      firecrawlSearch(apiKey, `site:cukashmir.ac.in filetype:pdf ${query}`, 5),
-    ]);
-
-    let allResults: FirecrawlSearchResult[] = [...webResults, ...pdfResults];
-
-    // Phase 2: Category-aware fallback — trigger when results are sparse OR
-    // when the query expects a PDF but none were found in phase 1.
-    const hasPdfInResults = allResults.some((r) => isPdfUrl(r.url || ""));
-    const needsFallback = allResults.length < 3 || (expectsPdf(query) && !hasPdfInResults);
-
-    if (needsFallback) {
-      console.log("Triggering deep fallback. sparse=", allResults.length < 3, " missingPdf=", expectsPdf(query) && !hasPdfInResults);
-      const categories = getFallbackCategories(query);
-      const fallbackUrls = new Set<string>();
-      for (const cat of categories) {
-        for (const url of FALLBACK_PAGES[cat] || []) fallbackUrls.add(url);
-      }
-
-      const [broadResults, ...indexScrapes] = await Promise.all([
-        firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5),
-        ...[...fallbackUrls].slice(0, 4).map((url) => firecrawlScrape(apiKey, url)),
-      ]);
-      allResults.push(...broadResults);
-
-      // Phase 3: One-level-deeper hop. From each scraped index page, pick the
-      // most promising sub-links (category-relevant pages) AND any direct .pdf
-      // links the PDF detector finds in HTML/markdown, then scrape them.
-      const deepTargets = new Set<string>();
-      for (const page of indexScrapes) {
-        if (!page?.url) continue;
-        allResults.push(page);
-        // Direct PDF hits get priority — add them straight to deep targets
-        const pdfHits = extractPdfLinks({ html: page.html, markdown: page.markdown, baseUrl: page.url, parentTitle: page.title });
-        for (const h of pdfHits) deepTargets.add(h.url);
-        // Then category-relevant sub-pages from markdown
-        if (page.markdown) {
-          for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
-            deepTargets.add(link);
-          }
-        }
-      }
-      // Cap deep hop to keep latency bounded
-      const deepUrls = [...deepTargets].slice(0, 6);
-      if (deepUrls.length > 0) {
-        console.log("Deep hop into", deepUrls.length, "discovered links");
-        const deepScrapes = await Promise.all(deepUrls.map((url) => firecrawlScrape(apiKey, url)));
-        for (const r of deepScrapes) { if (r) allResults.push(r); }
-      }
+    const results = await firecrawlSearch(apiKey, searchQuery, 5);
+    if (results.length === 0) {
+      const empty = { context: "", verifiedSources: [] };
+      setCachedSearch(query, empty);
+      return empty;
     }
-
-    if (allResults.length === 0) return { context: "", verifiedSources: [] };
 
     const verifiedCandidates: VerifiedSource[] = [];
     const contextParts: string[] = [];
     let idx = 0;
 
-    for (const r of allResults) {
+    for (const r of results) {
       const title = r.title || "Untitled";
       const url = normalizeUrl(r.url) || "";
+      if (!url) continue;
       const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
-      const isPdf = isPdfUrl(url || "");
+      const isPdf = isPdfUrl(url);
 
-      if (url) {
-        verifiedCandidates.push({ title: cleanTitle(title, url), url, content, isPdf, score: scoreSource(query, { title, url, content, isPdf }) });
-      }
-      if (url && content) {
+      verifiedCandidates.push({
+        title: cleanTitle(title, url),
+        url,
+        content,
+        isPdf,
+        score: scoreSource(query, { title, url, content, isPdf }),
+      });
+
+      if (content) {
         verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
       }
-      // Dedicated PDF detector: pulls direct .pdf URLs from HTML attributes
-      // and markdown regardless of link text or surrounding labels.
-      if (url) {
-        const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
-        if (pdfHits.length) {
-          verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
-        }
+      const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
+      if (pdfHits.length) {
+        verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
       }
 
       idx++;
-      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content}`);
+      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content.slice(0, 3000)}`);
     }
 
-    const rankedSources = dedupeAndRankSources(verifiedCandidates, 10);
-    const verifiedSources = await filterWorkingSources(rankedSources, 6);
+    const rankedSources = dedupeAndRankSources(verifiedCandidates, 8);
+    const verifiedSources = filterWorkingSources(rankedSources, 6);
 
-    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
-
+    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.slice(0, 5).join("\n\n");
     if (verifiedSources.length > 0) {
       context += "\n\n--- VERIFIED SOURCE CATALOG ---\n";
       for (const s of verifiedSources) {
         context += `- ${s.title}${s.isPdf ? " (PDF)" : ""}: ${s.url}\n`;
       }
     }
-
     context += "\n--- END OF SCRAPED DATA ---\n";
     context += "\nIMPORTANT: Use the above data to answer. If a VERIFIED SOURCE CATALOG is present, rely on it for external links. Never mention a source title unless it exists in the data above.";
 
-    return { context, verifiedSources };
+    const result = { context, verifiedSources };
+    setCachedSearch(query, result);
+    return result;
   } catch (e) {
     console.error("CUK search error:", e);
     return { context: "", verifiedSources: [] };
   }
 }
 
+// ─── App-only query detection ────────────────────────────────────────────────
+// These are answered from the system prompt only — no web search needed.
+const APP_ONLY_RE = /\b(upload|submit|submission|rollback|cancel|review|approve|reject|datesheet editor|sidebar|dashboard|profile|settings|password|logout|sign\s*out|notification|alert|calendar|deadline|paper|inbox|archive)\b/i;
+function isAppOnlyQuery(text: string): boolean {
+  const lower = text.toLowerCase();
+  if (/\b(cuk|central university|kashmir|cuet|chancellor|admission|syllabus|notice|recruitment|tender|scholarship|fee|result|exam(?:ination)?\s+(?:notice|date|schedule))\b/.test(lower)) return false;
+  return APP_ONLY_RE.test(lower);
+}
+
 // ─── University query detection ──────────────────────────────────────────────
 
 function isUniversityQuery(message: string): boolean {
+  if (isAppOnlyQuery(message)) return false;
   const lower = message.toLowerCase();
   const allKeywords = new Set<string>();
   for (const synonyms of Object.values(CATEGORY_SYNONYMS)) {
     for (const s of synonyms) allKeywords.add(s);
   }
-  // Add extra keywords
   for (const k of [
     "cuk", "central university", "kashmir", "university", "chancellor", "vice chancellor",
     "phd", "mba", "mca", "btech", "bsc", "msc", "semester", "nss", "ncc", "sports",
