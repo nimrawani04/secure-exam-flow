@@ -942,15 +942,11 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemMessage }, ...messages],
-        // NOTE: stream:false is intentional. The frontend speaks SSE, but we need the
-        // full AI response in hand before appending the verified-sources catalog so
-        // that the cited links rendered to the user always match what the model
-        // actually wrote. We then emit a single SSE frame with the combined payload.
-        stream: false,
+        stream: true,
       }),
     });
 
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -959,47 +955,107 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "AI service credits exhausted. Please contact admin." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const text = await response.text();
+      const text = await response.text().catch(() => "");
       console.error("AI gateway error:", response.status, text);
       return new Response(JSON.stringify({ error: "AI service error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const completion = await response.json();
-    const aiContent = completion?.choices?.[0]?.message?.content;
-
-    if (!aiContent || typeof aiContent !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid AI response" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const cleanContent = stripSourcesSection(aiContent);
+    // True streaming pipe: forward each delta as it arrives, then strip any
+    // model-emitted "Sources:" block from the tail and emit verified sources
+    // + follow-up suggestions in a final SSE frame before [DONE].
     const fallbackSources = verifiedSources.length > 0
       ? verifiedSources
       : (lastUserMessage && isUniversityQuery(lastUserMessage.content || ""))
         ? [{ title: "Central University of Kashmir", url: "https://www.cukashmir.ac.in", content: "", isPdf: false, score: 0 }]
         : [];
 
-    const finalContent = fallbackSources.length > 0
-      ? `${cleanContent}\n\n${formatSourcesSection(fallbackSources)}`
-      : aiContent;
+    const upstreamReader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
 
-    const ssePayload = [
-      `data: ${JSON.stringify({
-        id: completion?.id || crypto.randomUUID(),
-        object: "chat.completion.chunk",
-        created: completion?.created || Math.floor(Date.now() / 1000),
-        model: completion?.model || "google/gemini-2.5-flash",
-        choices: [{ index: 0, delta: { role: "assistant", content: finalContent }, finish_reason: "stop" }],
-        follow_up_suggestions: followUpSuggestions,
-      })}`,
-      "",
-      "data: [DONE]",
-      "",
-    ].join("\n");
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = "";
+        let assistantText = "";        // accumulated model output
+        let emittedText = "";          // what we've actually forwarded to client
+        const TAIL_HOLDBACK = 220;     // keep last N chars unflushed so we can scrub a trailing "Sources:" block
 
-    return new Response(ssePayload, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        const flushSafe = (final = false) => {
+          const target = final ? assistantText : assistantText.slice(0, Math.max(0, assistantText.length - TAIL_HOLDBACK));
+          if (target.length > emittedText.length) {
+            const delta = target.slice(emittedText.length);
+            emittedText = target;
+            const frame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: { content: delta }, finish_reason: null }],
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let nl: number;
+            while ((nl = buffer.indexOf("\n")) !== -1) {
+              let line = buffer.slice(0, nl);
+              buffer = buffer.slice(nl + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (!line.startsWith("data: ")) continue;
+              const json = line.slice(6).trim();
+              if (json === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(json);
+                const piece = parsed?.choices?.[0]?.delta?.content;
+                if (typeof piece === "string" && piece) {
+                  assistantText += piece;
+                  flushSafe(false);
+                }
+              } catch { /* partial chunk, ignore */ }
+            }
+          }
+
+          // Scrub any "Sources:" block the model wrote, then emit final delta + verified sources.
+          assistantText = stripSourcesSection(assistantText);
+          flushSafe(true);
+
+          if (fallbackSources.length > 0) {
+            const tail = `\n\n${formatSourcesSection(fallbackSources)}`;
+            const finalFrame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: { content: tail }, finish_reason: "stop" }],
+              follow_up_suggestions: followUpSuggestions,
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
+          } else if (followUpSuggestions.length > 0) {
+            const finalFrame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+              follow_up_suggestions: followUpSuggestions,
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
+          }
+
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (e) {
+          console.error("stream pipe error:", e);
+          controller.error(e);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (e) {
     console.error("Chatbot error:", e);
