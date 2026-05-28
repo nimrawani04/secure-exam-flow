@@ -1008,7 +1008,7 @@ serve(async (req) => {
         id: completion?.id || crypto.randomUUID(),
         object: "chat.completion.chunk",
         created: completion?.created || Math.floor(Date.now() / 1000),
-        model: completion?.model || "google/gemini-3-flash-preview",
+        model: completion?.model || "google/gemini-2.5-flash",
         choices: [{ index: 0, delta: { role: "assistant", content: finalContent }, finish_reason: "stop" }],
         follow_up_suggestions: followUpSuggestions,
       })}`,
