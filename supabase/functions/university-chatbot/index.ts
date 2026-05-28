@@ -561,21 +561,31 @@ function dedupeAndRankSources(sources: VerifiedSource[], limit: number): Verifie
     .slice(0, limit);
 }
 
-async function verifySourceUrl(url: string): Promise<boolean> {
-  if (!isAllowedSourceUrl(url)) return false;
-  try {
-    const r = await fetch(url, { method: "HEAD", redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
-    if (r.ok) return true;
-  } catch { /* fall through */ }
-  try {
-    const r = await fetch(url, { method: "GET", redirect: "follow", headers: { Range: "bytes=0-0", "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
-    return r.ok;
-  } catch { return false; }
+// Source verification removed — Firecrawl already returned working URLs,
+// the HEAD/GET ping pass added ~2s for no real reliability win.
+function filterWorkingSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
+  return sources.filter((s) => isAllowedSourceUrl(s.url)).slice(0, limit);
 }
 
-async function filterWorkingSources(sources: VerifiedSource[], limit: number): Promise<VerifiedSource[]> {
-  const checked = await Promise.all(sources.slice(0, 12).map(async (s) => ({ s, ok: await verifySourceUrl(s.url) })));
-  return checked.filter((e) => e.ok).map((e) => e.s).slice(0, limit);
+// ─── In-memory search cache (30 min TTL) ─────────────────────────────────────
+type CacheEntry = { value: SearchContext; expiresAt: number };
+const SEARCH_CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30 * 60 * 1000;
+function cacheKey(q: string): string { return q.toLowerCase().replace(/\s+/g, " ").trim(); }
+function getCachedSearch(q: string): SearchContext | null {
+  const k = cacheKey(q);
+  const hit = SEARCH_CACHE.get(k);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) { SEARCH_CACHE.delete(k); return null; }
+  return hit.value;
+}
+function setCachedSearch(q: string, value: SearchContext): void {
+  if (SEARCH_CACHE.size > 200) {
+    // Cheap eviction: clear oldest 50
+    const keys = [...SEARCH_CACHE.keys()].slice(0, 50);
+    for (const k of keys) SEARCH_CACHE.delete(k);
+  }
+  SEARCH_CACHE.set(cacheKey(q), { value, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
 function formatSourcesSection(sources: VerifiedSource[]): string {
