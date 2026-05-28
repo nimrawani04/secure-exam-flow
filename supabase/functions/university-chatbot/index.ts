@@ -959,8 +959,12 @@ serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemMessage }, ...messages],
+        // NOTE: stream:false is intentional. The frontend speaks SSE, but we need the
+        // full AI response in hand before appending the verified-sources catalog so
+        // that the cited links rendered to the user always match what the model
+        // actually wrote. We then emit a single SSE frame with the combined payload.
         stream: false,
       }),
     });
