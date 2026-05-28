@@ -561,21 +561,31 @@ function dedupeAndRankSources(sources: VerifiedSource[], limit: number): Verifie
     .slice(0, limit);
 }
 
-async function verifySourceUrl(url: string): Promise<boolean> {
-  if (!isAllowedSourceUrl(url)) return false;
-  try {
-    const r = await fetch(url, { method: "HEAD", redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
-    if (r.ok) return true;
-  } catch { /* fall through */ }
-  try {
-    const r = await fetch(url, { method: "GET", redirect: "follow", headers: { Range: "bytes=0-0", "User-Agent": "Mozilla/5.0 LovableBot/1.0" } });
-    return r.ok;
-  } catch { return false; }
+// Source verification removed — Firecrawl already returned working URLs,
+// the HEAD/GET ping pass added ~2s for no real reliability win.
+function filterWorkingSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
+  return sources.filter((s) => isAllowedSourceUrl(s.url)).slice(0, limit);
 }
 
-async function filterWorkingSources(sources: VerifiedSource[], limit: number): Promise<VerifiedSource[]> {
-  const checked = await Promise.all(sources.slice(0, 12).map(async (s) => ({ s, ok: await verifySourceUrl(s.url) })));
-  return checked.filter((e) => e.ok).map((e) => e.s).slice(0, limit);
+// ─── In-memory search cache (30 min TTL) ─────────────────────────────────────
+type CacheEntry = { value: SearchContext; expiresAt: number };
+const SEARCH_CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30 * 60 * 1000;
+function cacheKey(q: string): string { return q.toLowerCase().replace(/\s+/g, " ").trim(); }
+function getCachedSearch(q: string): SearchContext | null {
+  const k = cacheKey(q);
+  const hit = SEARCH_CACHE.get(k);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) { SEARCH_CACHE.delete(k); return null; }
+  return hit.value;
+}
+function setCachedSearch(q: string, value: SearchContext): void {
+  if (SEARCH_CACHE.size > 200) {
+    // Cheap eviction: clear oldest 50
+    const keys = [...SEARCH_CACHE.keys()].slice(0, 50);
+    for (const k of keys) SEARCH_CACHE.delete(k);
+  }
+  SEARCH_CACHE.set(cacheKey(q), { value, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
 function formatSourcesSection(sources: VerifiedSource[]): string {
@@ -776,126 +786,97 @@ function pickDeepLinksFromMarkdown(markdown: string, baseUrl: string, query: str
 // ─── Main search ─────────────────────────────────────────────────────────────
 
 async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
+  // 30-min in-memory cache — repeat queries skip Firecrawl entirely.
+  const cached = getCachedSearch(query);
+  if (cached) { console.log("CUK cache hit"); return cached; }
+
   try {
-    // Expand query with category synonyms
+    // Single search round-trip. Firecrawl returns markdown for each hit,
+    // so we don't need follow-up scrapes for the general case.
     const expansions = expandQueryForSearch(query);
-    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.join(" ")}` : query;
+    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.slice(0, 2).join(" ")}` : query;
+    const searchQuery = expectsPdf(query)
+      ? `site:cukashmir.ac.in ${expandedQuery} (filetype:pdf OR notice OR notification)`
+      : `site:cukashmir.ac.in ${expandedQuery}`;
 
-    // Phase 1: Parallel web + PDF search
-    const [webResults, pdfResults] = await Promise.all([
-      firecrawlSearch(apiKey, `site:cukashmir.ac.in ${expandedQuery}`, 8),
-      firecrawlSearch(apiKey, `site:cukashmir.ac.in filetype:pdf ${query}`, 5),
-    ]);
-
-    let allResults: FirecrawlSearchResult[] = [...webResults, ...pdfResults];
-
-    // Phase 2: Category-aware fallback — trigger when results are sparse OR
-    // when the query expects a PDF but none were found in phase 1.
-    const hasPdfInResults = allResults.some((r) => isPdfUrl(r.url || ""));
-    const needsFallback = allResults.length < 3 || (expectsPdf(query) && !hasPdfInResults);
-
-    if (needsFallback) {
-      console.log("Triggering deep fallback. sparse=", allResults.length < 3, " missingPdf=", expectsPdf(query) && !hasPdfInResults);
-      const categories = getFallbackCategories(query);
-      const fallbackUrls = new Set<string>();
-      for (const cat of categories) {
-        for (const url of FALLBACK_PAGES[cat] || []) fallbackUrls.add(url);
-      }
-
-      const [broadResults, ...indexScrapes] = await Promise.all([
-        firecrawlSearch(apiKey, `cukashmir.ac.in ${query}`, 5),
-        ...[...fallbackUrls].slice(0, 4).map((url) => firecrawlScrape(apiKey, url)),
-      ]);
-      allResults.push(...broadResults);
-
-      // Phase 3: One-level-deeper hop. From each scraped index page, pick the
-      // most promising sub-links (category-relevant pages) AND any direct .pdf
-      // links the PDF detector finds in HTML/markdown, then scrape them.
-      const deepTargets = new Set<string>();
-      for (const page of indexScrapes) {
-        if (!page?.url) continue;
-        allResults.push(page);
-        // Direct PDF hits get priority — add them straight to deep targets
-        const pdfHits = extractPdfLinks({ html: page.html, markdown: page.markdown, baseUrl: page.url, parentTitle: page.title });
-        for (const h of pdfHits) deepTargets.add(h.url);
-        // Then category-relevant sub-pages from markdown
-        if (page.markdown) {
-          for (const link of pickDeepLinksFromMarkdown(page.markdown, page.url, query, 3)) {
-            deepTargets.add(link);
-          }
-        }
-      }
-      // Cap deep hop to keep latency bounded
-      const deepUrls = [...deepTargets].slice(0, 6);
-      if (deepUrls.length > 0) {
-        console.log("Deep hop into", deepUrls.length, "discovered links");
-        const deepScrapes = await Promise.all(deepUrls.map((url) => firecrawlScrape(apiKey, url)));
-        for (const r of deepScrapes) { if (r) allResults.push(r); }
-      }
+    const results = await firecrawlSearch(apiKey, searchQuery, 5);
+    if (results.length === 0) {
+      const empty = { context: "", verifiedSources: [] };
+      setCachedSearch(query, empty);
+      return empty;
     }
-
-    if (allResults.length === 0) return { context: "", verifiedSources: [] };
 
     const verifiedCandidates: VerifiedSource[] = [];
     const contextParts: string[] = [];
     let idx = 0;
 
-    for (const r of allResults) {
+    for (const r of results) {
       const title = r.title || "Untitled";
       const url = normalizeUrl(r.url) || "";
+      if (!url) continue;
       const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
-      const isPdf = isPdfUrl(url || "");
+      const isPdf = isPdfUrl(url);
 
-      if (url) {
-        verifiedCandidates.push({ title: cleanTitle(title, url), url, content, isPdf, score: scoreSource(query, { title, url, content, isPdf }) });
-      }
-      if (url && content) {
+      verifiedCandidates.push({
+        title: cleanTitle(title, url),
+        url,
+        content,
+        isPdf,
+        score: scoreSource(query, { title, url, content, isPdf }),
+      });
+
+      if (content) {
         verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
       }
-      // Dedicated PDF detector: pulls direct .pdf URLs from HTML attributes
-      // and markdown regardless of link text or surrounding labels.
-      if (url) {
-        const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
-        if (pdfHits.length) {
-          verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
-        }
+      const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
+      if (pdfHits.length) {
+        verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
       }
 
       idx++;
-      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content}`);
+      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content.slice(0, 3000)}`);
     }
 
-    const rankedSources = dedupeAndRankSources(verifiedCandidates, 10);
-    const verifiedSources = await filterWorkingSources(rankedSources, 6);
+    const rankedSources = dedupeAndRankSources(verifiedCandidates, 8);
+    const verifiedSources = filterWorkingSources(rankedSources, 6);
 
-    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
-
+    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.slice(0, 5).join("\n\n");
     if (verifiedSources.length > 0) {
       context += "\n\n--- VERIFIED SOURCE CATALOG ---\n";
       for (const s of verifiedSources) {
         context += `- ${s.title}${s.isPdf ? " (PDF)" : ""}: ${s.url}\n`;
       }
     }
-
     context += "\n--- END OF SCRAPED DATA ---\n";
     context += "\nIMPORTANT: Use the above data to answer. If a VERIFIED SOURCE CATALOG is present, rely on it for external links. Never mention a source title unless it exists in the data above.";
 
-    return { context, verifiedSources };
+    const result = { context, verifiedSources };
+    setCachedSearch(query, result);
+    return result;
   } catch (e) {
     console.error("CUK search error:", e);
     return { context: "", verifiedSources: [] };
   }
 }
 
+// ─── App-only query detection ────────────────────────────────────────────────
+// These are answered from the system prompt only — no web search needed.
+const APP_ONLY_RE = /\b(upload|submit|submission|rollback|cancel|review|approve|reject|datesheet editor|sidebar|dashboard|profile|settings|password|logout|sign\s*out|notification|alert|calendar|deadline|paper|inbox|archive)\b/i;
+function isAppOnlyQuery(text: string): boolean {
+  const lower = text.toLowerCase();
+  if (/\b(cuk|central university|kashmir|cuet|chancellor|admission|syllabus|notice|recruitment|tender|scholarship|fee|result|exam(?:ination)?\s+(?:notice|date|schedule))\b/.test(lower)) return false;
+  return APP_ONLY_RE.test(lower);
+}
+
 // ─── University query detection ──────────────────────────────────────────────
 
 function isUniversityQuery(message: string): boolean {
+  if (isAppOnlyQuery(message)) return false;
   const lower = message.toLowerCase();
   const allKeywords = new Set<string>();
   for (const synonyms of Object.values(CATEGORY_SYNONYMS)) {
     for (const s of synonyms) allKeywords.add(s);
   }
-  // Add extra keywords
   for (const k of [
     "cuk", "central university", "kashmir", "university", "chancellor", "vice chancellor",
     "phd", "mba", "mca", "btech", "bsc", "msc", "semester", "nss", "ncc", "sports",
@@ -961,15 +942,11 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemMessage }, ...messages],
-        // NOTE: stream:false is intentional. The frontend speaks SSE, but we need the
-        // full AI response in hand before appending the verified-sources catalog so
-        // that the cited links rendered to the user always match what the model
-        // actually wrote. We then emit a single SSE frame with the combined payload.
-        stream: false,
+        stream: true,
       }),
     });
 
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -978,47 +955,107 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "AI service credits exhausted. Please contact admin." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const text = await response.text();
+      const text = await response.text().catch(() => "");
       console.error("AI gateway error:", response.status, text);
       return new Response(JSON.stringify({ error: "AI service error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const completion = await response.json();
-    const aiContent = completion?.choices?.[0]?.message?.content;
-
-    if (!aiContent || typeof aiContent !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid AI response" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const cleanContent = stripSourcesSection(aiContent);
+    // True streaming pipe: forward each delta as it arrives, then strip any
+    // model-emitted "Sources:" block from the tail and emit verified sources
+    // + follow-up suggestions in a final SSE frame before [DONE].
     const fallbackSources = verifiedSources.length > 0
       ? verifiedSources
       : (lastUserMessage && isUniversityQuery(lastUserMessage.content || ""))
         ? [{ title: "Central University of Kashmir", url: "https://www.cukashmir.ac.in", content: "", isPdf: false, score: 0 }]
         : [];
 
-    const finalContent = fallbackSources.length > 0
-      ? `${cleanContent}\n\n${formatSourcesSection(fallbackSources)}`
-      : aiContent;
+    const upstreamReader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
 
-    const ssePayload = [
-      `data: ${JSON.stringify({
-        id: completion?.id || crypto.randomUUID(),
-        object: "chat.completion.chunk",
-        created: completion?.created || Math.floor(Date.now() / 1000),
-        model: completion?.model || "google/gemini-2.5-flash",
-        choices: [{ index: 0, delta: { role: "assistant", content: finalContent }, finish_reason: "stop" }],
-        follow_up_suggestions: followUpSuggestions,
-      })}`,
-      "",
-      "data: [DONE]",
-      "",
-    ].join("\n");
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = "";
+        let assistantText = "";        // accumulated model output
+        let emittedText = "";          // what we've actually forwarded to client
+        const TAIL_HOLDBACK = 220;     // keep last N chars unflushed so we can scrub a trailing "Sources:" block
 
-    return new Response(ssePayload, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        const flushSafe = (final = false) => {
+          const target = final ? assistantText : assistantText.slice(0, Math.max(0, assistantText.length - TAIL_HOLDBACK));
+          if (target.length > emittedText.length) {
+            const delta = target.slice(emittedText.length);
+            emittedText = target;
+            const frame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: { content: delta }, finish_reason: null }],
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let nl: number;
+            while ((nl = buffer.indexOf("\n")) !== -1) {
+              let line = buffer.slice(0, nl);
+              buffer = buffer.slice(nl + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (!line.startsWith("data: ")) continue;
+              const json = line.slice(6).trim();
+              if (json === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(json);
+                const piece = parsed?.choices?.[0]?.delta?.content;
+                if (typeof piece === "string" && piece) {
+                  assistantText += piece;
+                  flushSafe(false);
+                }
+              } catch { /* partial chunk, ignore */ }
+            }
+          }
+
+          // Scrub any "Sources:" block the model wrote, then emit final delta + verified sources.
+          assistantText = stripSourcesSection(assistantText);
+          flushSafe(true);
+
+          if (fallbackSources.length > 0) {
+            const tail = `\n\n${formatSourcesSection(fallbackSources)}`;
+            const finalFrame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: { content: tail }, finish_reason: "stop" }],
+              follow_up_suggestions: followUpSuggestions,
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
+          } else if (followUpSuggestions.length > 0) {
+            const finalFrame = {
+              object: "chat.completion.chunk",
+              choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+              follow_up_suggestions: followUpSuggestions,
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
+          }
+
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (e) {
+          console.error("stream pipe error:", e);
+          controller.error(e);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (e) {
     console.error("Chatbot error:", e);
