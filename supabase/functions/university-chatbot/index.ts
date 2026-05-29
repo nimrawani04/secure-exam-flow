@@ -842,56 +842,122 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
   if (cached) { console.log("CUK cache hit"); return cached; }
 
   try {
-    // Single search round-trip. Firecrawl returns markdown for each hit,
-    // so we don't need follow-up scrapes for the general case.
     const expansions = expandQueryForSearch(query);
     const expandedQuery = expansions.length > 0 ? `${query} ${expansions.slice(0, 2).join(" ")}` : query;
     const searchQuery = expectsPdf(query)
       ? `site:cukashmir.ac.in ${expandedQuery} (filetype:pdf OR notice OR notification)`
       : `site:cukashmir.ac.in ${expandedQuery}`;
 
-    const results = await firecrawlSearch(apiKey, searchQuery, 5);
-    if (results.length === 0) {
+    // ── Phase 1: Discover (Map + Search in parallel) ────────────────────────
+    const [mapLinks, searchResults] = await Promise.all([
+      firecrawlMap(apiKey, "https://www.cukashmir.ac.in", query, 40),
+      firecrawlSearch(apiKey, searchQuery, 6),
+    ]);
+
+    // Score and pick top candidates to scrape
+    type Candidate = { url: string; title: string; score: number; hasContent: boolean; content?: string; html?: string };
+    const candidates = new Map<string, Candidate>();
+
+    for (const r of searchResults) {
+      const url = normalizeUrl(r.url);
+      if (!url || !isAllowedSourceUrl(url)) continue;
+      const title = r.title || deriveTitleFromUrl(url);
+      const content = r.markdown || r.description || "";
+      const sc = scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) + 4; // boost search hits
+      candidates.set(dedupKeyForUrl(url), { url, title, score: sc, hasContent: !!content, content });
+    }
+    for (const url of mapLinks) {
+      const norm = normalizeUrl(url);
+      if (!norm || !isAllowedSourceUrl(norm)) continue;
+      const key = dedupKeyForUrl(norm);
+      if (candidates.has(key)) continue;
+      const title = deriveTitleFromUrl(norm);
+      const sc = scoreSource(query, { title, url: norm, content: "", isPdf: isPdfUrl(norm) });
+      candidates.set(key, { url: norm, title, score: sc, hasContent: false });
+    }
+
+    if (candidates.size === 0) {
       const empty = { context: "", verifiedSources: [] };
       setCachedSearch(query, empty);
       return empty;
     }
 
+    // ── Phase 2: Scrape top 8 pages in parallel ─────────────────────────────
+    const ranked = [...candidates.values()].sort((a, b) => b.score - a.score);
+    const topToScrape = ranked.slice(0, 8).filter((c) => !c.hasContent || !c.html);
+    const phase2 = await Promise.all(topToScrape.map((c) => firecrawlScrape(apiKey, c.url).then((r) => ({ c, r }))));
+    for (const { c, r } of phase2) {
+      if (!r) continue;
+      c.content = r.markdown || c.content || "";
+      c.html = r.html || "";
+      c.title = r.title || c.title;
+      c.hasContent = true;
+    }
+
+    // ── Phase 3: Pagination + direct PDFs in parallel ───────────────────────
+    const followUrls = new Set<string>();
+    for (const c of ranked.slice(0, 8)) {
+      if (!c.content) continue;
+      // Pagination
+      for (const u of derivePaginationUrls(c.url, c.content, 3)) followUrls.add(u);
+      // Direct PDFs discovered on the page
+      const pdfs = extractPdfLinks({ html: c.html, markdown: c.content, baseUrl: c.url, parentTitle: c.title });
+      for (const p of pdfs.slice(0, 4)) followUrls.add(p.url);
+      // Deep on-page links (categorical follow-ups)
+      for (const u of pickDeepLinksFromMarkdown(c.content, c.url, query, 2)) followUrls.add(u);
+    }
+    // Don't re-scrape pages we already have
+    for (const c of candidates.values()) followUrls.delete(c.url);
+    const followList = [...followUrls].slice(0, 10);
+    const phase3 = await Promise.all(followList.map((u) => firecrawlScrape(apiKey, u).then((r) => ({ u, r }))));
+    for (const { u, r } of phase3) {
+      if (!r) continue;
+      const key = dedupKeyForUrl(u);
+      if (candidates.has(key)) continue;
+      const title = r.title || deriveTitleFromUrl(u);
+      const content = r.markdown || "";
+      candidates.set(key, {
+        url: u,
+        title,
+        score: scoreSource(query, { title, url: u, content, isPdf: isPdfUrl(u) }) + (isPdfUrl(u) ? 6 : 1),
+        hasContent: true,
+        content,
+        html: r.html || "",
+      });
+    }
+
+    // ── Build verified sources + LLM context from everything we collected ──
     const verifiedCandidates: VerifiedSource[] = [];
     const contextParts: string[] = [];
+    const finalRanked = [...candidates.values()].sort((a, b) => b.score - a.score);
+
     let idx = 0;
-
-    for (const r of results) {
-      const title = r.title || "Untitled";
-      const url = normalizeUrl(r.url) || "";
-      if (!url) continue;
-      const content = r.markdown ? r.markdown.slice(0, 4000) : r.description || "";
-      const isPdf = isPdfUrl(url);
-
+    for (const c of finalRanked) {
+      const isPdf = isPdfUrl(c.url);
       verifiedCandidates.push({
-        title: cleanTitle(title, url),
-        url,
-        content,
+        title: cleanTitle(c.title, c.url),
+        url: c.url,
+        content: (c.content || "").slice(0, 4000),
         isPdf,
-        score: scoreSource(query, { title, url, content, isPdf }),
+        score: c.score,
       });
-
-      if (content) {
-        verifiedCandidates.push(...extractMarkdownLinks(content, url, title, query));
+      if (c.content) {
+        verifiedCandidates.push(...extractMarkdownLinks(c.content, c.url, c.title, query));
       }
-      const pdfHits = extractPdfLinks({ html: r.html, markdown: r.markdown, baseUrl: url, parentTitle: title });
+      const pdfHits = extractPdfLinks({ html: c.html, markdown: c.content, baseUrl: c.url, parentTitle: c.title });
       if (pdfHits.length) {
-        verifiedCandidates.push(...pdfHitsToSources(pdfHits, content || r.description || "", query));
+        verifiedCandidates.push(...pdfHitsToSources(pdfHits, c.content || "", query));
       }
-
-      idx++;
-      contextParts.push(`[${idx}]\nTitle: ${title}\nURL: ${url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${content.slice(0, 3000)}`);
+      if (c.content && idx < 5) {
+        idx++;
+        contextParts.push(`[${idx}]\nTitle: ${c.title}\nURL: ${c.url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${c.content.slice(0, 3000)}`);
+      }
     }
 
     const rankedSources = dedupeAndRankSources(verifiedCandidates, 8);
     const verifiedSources = filterWorkingSources(rankedSources, 6);
 
-    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.slice(0, 5).join("\n\n");
+    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
     if (verifiedSources.length > 0) {
       context += "\n\n--- VERIFIED SOURCE CATALOG ---\n";
       for (const s of verifiedSources) {
