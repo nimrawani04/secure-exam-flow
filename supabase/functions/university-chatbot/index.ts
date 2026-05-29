@@ -871,6 +871,20 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
     type Candidate = { url: string; title: string; score: number; hasContent: boolean; content?: string; html?: string };
     const candidates = new Map<string, Candidate>();
 
+    // ── Phase 0: Guaranteed fallback pages for this category ────────────────
+    // Search index often misses contact/directory/department pages because they
+    // rarely change. Force-scrape category fallback URLs in parallel so we
+    // always have authoritative content for predictable intents (contact, fees,
+    // departments, etc.).
+    const fallbackCats = getFallbackCategories(query);
+    const guaranteedUrls = new Set<string>();
+    for (const cat of fallbackCats) {
+      for (const u of FALLBACK_PAGES[cat] || []) guaranteedUrls.add(u);
+    }
+    const phase0Results = await Promise.all(
+      [...guaranteedUrls].slice(0, 6).map((u) => firecrawlScrape(apiKey, u).then((r) => ({ u, r }))),
+    );
+
     for (const r of searchResults) {
       const url = normalizeUrl(r.url);
       if (!url || !isAllowedSourceUrl(url)) continue;
@@ -878,6 +892,15 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       const content = r.markdown || r.description || "";
       const sc = scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) + 4; // boost search hits
       candidates.set(dedupKeyForUrl(url), { url, title, score: sc, hasContent: !!content, content });
+    }
+    for (const { u, r } of phase0Results) {
+      if (!r) continue;
+      const key = dedupKeyForUrl(u);
+      const title = r.title || deriveTitleFromUrl(u);
+      const content = r.markdown || "";
+      // Big score boost — these are authoritative pages chosen by intent match.
+      const sc = scoreSource(query, { title, url: u, content, isPdf: isPdfUrl(u) }) + 12;
+      candidates.set(key, { url: u, title, score: sc, hasContent: true, content, html: r.html || "" });
     }
     for (const url of mapLinks) {
       const norm = normalizeUrl(url);
@@ -894,6 +917,7 @@ async function searchCUK(query: string, apiKey: string): Promise<SearchContext> 
       setCachedSearch(query, empty);
       return empty;
     }
+
 
     // ── Phase 2: Scrape top 8 pages in parallel ─────────────────────────────
     const ranked = [...candidates.values()].sort((a, b) => b.score - a.score);
