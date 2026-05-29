@@ -42,7 +42,20 @@ Exam Paper System Help:
 - HODs: reviewing papers, selecting/rejecting papers, department management, exam sessions, alerts
 - Exam Cell: managing datesheets, paper inbox, exam sessions, HOD alerts, archive
 - Admin: user management, departments, audit logs, broadcasts, security
-- For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)`;
+- For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
+
+CUK Baseline Contact Information (use only if the live context does not provide more specific or up-to-date contact details for the user's question):
+- Main Campus: Ganderbal, Tulmulla, Jammu & Kashmir – 191201
+- Transit Campus: Sonwar, Srinagar, J&K – 190004
+- General enquiry email: info@cukashmir.ac.in
+- Registrar office: registrar@cukashmir.ac.in
+- Controller of Examinations: coe@cukashmir.ac.in
+- Phone (general): +91-194-2147300
+- Official website: https://www.cukashmir.ac.in
+- Directory of staff and departments: https://www.cukashmir.ac.in/directory.aspx
+- Contact us page: https://www.cukashmir.ac.in/contactus.aspx
+When asked about a specific department or person, prefer the live context. If only the baseline above is available, share it and direct the user to the directory page for department-specific contacts.`;
+
 
 // ─── Category synonyms (from crawler.py) ────────────────────────────────────
 
