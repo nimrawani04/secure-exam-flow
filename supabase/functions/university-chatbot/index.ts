@@ -631,6 +631,57 @@ async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSe
   } catch { return null; }
 }
 
+// Firecrawl Map — discovers URLs across the entire site (full link graph,
+// not just the search index). Optional `search` filters results by keyword.
+async function firecrawlMap(apiKey: string, url: string, search?: string, limit = 40): Promise<string[]> {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/map", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, search, limit, includeSubdomains: false }),
+    });
+    if (!res.ok) { console.error("Firecrawl map failed:", res.status); return []; }
+    const data = await res.json();
+    const links: string[] = Array.isArray(data.links)
+      ? data.links
+      : (Array.isArray(data.data?.links) ? data.data.links : []);
+    return links.filter((u): u is string => typeof u === "string");
+  } catch (e) { console.error("Firecrawl map error:", e); return []; }
+}
+
+// Given a scraped page, derive candidate pagination URLs (ASP.NET style)
+// + any "next page" links found in its markdown. Returns deduped URLs.
+function derivePaginationUrls(baseUrl: string, markdown: string, max = 6): string[] {
+  const out = new Set<string>();
+  // Common ASP.NET pagination param patterns
+  try {
+    const u = new URL(baseUrl);
+    const patterns: Array<[string, number[]]> = [
+      ["page", [2, 3, 4]],
+      ["pg", [2, 3]],
+      ["pageindex", [1, 2, 3]],
+      ["p", [2, 3]],
+    ];
+    for (const [param, values] of patterns) {
+      for (const v of values) {
+        const next = new URL(u.toString());
+        next.searchParams.set(param, String(v));
+        out.add(next.toString());
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Markdown link labels that look like pagination ("2", "3", "Next", "»")
+  for (const m of markdown.matchAll(/\[([^\]]{1,8})\]\(([^)\s]+)\)/g)) {
+    const label = m[1].trim();
+    if (!/^(\d{1,3}|next|»|>>|›)$/i.test(label)) continue;
+    const url = normalizeUrl(m[2], baseUrl);
+    if (url && isAllowedSourceUrl(url) && url !== baseUrl) out.add(url);
+  }
+
+  return [...out].slice(0, max);
+}
+
 // ─── Search expansion (category-aware, from crawler.py synonyms) ─────────────
 
 function expandQueryForSearch(query: string): string[] {
