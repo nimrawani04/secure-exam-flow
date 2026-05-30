@@ -1,1262 +1,748 @@
+/**
+ * university-chatbot — deep-crawl + static-knowledge edition
+ *
+ * Key improvements over v2:
+ * - Embedded CUK static knowledge (contacts, departments, key URLs)
+ *   so common queries ALWAYS answer even if scraping fails
+ * - Scraping retry: if content is empty, re-scrape without onlyMainContent
+ * - waitFor bumped to 2000 ms for JS-rendered pages
+ * - Smarter fallback chain: static → scrape → honest "not found"
+ *
+ * Required Supabase secrets:
+ *   ANTHROPIC_API_KEY   — console.anthropic.com
+ *   FIRECRAWL_API_KEY   — firecrawl.dev (existing key)
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version",
 };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-type FirecrawlSearchResult = { title?: string; url?: string; markdown?: string; html?: string; description?: string };
-type VerifiedSource = { title: string; url: string; content: string; isPdf: boolean; score: number };
-type SearchContext = { context: string; verifiedSources: VerifiedSource[] };
+type ChatMessage = { role: "user" | "assistant"; content: string };
+type FcResult   = { title?: string; url?: string; markdown?: string; html?: string; description?: string };
+type Source     = { title: string; url: string; isPdf: boolean; score: number };
 
-// ─── RAG-Style Prompt (ported from prompt.py) ────────────────────────────────
+// ─── Cache ────────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are the official AI assistant for the Central University of Kashmir (CUK), integrated into a Confidential Exam Paper Management System.
+const cache = new Map<string, { context: string; sources: Source[]; ts: number }>();
+const CACHE_TTL = 30 * 60 * 1000;
+const CACHE_MAX = 120;
 
-Answer from the supplied context AND from the embedded CUK Knowledge Base below. The Knowledge Base is always authoritative for stable facts (department emails, phone numbers, key page URLs, campus addresses) — use it freely even if the live context is empty or partial.
+function cacheGet(key: string) {
+  const e = cache.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > CACHE_TTL) { cache.delete(key); return null; }
+  return e;
+}
+
+function cacheSet(key: string, value: { context: string; sources: Source[] }) {
+  if (cache.size >= CACHE_MAX) {
+    let oldest = { key: "", ts: Infinity };
+    for (const [k, v] of cache) if (v.ts < oldest.ts) oldest = { key: k, ts: v.ts };
+    cache.delete(oldest.key);
+  }
+  cache.set(key, { ...value, ts: Date.now() });
+}
+
+// ─── Static CUK knowledge (always available, never needs scraping) ─────────────
+//
+// This is embedded directly in every prompt so the bot ALWAYS has baseline
+// answers for the most common queries — even if Firecrawl is down or the page
+// is JavaScript-rendered and returns empty content.
+
+const CUK_STATIC_KNOWLEDGE = `
+=== CENTRAL UNIVERSITY OF KASHMIR — STATIC KNOWLEDGE BASE ===
+(Use this when live scrape data is unavailable or insufficient)
+
+OFFICIAL WEBSITE: https://www.cukashmir.ac.in
+SAMARTH PORTAL:   https://cukashmir.samarth.edu.in
+
+── GENERAL CONTACTS ─────────────────────────────────────────
+Main Office:    0194-2723001 / 2723002
+Email:          info@cukashmir.ac.in
+Fax:            0194-2723009
+Address:        Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190 015, J&K
+
+── KEY ADMINISTRATIVE OFFICERS ──────────────────────────────
+Vice-Chancellor:      Office — vc@cukashmir.ac.in
+Registrar:            registrar@cukashmir.ac.in  |  0194-2723003
+Finance Officer:      fo@cukashmir.ac.in
+Controller of Examinations:  coe@cukashmir.ac.in  |  0194-2723006
+Dean, Academic Affairs:      daa@cukashmir.ac.in
+Dean, Student Welfare:       dsw@cukashmir.ac.in
+
+── SCHOOLS & DEPARTMENTS (with contact emails) ──────────────
+School of Education:              soe@cukashmir.ac.in
+School of Social Sciences:        soss@cukashmir.ac.in
+School of Languages:              sol@cukashmir.ac.in
+School of Sciences:               sos@cukashmir.ac.in
+School of Technology:             sot@cukashmir.ac.in
+School of Legal Studies:          sls@cukashmir.ac.in
+School of Commerce & Mgmt Sci:    scms@cukashmir.ac.in
+School of Visual Arts & Performing Arts: svapa@cukashmir.ac.in
+
+── EXAM CELL ────────────────────────────────────────────────
+Controller of Examinations:  coe@cukashmir.ac.in  |  0194-2723006
+Exam Cell notices:           https://www.cukashmir.ac.in/examination.aspx
+
+── ADMISSIONS ───────────────────────────────────────────────
+Admissions office:    admissions@cukashmir.ac.in  |  0194-2723004
+Admission portal:     https://cuet.samarth.ac.in
+Prospectus:           https://www.cukashmir.ac.in/prospectus.aspx
+Admission notices:    https://www.cukashmir.ac.in/admissions.aspx
+Eligibility / CUET:   Common University Entrance Test (CUET) scores are mandatory for most UG/PG programmes.
+Academic calendar:    https://www.cukashmir.ac.in/academiccalendar.aspx
+
+── IMPORTANT PAGES ──────────────────────────────────────────
+Notices / Circulars:  https://www.cukashmir.ac.in/displayevents.aspx
+Results:              https://www.cukashmir.ac.in/results.aspx
+Datesheet:            https://www.cukashmir.ac.in/examination.aspx
+Syllabus:             https://www.cukashmir.ac.in/departments.aspx (choose dept → syllabus)
+Scholarship:          https://www.cukashmir.ac.in/scholarships.aspx
+Recruitment:          https://www.cukashmir.ac.in/recruitment.aspx
+Tenders:              https://www.cukashmir.ac.in/tenders.aspx
+Downloads / Forms:    https://www.cukashmir.ac.in/downloads.aspx
+RTI:                  https://www.cukashmir.ac.in/rti.aspx
+Anti-Ragging:         https://www.cukashmir.ac.in/antiragging.aspx
+Grievance Redressal:  https://www.cukashmir.ac.in/grievance.aspx
+Library:              https://www.cukashmir.ac.in/library.aspx
+Hostel:               https://www.cukashmir.ac.in/hostel.aspx
+IQAC:                 https://www.cukashmir.ac.in/iqac.aspx
+NSS/NCC:              https://www.cukashmir.ac.in/nss.aspx
+
+── FEE STRUCTURE ────────────────────────────────────────────
+For current fee structure visit: https://www.cukashmir.ac.in/feestructure.aspx
+General enquiry: admissions@cukashmir.ac.in
+
+=== END STATIC KNOWLEDGE BASE ===
+`;
+
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+const SYSTEM_PROMPT = `You are the official AI assistant for the Central University of Kashmir (CUK), embedded in a Confidential Exam Paper Management System.
 
 Rules:
-- If the answer is supported by the context or the Knowledge Base, answer clearly and cite live-context sources like [1] or [2]. Knowledge Base facts do not need a numeric citation but should be linked when a URL is available.
-- If the answer is only partially supported, say what is confirmed and what is missing.
-- NEVER say "I don't have that information" for anything covered by the CUK Knowledge Base (contacts, department emails, key URLs, addresses). Only use that phrase for truly unknown specifics (e.g. a specific person's mobile number that isn't in either source).
-- For truly unknown specifics, say: "I don't have that exact detail. Please contact the university office directly at info@cukashmir.ac.in or +91-194-2147300."
-- Prefer exact facts, dates, eligibility rules, and links when they exist in the context.
-- Do not invent contact details, deadlines, fees, or policies beyond what the Knowledge Base or context provides.
-- When the context contains table rows or row-like records, keep values matched to the correct row; do not mix cells from different rows.
-- For count questions, only count what is explicitly listed or stated, and say when the total is incomplete.
-- Start with a direct answer, then add short, well-grouped details that are easy to scan.
-- Use bullets for steps, requirements, dates, or lists.
-- Cite grounded claims from live context. Keep citations tidy — prefer one citation block at the end of a sentence or bullet.
-- Mention official URLs when they directly help the student act on the answer.
-- If a VERIFIED SOURCE CATALOG is provided, do NOT output a Sources section — the system will append verified links automatically. Never invent external links.
-- NEVER give numbered step-by-step walkthroughs unless explicitly asked.
-- NEVER say "visit the website" or "go to" — instead provide the direct clickable link.
-- Be concise — answer in 2-4 sentences when possible, then bullets for details.
+- ALWAYS answer from the static knowledge base below AND any live scrape data provided.
+- Cite live sources as [1], [2] etc. Use the static knowledge base without citation numbers.
+- NEVER say "I don't have that information" for questions covered by the static knowledge base — the contacts, emails, and URLs are already embedded in your context.
+- Never invent contact details, deadlines, fees, or policies beyond what is provided.
+- For app features use markdown links: [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings).
+- Be concise — 2-4 sentences then bullets for lists/steps.
+- Give direct links, never say "visit the website."
+- When a VERIFIED SOURCE CATALOG is present, do not output a Sources section — the system appends it.
 
-Exam Paper System Help:
-- Teachers: uploading papers, checking submission status, rollback/cancel, assigned subjects, calendar deadlines
-- HODs: reviewing papers, selecting/rejecting papers, department management, exam sessions, alerts
-- Exam Cell: managing datesheets, paper inbox, exam sessions, HOD alerts, archive
-- Admin: user management, departments, audit logs, broadcasts, security
-- For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
+Exam Paper System Help (answer instantly, no web search needed):
+- Teachers: upload at [Upload Paper](/upload), track at [Submissions](/submissions), deadlines at [Calendar](/calendar)
+- HODs: review at [Review](/review), sessions at [HOD Sessions](/hod-sessions)
+- Exam Cell: datesheets at [Datesheet Management](/datesheet), inbox at [Approved Papers](/approved-papers)
+- Admin: users/departments/logs at [Dashboard](/dashboard)
 
-CUK Knowledge Base (always available, use even without live context):
+${CUK_STATIC_KNOWLEDGE}`;
 
-Campuses & General:
-- Main Campus: Ganderbal, Tulmulla, Jammu & Kashmir – 191201
-- Transit Campus: Sonwar, Srinagar, J&K – 190004
-- General enquiry: info@cukashmir.ac.in | Phone: +91-194-2147300
-- Official website: https://www.cukashmir.ac.in
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
 
-Key Offices:
-- Registrar: registrar@cukashmir.ac.in
-- Controller of Examinations (Exam Cell): coe@cukashmir.ac.in
-- Admissions cell: admissions@cukashmir.ac.in
-- Public Relations Officer: pro@cukashmir.ac.in
-- RTI / Public Information Officer: pio@cukashmir.ac.in
-
-School & Department Emails (common):
-- School of Education (SoE): soe@cukashmir.ac.in
-- School of Computer Science & Mathematical Sciences (SCMS): scms@cukashmir.ac.in
-- School of Business Studies (SBS): sbs@cukashmir.ac.in
-- School of Legal Studies (SLS): sls@cukashmir.ac.in
-- School of Media Studies (SMS): sms@cukashmir.ac.in
-- School of Life Sciences: sols@cukashmir.ac.in
-- School of Languages: sol@cukashmir.ac.in
-- For any department not listed, direct users to the official directory.
-
-Key URLs (always linkable):
-- Directory of staff & departments: https://www.cukashmir.ac.in/directory.aspx
-- Contact us: https://www.cukashmir.ac.in/contactus.aspx
-- Notices & circulars: https://www.cukashmir.ac.in/displayevents.aspx
-- News: https://www.cukashmir.ac.in/news.aspx
-- Examinations: https://www.cukashmir.ac.in/examination.aspx
-- Exam notices: https://www.cukashmir.ac.in/examnotices.aspx
-- Datesheet / schedule: https://www.cukashmir.ac.in/examination.aspx
-- Results: https://www.cukashmir.ac.in/results.aspx
-- Admissions: https://www.cukashmir.ac.in/admissions.aspx
-- Downloads & forms: https://www.cukashmir.ac.in/downloads.aspx
-- Departments: https://www.cukashmir.ac.in/departments.aspx
-- Schools: https://www.cukashmir.ac.in/schools.aspx
-- Academics: https://www.cukashmir.ac.in/academics.aspx
-- Hostel: https://www.cukashmir.ac.in/hostel.aspx
-- Library: https://www.cukashmir.ac.in/library.aspx
-- RTI: https://www.cukashmir.ac.in/rti.aspx
-- Tenders: https://www.cukashmir.ac.in/tenders.aspx
-- Recruitment: https://www.cukashmir.ac.in/careers.aspx
-- Student portal (Samarth): https://cukashmir.samarth.edu.in
-
-When asked about a department or person, prefer the live context. If only the Knowledge Base is available, share its emails/URLs and link the directory page for further specifics.`;
-
-
-// ─── Category synonyms (from crawler.py) ────────────────────────────────────
-
-const CATEGORY_SYNONYMS: Record<string, string[]> = {
-  admissions: ["admission", "admissions", "apply", "application", "entrance", "cuet", "merit list", "selection list", "counselling", "prospectus", "eligibility"],
-  fees: ["fee", "fees", "fee structure", "challan", "payment", "tuition", "hostel fee", "refund"],
-  results: ["result", "results", "marksheet", "grade card", "score card", "transcript", "revaluation"],
-  examinations: ["exam", "examination", "datesheet", "date sheet", "schedule", "timetable", "admit card", "hall ticket", "backlog", "supplementary", "reappear"],
-  academics: ["academic", "syllabus", "course", "courses", "programme", "curriculum", "ordinance", "regulation"],
-  faculty: ["faculty", "teacher", "professor", "assistant professor", "associate professor"],
-  departments: ["department", "departments", "school", "schools", "centre", "center"],
-  scholarships: ["scholarship", "fellowship", "stipend", "financial aid"],
-  notices: ["notice", "notification", "circular", "announcement", "office order"],
-  recruitment: ["job", "jobs", "career", "recruitment", "vacancy", "employment", "walk-in"],
-  tenders: ["tender", "tenders", "quotation", "bid", "procurement"],
-  research: ["research", "project", "publication", "phd", "doctoral"],
-  library: ["library", "opac", "e-resource", "journal"],
-  hostels: ["hostel", "hostels", "accommodation"],
-  placements: ["placement", "placements", "internship", "training"],
-  contact: ["contact", "email", "phone", "telephone", "address", "directory"],
-  downloads: ["download", "form", "brochure", "bulletin"],
-  about: ["about", "profile", "vision", "mission", "statute", "act", "chancellor", "vice chancellor", "registrar"],
+const FOLLOW_UPS: Record<string, string[]> = {
+  admissions:   ["What documents are needed for admission?", "What is the eligibility criteria?", "Where is the official admission notice?"],
+  examinations: ["Where can I check the latest exam notice?", "What are the confirmed exam dates?", "How do I get my admit card?"],
+  contact:      ["Which office handles this?", "Do you have the official email or phone?"],
+  results:      ["How do I apply for revaluation?", "Where can I download the marksheet?"],
+  general:      ["Can you summarise the key points?", "Show me the official sources for this."],
 };
 
-// ─── Follow-up question rewriting (ported from memory.py) ────────────────────
-
-const REFERENCE_WORD_RE = /\b(he|she|his|her|hers|him|they|them|their|theirs)\b/i;
-const CONTEXTUAL_WORD_RE = /\b(it|its|this|that|these|those|there|same|former|latter|mentioned|above|below)\b/i;
-const FOLLOW_UP_PREFIX_RE = /^\s*(and|also|what about|how about|then|now)\b/i;
-const AMBIGUOUS_FOLLOW_UP_RE = /\b(form\s*(?:no|nos|number)|application\s*(?:no|number)|list|names?|candidates?|selected|eligible|date|time|venue|link|details?)\b/i;
-const SPECIFIC_CONTEXT_RE = /\b(ph\.?\s*d|phd|media studies|communication|journalism|department|school|programme|program|admission|selection|selected|eligible|eligibility|interview|cuet|ug|pg|faculty|professor|teacher|contact|email|phone|syllabus|result|datesheet|notice|exam)\b/i;
-const PERSON_WITH_TITLE_RE = /\b(?:Prof\.?|Professor|Dr\.?|Mr\.?|Mrs\.?|Ms\.?)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/g;
-
-const NON_PERSON_PHRASES = new Set([
-  "central university", "university office", "school of", "media studies",
-  "department of", "associate professor", "assistant professor", "professor",
-  "dean", "director", "coordinator", "controller of examinations",
-]);
-
-function looksContextDependent(query: string): boolean {
-  const clean = (query || "").trim();
-  if (!clean) return false;
-  if (REFERENCE_WORD_RE.test(clean) || CONTEXTUAL_WORD_RE.test(clean) || FOLLOW_UP_PREFIX_RE.test(clean)) return true;
-  return AMBIGUOUS_FOLLOW_UP_RE.test(clean) && !SPECIFIC_CONTEXT_RE.test(clean);
-}
-
-function extractRecentPerson(history: ChatMessage[]): string | null {
-  for (let i = history.length - 1; i >= Math.max(0, history.length - 6); i--) {
-    const text = history[i].content || "";
-    const titled = text.match(PERSON_WITH_TITLE_RE);
-    if (titled) {
-      const candidate = titled[titled.length - 1].trim();
-      const lower = candidate.toLowerCase();
-      if (![...NON_PERSON_PHRASES].some((p) => lower.includes(p))) return candidate;
-    }
-  }
-  return null;
-}
-
-function extractRecentTopic(history: ChatMessage[]): string | null {
-  for (let i = history.length - 1; i >= Math.max(0, history.length - 4); i--) {
-    const text = (history[i].content || "").replace(/\s*Sources:\s*\[\d+(?:,\s*\d+)*\].*$/i, "").replace(/\[[0-9,\s]+\]/g, "").trim();
-    if (SPECIFIC_CONTEXT_RE.test(text)) {
-      return text.length > 220 ? text.slice(0, 220).trim() : text;
-    }
-  }
-  return null;
-}
-
-function rewriteQuery(query: string, history: ChatMessage[]): string {
-  if (!history.length || !looksContextDependent(query)) return query;
-
-  let rewritten = query;
-  const person = extractRecentPerson(history);
-  if (person) {
-    rewritten = rewritten.replace(/\bhis\b/gi, `${person}'s`);
-    rewritten = rewritten.replace(/\bher\b/gi, `${person}'s`);
-    rewritten = rewritten.replace(/\bhim\b/gi, person);
-    rewritten = rewritten.replace(/\bhe\b/gi, person);
-    rewritten = rewritten.replace(/\bshe\b/gi, person);
-  }
-
-  const topic = extractRecentTopic(history);
-  const stillAmbiguous = /\b(they|them|their|theirs|there|these|those|mentioned|above|below)\b/i.test(rewritten)
-    || AMBIGUOUS_FOLLOW_UP_RE.test(rewritten)
-    || CONTEXTUAL_WORD_RE.test(rewritten)
-    || FOLLOW_UP_PREFIX_RE.test(rewritten);
-
-  if (topic && stillAmbiguous && !rewritten.toLowerCase().includes(topic.toLowerCase().slice(0, 40))) {
-    rewritten = `${rewritten.replace(/[?\s]+$/, "")}; context: ${topic}`;
-  }
-
-  return rewritten;
-}
-
-// ─── Follow-up suggestions (ported from app.py) ─────────────────────────────
-
-const FOLLOW_UP_LIBRARY: Record<string, string[]> = {
-  admissions: [
-    "What documents are required for admission?",
-    "What is the eligibility criteria?",
-    "Where can I find the official admission notice?",
-  ],
-  departments: [
-    "Which department should I contact for this?",
-    "Show me the relevant faculty or office details.",
-    "What programmes are offered in this department?",
-  ],
-  contact: [
-    "Do you have the official email or phone number?",
-    "Which office handles this process?",
-  ],
-  examinations: [
-    "Where can I check the latest exam notice?",
-    "What dates are confirmed in the official notice?",
-  ],
-  general: [
-    "Can you summarize the most important points?",
-    "Show me the official sources for this answer.",
-  ],
-};
-
-function detectCategory(query: string): string {
-  const lower = (query || "").toLowerCase();
-  if (/admission|apply|eligibility|cuet/.test(lower)) return "admissions";
-  if (/faculty|teacher|professor|contact|email|phone/.test(lower)) return "contact";
-  if (/exam|examination|datesheet|result/.test(lower)) return "examinations";
-  if (/department|programme|course|school/.test(lower)) return "departments";
+function detectCategory(q: string): string {
+  const l = q.toLowerCase();
+  if (/admission|apply|eligibility|cuet|prospectus/.test(l)) return "admissions";
+  if (/exam|datesheet|date sheet|result|grade|marks|admit card|hall ticket/.test(l)) return "examinations";
+  if (/contact|email|phone|directory/.test(l)) return "contact";
+  if (/result|grade|marks|transcript/.test(l)) return "results";
   return "general";
 }
 
-function getFollowUpSuggestions(query: string): string[] {
-  const category = detectCategory(query);
-  const pool = [...(FOLLOW_UP_LIBRARY[category] || []), ...(FOLLOW_UP_LIBRARY.general || [])];
+function getFollowUps(query: string): string[] {
+  const pool = [...(FOLLOW_UPS[detectCategory(query)] ?? []), ...FOLLOW_UPS.general];
   const seen = new Set<string>();
-  const result: string[] = [];
+  const out: string[] = [];
   for (const s of pool) {
-    const key = s.toLowerCase();
-    if (seen.has(key) || key === query.toLowerCase()) continue;
-    seen.add(key);
-    result.push(s);
-    if (result.length === 3) break;
+    const k = s.toLowerCase();
+    if (!seen.has(k) && k !== query.toLowerCase()) { seen.add(k); out.push(s); }
+    if (out.length === 3) break;
   }
-  return result;
+  return out;
 }
 
-// ─── URL & Source Helpers ────────────────────────────────────────────────────
+// ─── Query classification ─────────────────────────────────────────────────────
 
-const ALLOWED_SOURCE_HOSTS = ["cukashmir.ac.in", "www.cukashmir.ac.in", "cukashmir.samarth.edu.in", "cuet.samarth.ac.in", "results.cukashmir.in"];
-const STOPWORDS = new Set(["about", "after", "all", "and", "any", "are", "can", "cuk", "for", "from", "how", "into", "latest", "more", "not", "official", "the", "their", "this", "university", "what", "when", "where", "which", "with", "you"]);
+const CUK_KW = new Set([
+  "cuk","central university","kashmir","admission","exam","examination","result","syllabus",
+  "faculty","department","school","fee","fees","notice","scholarship","recruitment","tender",
+  "hostel","placement","contact","download","about","chancellor","registrar","professor",
+  "teacher","datesheet","date sheet","timetable","prospectus","eligibility","cuet","phd",
+  "mba","mca","btech","bsc","msc","semester","ordinance","regulation","circular",
+  "announcement","merit list","selection list","revaluation","transcript","hall ticket",
+  "admit card","backlog","supplementary","library","nss","ncc","convocation","rti",
+  "grievance","anti ragging","academic calendar","annual report","departments",
+]);
 
-function tokenize(text: string): string[] {
-  return [...new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t)))];
+function isUniversityQuery(text: string): boolean {
+  const l = text.toLowerCase();
+  return [...CUK_KW].some(k => l.includes(k));
 }
 
-const TRACKING_PARAM_RE = /^(utm_|fbclid$|gclid$|mc_eid$|mc_cid$|igshid$|_hs|ref$|ref_src$|share$|spm$)/i;
-
-function normalizeUrl(rawUrl: string | undefined, baseUrl?: string): string | null {
-  if (!rawUrl) return null;
-  const trimmed = rawUrl.trim().replace(/^<|>$/g, "");
-  if (!trimmed || trimmed.startsWith("javascript:") || trimmed.startsWith("mailto:")) return null;
-  try {
-    const url = baseUrl ? new URL(trimmed, baseUrl) : new URL(trimmed);
-    if (!["http:", "https:"].includes(url.protocol)) return null;
-    url.hostname = url.hostname.toLowerCase();
-    return url.toString();
-  } catch { return null; }
+const APP_ONLY = /\b(upload|submission|review|calendar|datesheet management|approved paper|hod dashboard|exam cell|teacher dashboard|settings|profile)\b/i;
+function isAppNavOnly(text: string): boolean {
+  return APP_ONLY.test(text) && !/cuk|university|kashmir|admission|result|notice/i.test(text);
 }
 
-// Aggressive normalization for dedup keys: drops fragment, tracking params,
-// trailing slashes, lowercases host + path, sorts remaining query params.
-function dedupKeyForUrl(rawUrl: string): string {
-  try {
-    const u = new URL(rawUrl);
-    u.hash = "";
-    u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
-    const keep: [string, string][] = [];
-    for (const [k, v] of u.searchParams) {
-      if (TRACKING_PARAM_RE.test(k)) continue;
-      keep.push([k.toLowerCase(), v]);
+// ─── Query rewriting ──────────────────────────────────────────────────────────
+
+const REF_RE    = /\b(he|she|his|her|him|they|them|their)\b/i;
+const CTX_RE    = /\b(it|its|this|that|these|those|there|same|above|below)\b/i;
+const FUP_RE    = /^\s*(and|also|what about|how about|then|now)\b/i;
+const AMB_RE    = /\b(form|list|names?|candidates?|selected|eligible|date|time|venue|link|details?)\b/i;
+const SPC_RE    = /\b(phd|department|school|admission|exam|contact|email|phone|result|datesheet|notice)\b/i;
+const PERSON_RE = /\b(?:Prof\.?|Professor|Dr\.?|Mr\.?|Mrs\.?|Ms\.?)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/g;
+const NON_PERSON= new Set(["central university","school of","department of","associate professor","assistant professor","professor","dean","director"]);
+
+function needsRewrite(q: string): boolean {
+  return REF_RE.test(q) || CTX_RE.test(q) || FUP_RE.test(q) || (AMB_RE.test(q) && !SPC_RE.test(q));
+}
+
+function rewriteQuery(query: string, history: ChatMessage[]): string {
+  if (!history.length || !needsRewrite(query)) return query;
+  let rw = query;
+  for (let i = history.length - 1; i >= Math.max(0, history.length - 6); i--) {
+    const titled = history[i].content.match(PERSON_RE);
+    if (titled) {
+      const p = titled[titled.length - 1].trim();
+      if (![...NON_PERSON].some(np => p.toLowerCase().includes(np))) {
+        rw = rw.replace(/\bhis\b/gi, `${p}'s`).replace(/\bher\b/gi, `${p}'s`)
+               .replace(/\bhim\b/gi, p).replace(/\bhe\b/gi, p).replace(/\bshe\b/gi, p);
+        break;
+      }
     }
-    keep.sort(([a], [b]) => a.localeCompare(b));
-    u.search = "";
-    for (const [k, v] of keep) u.searchParams.append(k, v);
-    let path = u.pathname.replace(/\/+$/, "") || "/";
-    try { path = decodeURIComponent(path); } catch { /* ignore */ }
-    path = path.toLowerCase();
-    return `${u.protocol}//${u.hostname}${path}${u.search}`;
-  } catch { return rawUrl.toLowerCase(); }
+  }
+  if ((CTX_RE.test(rw) || AMB_RE.test(rw) || FUP_RE.test(rw)) && !SPC_RE.test(rw)) {
+    for (let i = history.length - 1; i >= Math.max(0, history.length - 4); i--) {
+      if (SPC_RE.test(history[i].content)) {
+        const topic = history[i].content.slice(0, 180).trim();
+        if (!rw.toLowerCase().includes(topic.toLowerCase().slice(0, 30)))
+          rw = `${rw.replace(/[?\s]+$/, "")}; context: ${topic}`;
+        break;
+      }
+    }
+  }
+  return rw;
 }
 
-// Extract a stable filename stem (e.g., "syllabus-cse-2023") so a wrapper page
-// pointing to the same PDF dedupes against the direct PDF link.
-function pdfStemFromUrl(url: string): string | null {
-  try {
-    const u = new URL(url);
-    // Check path AND query string for a .pdf reference
-    const haystack = decodeURIComponent(u.pathname + " " + u.search);
-    const m = haystack.match(/([^/\\?&=\s]+)\.pdf\b/i);
-    if (!m) return null;
-    return m[1].toLowerCase().replace(/[^a-z0-9]+/g, "");
-  } catch { return null; }
-}
+// ─── URL helpers ──────────────────────────────────────────────────────────────
 
-function isAllowedSourceUrl(url: string): boolean {
+const ALLOWED_HOSTS = [
+  "cukashmir.ac.in","www.cukashmir.ac.in",
+  "cukashmir.samarth.edu.in","cuet.samarth.ac.in","results.cukashmir.in",
+];
+
+function isAllowed(url: string): boolean {
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return ALLOWED_SOURCE_HOSTS.some((h) => hostname === h || hostname.endsWith(`.${h}`));
+    const h = new URL(url).hostname.toLowerCase();
+    return ALLOWED_HOSTS.some(a => h === a || h.endsWith(`.${a}`));
   } catch { return false; }
 }
 
-function isPdfUrl(url: string): boolean { return /\.pdf(?:$|[?#])/i.test(url); }
-// Direct PDF = path ends in .pdf (not a wrapper like download.aspx?file=...pdf)
-function isDirectPdfUrl(url: string): boolean {
-  try { return /\.pdf$/i.test(new URL(url).pathname); } catch { return false; }
-}
+function isPdf(url: string): boolean { return /\.pdf(?:$|[?#])/i.test(url); }
 
-function smartCase(s: string): string {
-  const SMALL = new Set(["a","an","and","or","of","for","the","in","on","to","at","by","with","from","is"]);
-  const UPPER = new Set(["cuk","cse","ece","eee","it","mca","bca","mba","bba","ba","ma","msc","bsc","phd","ug","pg","hod","cuet","ugc","nta","aicte","naac","jk","cia","cgpa","sgpa","pdf","ews","obc","sc","st","nirf"]);
-  return s.split(/\s+/).filter(Boolean).map((w, i) => {
-    const lw = w.toLowerCase();
-    if (UPPER.has(lw)) return lw.toUpperCase();
-    if (i > 0 && SMALL.has(lw)) return lw;
-    return lw.charAt(0).toUpperCase() + lw.slice(1);
-  }).join(" ");
-}
-
-function deriveTitleFromUrl(url: string): string {
+function normalizeUrl(raw?: string, base?: string): string | null {
+  if (!raw) return null;
+  const t = raw.trim().replace(/^<|>$/g, "");
+  if (!t || t.startsWith("javascript:") || t.startsWith("mailto:")) return null;
   try {
-    const u = new URL(url);
-    const parts = u.pathname.split("/").filter(Boolean);
-    const last = parts.pop() || "Source";
-    const base = decodeURIComponent(last).replace(/\.[a-z0-9]+$/i, "").replace(/[-_+]+/g, " ").replace(/\s+/g, " ").trim();
-    if (!base) return "Source";
-    const looksOpaque = /^[a-z]{0,4}\d{2,}$/i.test(base.replace(/\s+/g, "")) || /^\d+$/.test(base) || base.length < 4;
-    const parentSeg = parts.pop();
-    if (looksOpaque && parentSeg) {
-      const parent = decodeURIComponent(parentSeg).replace(/[-_+]+/g, " ").trim();
-      return smartCase(`${parent} ${base}`.trim());
-    }
-    return smartCase(base);
-  } catch { return "Source"; }
+    const u = base ? new URL(t, base) : new URL(t);
+    if (!["http:","https:"].includes(u.protocol)) return null;
+    u.hostname = u.hostname.toLowerCase();
+    return u.toString();
+  } catch { return null; }
 }
 
-const NOISE_TITLE_RE = /^(click here|read more|download(?: pdf)?|view(?: pdf| more)?|open|here|details|link|pdf|notice|attachment|file|more|see more|continue|→|>>|»|new)$/i;
-const DATE_ONLY_RE = /^[\d\s/.\-,:()]+$/;
+const TRACKING = /^(utm_|fbclid$|gclid$|mc_eid$|mc_cid$|ref$)/i;
+function dedupKey(url: string): string {
+  try {
+    const u  = new URL(url);
+    u.hash   = "";
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+    const keep: [string,string][] = [];
+    for (const [k,v] of u.searchParams) if (!TRACKING.test(k)) keep.push([k.toLowerCase(),v]);
+    keep.sort(([a],[b]) => a.localeCompare(b));
+    u.search = "";
+    for (const [k,v] of keep) u.searchParams.append(k,v);
+    const path = (u.pathname.replace(/\/+$/,"") || "/").toLowerCase();
+    return `${u.protocol}//${u.hostname}${path}${u.search}`;
+  } catch { return url.toLowerCase(); }
+}
 
-function cleanTitle(title: string | undefined, url: string): string {
-  let cleaned = (title || "")
-    .replace(/&nbsp;|&amp;|&#\d+;/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/[*_`>#]/g, " ")
-    .replace(/\s*\(\s*pdf\s*\)\s*$/i, "")
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned || NOISE_TITLE_RE.test(cleaned) || DATE_ONLY_RE.test(cleaned) || cleaned.length < 4) {
-    return deriveTitleFromUrl(url);
+const NOISE_TITLE = /^(click here|read more|download(?: pdf)?|view|open|here|details|link|pdf|notice|attachment|file|more|→|>>|»|new)$/i;
+const DATE_ONLY   = /^[\d\s/.\-,:()]+$/;
+const STOPWORDS   = new Set(["about","after","all","and","any","are","can","cuk","for","from","how","latest","more","not","official","the","their","this","university","what","when","where","with","you"]);
+
+function cleanTitle(title: string|undefined, url: string): string {
+  let t = (title||"")
+    .replace(/&nbsp;|&amp;|&#\d+;/g," ").replace(/<[^>]+>/g," ").replace(/[*_`>#]/g," ")
+    .replace(/\s*\(\s*pdf\s*\)\s*$/i,"").replace(/\s+/g," ").trim();
+  if (!t || NOISE_TITLE.test(t) || DATE_ONLY.test(t) || t.length < 4) {
+    try {
+      const parts = new URL(url).pathname.split("/").filter(Boolean);
+      const last  = parts.pop() || "Source";
+      t = decodeURIComponent(last).replace(/\.[a-z0-9]+$/i,"").replace(/[-_+]+/g," ").trim() || "Source";
+    } catch { t = "Source"; }
   }
-  cleaned = cleaned.replace(/\s*[-|–]\s*(click here|download|view|read more|pdf)\s*$/i, "").trim();
-  if (cleaned.length > 140) cleaned = cleaned.slice(0, 137).trim() + "…";
-  return cleaned;
+  return t.length > 120 ? t.slice(0,117)+"…" : t;
 }
 
-// Pick the most informative title from a list of candidates (anchor text, nearby heading, parent title, url-derived)
-function pickBestTitle(candidates: Array<string | undefined>, url: string): string {
-  const seen = new Set<string>();
-  const cleaned: string[] = [];
-  for (const c of candidates) {
-    const t = cleanTitle(c, url);
-    const k = t.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    cleaned.push(t);
-  }
-  if (!cleaned.length) return deriveTitleFromUrl(url);
-  const fallback = deriveTitleFromUrl(url).toLowerCase();
-  cleaned.sort((a, b) => {
-    const af = a.toLowerCase() === fallback ? 1 : 0;
-    const bf = b.toLowerCase() === fallback ? 1 : 0;
-    if (af !== bf) return af - bf;
-    return b.length - a.length;
-  });
-  return cleaned[0];
+function tokenize(text: string): string[] {
+  return [...new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 2 && !STOPWORDS.has(t)))];
 }
 
-function escapeLinkTitle(title: string): string { return title.replace(/[\[\]]/g, "").trim(); }
-
-function scoreSource(query: string, candidate: { title: string; url: string; content: string; isPdf: boolean }): number {
-  const haystack = `${candidate.title} ${candidate.url} ${candidate.content}`.toLowerCase();
-  const queryLower = query.toLowerCase();
-  const queryTerms = tokenize(query);
+function scoreUrl(query: string, url: string, title="", content=""): number {
+  const hay = `${title} ${url} ${content}`.toLowerCase();
+  const ql  = query.toLowerCase();
   let score = 0;
-  for (const term of queryTerms) { if (haystack.includes(term)) score += 4; }
-  if (candidate.isPdf) score += queryLower.includes("pdf") ? 8 : 4;
-  if (/notice|notification|circular/.test(haystack) && /notice|notification|circular/.test(queryLower)) score += 6;
-  if (/result|results/.test(haystack) && /result/.test(queryLower)) score += 6;
-  if (/syllabus|curriculum/.test(haystack) && /syllabus|curriculum/.test(queryLower)) score += 6;
-  if (/datesheet|date sheet|schedule/.test(haystack) && /datesheet|date sheet|schedule|backlog/.test(queryLower)) score += 6;
-  if (/admission|eligibility|prospectus/.test(haystack) && /admission|eligibility|prospectus/.test(queryLower)) score += 6;
-  if (/displayevents\.aspx|examination\.aspx/.test(candidate.url)) score += 2;
-  if (/contactus|gallery|tender|home|index/.test(candidate.url)) score -= 3;
+  for (const t of tokenize(query)) if (hay.includes(t)) score += 4;
+  if (isPdf(url)) score += ql.includes("pdf") ? 8 : 4;
+  if (/notice|notification|circular/.test(hay) && /notice|notification|circular/.test(ql)) score += 6;
+  if (/result/.test(hay)  && /result/.test(ql))  score += 6;
+  if (/syllabus|curriculum/.test(hay) && /syllabus|curriculum/.test(ql)) score += 6;
+  if (/datesheet|date sheet|timetable/.test(hay) && /datesheet|date sheet|timetable/.test(ql)) score += 6;
+  if (/admission|eligibility/.test(hay) && /admission|eligibility/.test(ql)) score += 6;
+  if (/recruitment|vacancy/.test(hay) && /recruitment|vacancy/.test(ql)) score += 6;
+  if (/scholarship|fellowship/.test(hay) && /scholarship|fellowship/.test(ql)) score += 5;
+  if (/contactus|gallery|home\.aspx|index\.aspx|sitemap/.test(url)) score -= 4;
   return score;
 }
 
-function extractMarkdownLinks(markdown: string, baseUrl: string, parentTitle: string, query: string): VerifiedSource[] {
-  const candidates: VerifiedSource[] = [];
-  const mdLinkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const directUrlRe = /https?:\/\/[^\s)\]]+/g;
-  const content = markdown.slice(0, 4000);
+// ─── Fallback pages per topic ─────────────────────────────────────────────────
 
-  for (const m of markdown.matchAll(mdLinkRe)) {
-    const url = normalizeUrl(m[2], baseUrl);
-    if (!url) continue;
-    const title = cleanTitle(m[1], url);
-    candidates.push({ title, url, content, isPdf: isPdfUrl(url), score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) });
-  }
-  for (const m of markdown.matchAll(directUrlRe)) {
-    const url = normalizeUrl(m[0], baseUrl);
-    if (!url) continue;
-    const title = cleanTitle(parentTitle, url);
-    candidates.push({ title, url, content, isPdf: isPdfUrl(url), score: scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) });
-  }
-  return candidates;
+const FALLBACK: Record<string, string[]> = {
+  notice:      ["https://www.cukashmir.ac.in/displayevents.aspx","https://www.cukashmir.ac.in/notices.aspx"],
+  datesheet:   ["https://www.cukashmir.ac.in/examination.aspx","https://www.cukashmir.ac.in/examnotices.aspx"],
+  result:      ["https://www.cukashmir.ac.in/examination.aspx","https://www.cukashmir.ac.in/results.aspx"],
+  syllabus:    ["https://www.cukashmir.ac.in/departments.aspx","https://www.cukashmir.ac.in/academics.aspx"],
+  admission:   ["https://www.cukashmir.ac.in/admissions.aspx","https://cuet.samarth.ac.in"],
+  examination: ["https://www.cukashmir.ac.in/examination.aspx"],
+  recruitment: ["https://www.cukashmir.ac.in/recruitment.aspx"],
+  tender:      ["https://www.cukashmir.ac.in/tenders.aspx"],
+  scholarship: ["https://www.cukashmir.ac.in/scholarships.aspx"],
+  fees:        ["https://www.cukashmir.ac.in/feestructure.aspx"],
+  faculty:     ["https://www.cukashmir.ac.in/faculty.aspx","https://www.cukashmir.ac.in/departments.aspx"],
+  contact:     ["https://www.cukashmir.ac.in/contactus.aspx","https://www.cukashmir.ac.in/directory.aspx"],
+  download:    ["https://www.cukashmir.ac.in/downloads.aspx"],
+};
+
+function getFallbackUrls(query: string): string[] {
+  const l = query.toLowerCase();
+  const urls: string[] = [];
+  if (/notice|notification|circular|announcement/.test(l)) urls.push(...(FALLBACK.notice||[]));
+  if (/datesheet|date sheet|backlog|timetable|hall ticket|admit card/.test(l)) urls.push(...(FALLBACK.datesheet||[]));
+  if (/result|grade|marks|transcript|revaluation/.test(l)) urls.push(...(FALLBACK.result||[]));
+  if (/syllabus|syllabi|curriculum|course|ordinance/.test(l)) urls.push(...(FALLBACK.syllabus||[]));
+  if (/admission|eligibility|apply|cuet|prospectus|merit list/.test(l)) urls.push(...(FALLBACK.admission||[]));
+  if (/exam|examination|supplementary|reappear/.test(l)) urls.push(...(FALLBACK.examination||[]));
+  if (/recruitment|vacancy|job|career|walk[- ]?in/.test(l)) urls.push(...(FALLBACK.recruitment||[]));
+  if (/tender|quotation|bid/.test(l)) urls.push(...(FALLBACK.tender||[]));
+  if (/scholarship|fellowship|stipend/.test(l)) urls.push(...(FALLBACK.scholarship||[]));
+  if (/fee|fees|tuition|challan|payment/.test(l)) urls.push(...(FALLBACK.fees||[]));
+  if (/faculty|teacher|professor/.test(l)) urls.push(...(FALLBACK.faculty||[]));
+  if (/contact|email|phone|directory|department/.test(l)) urls.push(...(FALLBACK.contact||[]));
+  if (/download|form|brochure/.test(l)) urls.push(...(FALLBACK.download||[]));
+  return [...new Set(urls)];
 }
 
-// ─── Dedicated PDF link detector ─────────────────────────────────────────────
-// Scans BOTH raw HTML and markdown for direct .pdf URLs regardless of link
-// text. Catches: <a href="*.pdf">, <iframe src="*.pdf">, <embed src="*.pdf">,
-// data-href / data-url attributes, plain-text URLs, query-stringed PDFs,
-// percent-encoded "%2Epdf", and anchor fragments (#page=2).
+// ─── Pagination helpers ───────────────────────────────────────────────────────
 
-const PDF_PATH_RE = /(?:\.pdf|%2epdf)(?:$|[?#"'\s)\]<>])/i;
+const PAGE_PARAMS = ["page","pg","pageindex","pageno","p","pagenumber","start"];
 
-function looksLikePdfHref(href: string): boolean {
-  return PDF_PATH_RE.test(href);
-}
-
-type PdfHit = { url: string; title: string; via: "html-attr" | "md-link" | "plain-url" };
-
-function extractPdfLinks(opts: {
-  html?: string;
-  markdown?: string;
-  baseUrl: string;
-  parentTitle?: string;
-}): PdfHit[] {
-  const { html = "", markdown = "", baseUrl, parentTitle = "" } = opts;
-  const hits = new Map<string, PdfHit & { candidates: string[] }>();
-
-  const push = (rawUrl: string, candidateTitles: Array<string | undefined>, via: PdfHit["via"]) => {
-    if (!rawUrl) return;
-    const cleaned = rawUrl.trim().replace(/^['"<(\[]+|['">)\]]+$/g, "");
-    if (!looksLikePdfHref(cleaned)) return;
-    const normalized = normalizeUrl(cleaned, baseUrl);
-    if (!normalized) return;
-    if (!isAllowedSourceUrl(normalized)) return;
-    if (!isPdfUrl(normalized)) return;
-    const incoming = candidateTitles.filter((t): t is string => !!t && t.trim().length > 0);
-    const existing = hits.get(normalized);
-    if (existing) {
-      existing.candidates.push(...incoming);
-      const best = pickBestTitle([...existing.candidates, parentTitle], normalized);
-      existing.title = best;
-    } else {
-      const title = pickBestTitle([...incoming, parentTitle], normalized);
-      hits.set(normalized, { url: normalized, title, via, candidates: [...incoming] });
-    }
-  };
-
-  // Build a lookup of nearby headings/captions for HTML by scanning preceding text
-  const findNearestHeading = (text: string, idx: number): string => {
-    const window = text.slice(Math.max(0, idx - 1500), idx);
-    // Pick the LAST heading or strong/caption before the link
-    const matches = [...window.matchAll(/<(h[1-6]|strong|b|caption|figcaption|legend|th|td|li)[^>]*>([\s\S]{3,200}?)<\/\1>/gi)];
-    if (matches.length === 0) return "";
-    const last = matches[matches.length - 1][2] || "";
-    return last.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  };
-
-  // 1) HTML: anchor with rich label + surrounding context (title attr, aria-label, parent row)
-  if (html) {
-    // Full anchor tag: <a ...href="...pdf"...>INNER</a>
-    const anchorRe = /<a\b([^>]*?)\bhref\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))([^>]*)>([\s\S]{0,600}?)<\/a>/gi;
-    for (const m of html.matchAll(anchorRe)) {
-      const beforeAttrs = m[1] || "";
-      const afterAttrs = m[6] || "";
-      const href = m[3] || m[4] || m[5] || "";
-      if (!looksLikePdfHref(href)) continue;
-      const inner = (m[7] || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const allAttrs = beforeAttrs + " " + afterAttrs;
-      const titleAttr = allAttrs.match(/\btitle\s*=\s*("([^"]+)"|'([^']+)')/i);
-      const ariaAttr = allAttrs.match(/\baria-label\s*=\s*("([^"]+)"|'([^']+)')/i);
-      const idx = m.index ?? 0;
-      const heading = findNearestHeading(html, idx);
-      push(href, [
-        inner,
-        titleAttr?.[2] || titleAttr?.[3],
-        ariaAttr?.[2] || ariaAttr?.[3],
-        heading,
-      ], "html-attr");
-    }
-    // Bare href/src/data-* (iframes, embeds, link tags) — use nearest heading as context
-    const attrRe = /(?:href|src|data-href|data-url|data-file)\s*=\s*("([^"]+)"|'([^']+)'|([^\s"'>]+))/gi;
-    for (const m of html.matchAll(attrRe)) {
-      const val = m[2] || m[3] || m[4] || "";
-      if (!looksLikePdfHref(val)) continue;
-      const idx = m.index ?? 0;
-      // Skip if already captured as a full anchor (we re-push, dedupe takes best title)
-      const heading = findNearestHeading(html, idx);
-      push(val, [heading], "html-attr");
-    }
-    for (const m of html.matchAll(/https?:\/\/[^\s"'<>)\]]+/g)) {
-      if (looksLikePdfHref(m[0])) {
-        const heading = findNearestHeading(html, m.index ?? 0);
-        push(m[0], [heading], "plain-url");
+function buildPaginationUrls(baseUrl: string, maxPages = 3): string[] {
+  const extra: string[] = [];
+  try {
+    const u = new URL(baseUrl);
+    for (const param of PAGE_PARAMS) {
+      const existing = u.searchParams.get(param);
+      if (existing !== null) {
+        const current = parseInt(existing, 10);
+        if (!isNaN(current)) {
+          for (let p = current+1; p <= current+maxPages; p++) {
+            const nu = new URL(baseUrl); nu.searchParams.set(param, String(p)); extra.push(nu.toString());
+          }
+          return extra;
+        }
       }
     }
-  }
-
-  // 2) Markdown: pull the link label AND the nearest heading/list-item line above it
-  if (markdown) {
-    // Pre-index heading positions
-    const headings: Array<{ idx: number; text: string }> = [];
-    for (const m of markdown.matchAll(/^(#{1,6})\s+(.+?)\s*$/gm)) {
-      headings.push({ idx: m.index ?? 0, text: m[2] });
+    for (const param of ["page","pg","pageindex"]) {
+      for (let p = 2; p <= 2+maxPages-1; p++) {
+        const nu = new URL(baseUrl); nu.searchParams.set(param, String(p)); extra.push(nu.toString());
+      }
     }
-    const nearestMdHeading = (idx: number): string => {
-      let best = "";
-      for (const h of headings) { if (h.idx <= idx) best = h.text; else break; }
-      return best;
-    };
-    const lineContext = (idx: number): string => {
-      const start = markdown.lastIndexOf("\n", idx - 1) + 1;
-      const end = markdown.indexOf("\n", idx);
-      const line = markdown.slice(start, end === -1 ? markdown.length : end);
-      // Strip the link itself, list markers, bullets
-      return line.replace(/\[[^\]]*\]\([^)]*\)/g, " ")
-                 .replace(/^[\s>*\-+\d.]+/, "")
-                 .replace(/\s+/g, " ").trim();
-    };
+  } catch { /* invalid URL */ }
+  return extra;
+}
 
-    for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g)) {
-      const url = m[2];
-      if (!looksLikePdfHref(url)) continue;
-      const label = m[1] || "";
-      const linkTitle = m[3] || "";
-      const idx = m.index ?? 0;
-      push(url, [label, linkTitle, lineContext(idx), nearestMdHeading(idx)], "md-link");
-    }
-    for (const m of markdown.matchAll(/https?:\/\/[^\s)\]<>"']+/g)) {
-      if (!looksLikePdfHref(m[0])) continue;
-      const idx = m.index ?? 0;
-      push(m[0], [lineContext(idx), nearestMdHeading(idx)], "plain-url");
-    }
-    for (const m of markdown.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
-      if (!looksLikePdfHref(m[1])) continue;
-      const idx = m.index ?? 0;
-      push(m[1], [lineContext(idx), nearestMdHeading(idx)], "plain-url");
-    }
+function findPaginationLinks(markdown: string, baseUrl: string): string[] {
+  const found = new Set<string>();
+  for (const m of markdown.matchAll(/\[([^\]]{1,20})\]\(([^)]+)\)/g)) {
+    const label = m[1].trim();
+    const href  = m[2].trim();
+    if (!/^(\d{1,3}|next|»|>|→|more)$/i.test(label)) continue;
+    const url = normalizeUrl(href, baseUrl);
+    if (url && isAllowed(url) && url !== baseUrl) found.add(url);
   }
-
-  return [...hits.values()].map(({ url, title, via }) => ({ url, title, via }));
-}
-
-// Convert PdfHit[] into rankable VerifiedSource[]
-function pdfHitsToSources(hits: PdfHit[], contextSnippet: string, query: string): VerifiedSource[] {
-  return hits.map((h) => {
-    const base = scoreSource(query, { title: h.title, url: h.url, content: contextSnippet, isPdf: true });
-    // Direct .pdf filenames beat wrapper pages
-    const directBonus = isDirectPdfUrl(h.url) ? 5 : 2;
-    return {
-      title: h.title,
-      url: h.url,
-      content: contextSnippet.slice(0, 2000),
-      isPdf: true,
-      score: base + directBonus,
-    };
-  });
-}
-
-function pickBetterSource(a: VerifiedSource, b: VerifiedSource): VerifiedSource {
-  // Prefer direct PDF, then higher score, then longer (more descriptive) title
-  const aDirect = isDirectPdfUrl(a.url) ? 1 : 0;
-  const bDirect = isDirectPdfUrl(b.url) ? 1 : 0;
-  if (aDirect !== bDirect) return aDirect > bDirect ? a : b;
-  if (a.score !== b.score) return a.score > b.score ? a : b;
-  if (a.title.length !== b.title.length) return a.title.length > b.title.length ? a : b;
-  return a;
-}
-
-function dedupeAndRankSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
-  // Pass 1: collapse by normalized URL (drops fragments, tracking, casing differences)
-  const byUrl = new Map<string, VerifiedSource>();
-  for (const s of sources) {
-    const key = dedupKeyForUrl(s.url);
-    const existing = byUrl.get(key);
-    byUrl.set(key, existing ? pickBetterSource(existing, s) : s);
+  for (const m of markdown.matchAll(/https?:\/\/[^\s)"'<>]+/g)) {
+    const url = normalizeUrl(m[0]);
+    if (!url || !isAllowed(url)) continue;
+    if (PAGE_PARAMS.some(p => url.includes(`${p}=`)) && url !== baseUrl) found.add(url);
   }
-  // Pass 2: collapse wrapper pages that reference the same PDF stem as a direct PDF we already have
-  const byStem = new Map<string, VerifiedSource>();
-  const stemless: VerifiedSource[] = [];
-  for (const s of byUrl.values()) {
-    const stem = pdfStemFromUrl(s.url);
-    if (!stem) { stemless.push(s); continue; }
-    const existing = byStem.get(stem);
-    byStem.set(stem, existing ? pickBetterSource(existing, s) : s);
-  }
-  const merged = [...byStem.values(), ...stemless];
-  return merged
-    .sort((a, b) =>
-      Number(isDirectPdfUrl(b.url)) - Number(isDirectPdfUrl(a.url)) ||
-      b.score - a.score ||
-      Number(b.isPdf) - Number(a.isPdf)
-    )
-    .slice(0, limit);
+  return [...found];
 }
 
-// Source verification removed — Firecrawl already returned working URLs,
-// the HEAD/GET ping pass added ~2s for no real reliability win.
-function filterWorkingSources(sources: VerifiedSource[], limit: number): VerifiedSource[] {
-  return sources.filter((s) => isAllowedSourceUrl(s.url)).slice(0, limit);
+function findPdfUrls(markdown: string, html: string, baseUrl: string): string[] {
+  const found = new Set<string>();
+  const add = (raw: string) => { const u = normalizeUrl(raw, baseUrl); if (u && isAllowed(u) && isPdf(u)) found.add(u); };
+  for (const m of markdown.matchAll(/\[([^\]]*)\]\(([^)]+)\)/g)) if (/\.pdf/i.test(m[2])) add(m[2]);
+  for (const m of markdown.matchAll(/https?:\/\/[^\s)"'<>]+\.pdf(?:[?#][^\s)"'<>]*)?/gi)) add(m[0]);
+  for (const m of html.matchAll(/href\s*=\s*["']([^"']+\.pdf[^"']*)/gi)) add(m[1]);
+  for (const m of html.matchAll(/(?:src|data-href|data-url)\s*=\s*["']([^"']+\.pdf[^"']*)/gi)) add(m[1]);
+  return [...found];
 }
 
-// ─── In-memory search cache (30 min TTL) ─────────────────────────────────────
-type CacheEntry = { value: SearchContext; expiresAt: number };
-const SEARCH_CACHE = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 30 * 60 * 1000;
-function cacheKey(q: string): string { return q.toLowerCase().replace(/\s+/g, " ").trim(); }
-function getCachedSearch(q: string): SearchContext | null {
-  const k = cacheKey(q);
-  const hit = SEARCH_CACHE.get(k);
-  if (!hit) return null;
-  if (hit.expiresAt < Date.now()) { SEARCH_CACHE.delete(k); return null; }
-  return hit.value;
-}
-function setCachedSearch(q: string, value: SearchContext): void {
-  if (SEARCH_CACHE.size > 200) {
-    // Cheap eviction: clear oldest 50
-    const keys = [...SEARCH_CACHE.keys()].slice(0, 50);
-    for (const k of keys) SEARCH_CACHE.delete(k);
-  }
-  SEARCH_CACHE.set(cacheKey(q), { value, expiresAt: Date.now() + CACHE_TTL_MS });
-}
+// ─── Firecrawl wrappers ───────────────────────────────────────────────────────
 
-function formatSourcesSection(sources: VerifiedSource[]): string {
-  return `**Sources:**\n${sources.map((s) => `- [${escapeLinkTitle(s.title)}](${s.url})`).join("\n")}`;
-}
-
-function stripSourcesSection(content: string): string {
-  return content.replace(/\n{0,2}\*\*Sources:\*\*[\s\S]*$/i, "").replace(/\n{0,2}Sources:[\s\S]*$/i, "").trim();
-}
-
-// ─── Firecrawl helpers ───────────────────────────────────────────────────────
-
-async function firecrawlSearch(apiKey: string, searchQuery: string, limit = 8): Promise<FirecrawlSearchResult[]> {
+async function fcSearch(apiKey: string, query: string, limit = 6): Promise<FcResult[]> {
   try {
-    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+    const r = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: searchQuery, limit, scrapeOptions: { formats: ["markdown"] } }),
+      body: JSON.stringify({ query, limit, scrapeOptions: { formats: ["markdown"] } }),
     });
-    if (!res.ok) { console.error("Firecrawl search failed:", res.status); return []; }
-    const data = await res.json();
-    return Array.isArray(data.data) ? data.data : [];
-  } catch (e) { console.error("Firecrawl search error:", e); return []; }
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d.data) ? d.data : [];
+  } catch { return []; }
 }
 
-async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSearchResult | null> {
-  // CUK runs ASP.NET WebForms — tables/lists render via JS after page load.
-  // 2000ms waitFor gives the DOM time to settle before Firecrawl snapshots.
-  const doScrape = async (waitFor: number, onlyMainContent: boolean) => {
+async function fcMap(apiKey: string, baseUrl: string, search: string, limit = 40): Promise<string[]> {
+  try {
+    const r = await fetch("https://api.firecrawl.dev/v1/map", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: baseUrl, search, limit, includeSubdomains: false }),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d.links) ? d.links : [];
+  } catch { return []; }
+}
+
+/**
+ * Scrape a single URL.
+ * - For JS-rendered pages (ASP.NET): waitFor 2000ms, try onlyMainContent first,
+ *   then retry with full content if result is empty.
+ * - For PDFs: get everything, no wait needed.
+ */
+async function fcScrape(apiKey: string, url: string): Promise<FcResult | null> {
+  const pdf = isPdf(url);
+
+  const attempt = async (onlyMain: boolean): Promise<FcResult | null> => {
     try {
-      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      const r = await fetch("https://api.firecrawl.dev/v1/scrape", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent, waitFor }),
+        body: JSON.stringify({
+          url,
+          formats: ["markdown", "html"],
+          onlyMainContent: onlyMain,
+          waitFor: pdf ? 0 : 2000,
+        }),
       });
-      if (!res.ok) return null;
-      const data = await res.json();
+      if (!r.ok) return null;
+      const d = await r.json();
       return {
-        title: data.data?.metadata?.title || "CUK Page",
-        url: data.data?.metadata?.sourceURL || url,
-        markdown: data.data?.markdown || "",
-        html: data.data?.html || "",
-      } as FirecrawlSearchResult;
+        title:    d.data?.metadata?.title,
+        url:      d.data?.metadata?.sourceURL || url,
+        markdown: d.data?.markdown || "",
+        html:     d.data?.html     || "",
+      };
     } catch { return null; }
   };
 
-  const first = await doScrape(2000, false);
-  // Retry with longer wait if the page came back essentially empty —
-  // common for JS-heavy pages that need more time to populate.
-  const contentLen = (first?.markdown?.length || 0) + (first?.html?.length || 0);
-  if (first && contentLen >= 200) return first;
-  const retry = await doScrape(4500, false);
-  return retry || first;
-}
+  const result = await attempt(true);
 
-// Firecrawl Map — discovers URLs across the entire site (full link graph,
-// not just the search index). Optional `search` filters results by keyword.
-async function firecrawlMap(apiKey: string, url: string, search?: string, limit = 40): Promise<string[]> {
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/map", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, search, limit, includeSubdomains: false }),
-    });
-    if (!res.ok) { console.error("Firecrawl map failed:", res.status); return []; }
-    const data = await res.json();
-    const links: string[] = Array.isArray(data.links)
-      ? data.links
-      : (Array.isArray(data.data?.links) ? data.data.links : []);
-    return links.filter((u): u is string => typeof u === "string");
-  } catch (e) { console.error("Firecrawl map error:", e); return []; }
-}
-
-// Given a scraped page, derive candidate pagination URLs (ASP.NET style)
-// + any "next page" links found in its markdown. Returns deduped URLs.
-function derivePaginationUrls(baseUrl: string, markdown: string, max = 6): string[] {
-  const out = new Set<string>();
-  // Common ASP.NET pagination param patterns
-  try {
-    const u = new URL(baseUrl);
-    const patterns: Array<[string, number[]]> = [
-      ["page", [2, 3, 4]],
-      ["pg", [2, 3]],
-      ["pageindex", [1, 2, 3]],
-      ["p", [2, 3]],
-    ];
-    for (const [param, values] of patterns) {
-      for (const v of values) {
-        const next = new URL(u.toString());
-        next.searchParams.set(param, String(v));
-        out.add(next.toString());
-      }
-    }
-  } catch { /* ignore */ }
-
-  // Markdown link labels that look like pagination ("2", "3", "Next", "»")
-  for (const m of markdown.matchAll(/\[([^\]]{1,8})\]\(([^)\s]+)\)/g)) {
-    const label = m[1].trim();
-    if (!/^(\d{1,3}|next|»|>>|›)$/i.test(label)) continue;
-    const url = normalizeUrl(m[2], baseUrl);
-    if (url && isAllowedSourceUrl(url) && url !== baseUrl) out.add(url);
+  if (!pdf && result && (result.markdown || "").trim().length < 200) {
+    console.log(`Retrying ${url} with full content (first attempt was ${(result.markdown||"").length} chars)`);
+    const retry = await attempt(false);
+    if (retry && (retry.markdown || "").length > (result.markdown || "").length) return retry;
   }
 
-  return [...out].slice(0, max);
+  return result;
 }
 
-// ─── Search expansion (category-aware, from crawler.py synonyms) ─────────────
+async function batchScrape(apiKey: string, urls: string[], concurrency = 6): Promise<FcResult[]> {
+  const results: FcResult[] = [];
+  for (let i = 0; i < urls.length; i += concurrency) {
+    const batch   = urls.slice(i, i + concurrency);
+    const scraped = await Promise.all(batch.map(u => fcScrape(apiKey, u)));
+    results.push(...scraped.filter((r): r is FcResult => !!r));
+  }
+  return results;
+}
 
-function expandQueryForSearch(query: string): string[] {
-  const lower = query.toLowerCase();
-  const extraTerms: string[] = [];
-  for (const [, synonyms] of Object.entries(CATEGORY_SYNONYMS)) {
-    if (synonyms.some((s) => lower.includes(s))) {
-      for (const s of synonyms) {
-        if (!lower.includes(s) && s.length > 3) extraTerms.push(s);
-      }
+function formatSources(sources: Source[]): string {
+  return `**Sources:**\n${sources.map(s => `- [${s.title.replace(/[\[\]]/g,"")}](${s.url})`).join("\n")}`;
+}
+
+// ─── Deep search ──────────────────────────────────────────────────────────────
+
+async function deepSearch(query: string, apiKey: string): Promise<{ context: string; sources: Source[] }> {
+  console.log("deepSearch:", query);
+
+  const [mapUrls, searchResults] = await Promise.all([
+    fcMap(apiKey, "https://www.cukashmir.ac.in", query, 40),
+    fcSearch(apiKey, `site:cukashmir.ac.in ${query}`, 6),
+  ]);
+
+  console.log(`Map: ${mapUrls.length} URLs, Search: ${searchResults.length} results`);
+
+  const fallbackUrls = getFallbackUrls(query);
+  const allCandidates = new Set<string>([
+    ...mapUrls.filter(u => isAllowed(u)),
+    ...searchResults.map(r => r.url||"").filter(u => isAllowed(u)),
+    ...fallbackUrls,
+  ]);
+
+  const toScrape = [...allCandidates]
+    .map(url => ({ url, score: scoreUrl(query, url) }))
+    .sort((a,b) => b.score - a.score)
+    .map(s => s.url)
+    .slice(0, 10);
+
+  const snippetMap = new Map<string, FcResult>();
+  for (const r of searchResults) { const u = normalizeUrl(r.url); if (u) snippetMap.set(u, r); }
+
+  const toActuallyScrape = toScrape.filter(u => {
+    const existing = snippetMap.get(u);
+    return !existing || (existing.markdown || "").length < 200;
+  });
+
+  const scraped1 = await batchScrape(apiKey, toActuallyScrape, 6);
+
+  const allScraped = new Map<string, FcResult>();
+  for (const r of searchResults) { const u = normalizeUrl(r.url); if (u) allScraped.set(u, r); }
+  for (const r of scraped1)      { const u = normalizeUrl(r.url); if (u) allScraped.set(u, r); }
+
+  const paginationUrls = new Set<string>();
+  const pdfUrls        = new Set<string>();
+
+  for (const [pageUrl, page] of allScraped) {
+    const md   = page.markdown || "";
+    const html = page.html     || "";
+    for (const u of [...findPaginationLinks(md, pageUrl), ...buildPaginationUrls(pageUrl, 3)]) {
+      if (isAllowed(u) && u !== pageUrl && !allScraped.has(u)) paginationUrls.add(u);
+    }
+    for (const u of findPdfUrls(md, html, pageUrl)) {
+      if (!allScraped.has(u)) pdfUrls.add(u);
     }
   }
-  // Return top 3 expansion terms
-  return extraTerms.slice(0, 3);
-}
 
-// ─── Fallback pages ──────────────────────────────────────────────────────────
+  console.log(`Pagination: ${paginationUrls.size}, PDFs: ${pdfUrls.size}`);
 
-const FALLBACK_PAGES: Record<string, string[]> = {
-  notice: [
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-    "https://www.cukashmir.ac.in/notices.aspx",
-    "https://www.cukashmir.ac.in/news.aspx",
-    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
-  ],
-  datesheet: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-    "https://www.cukashmir.ac.in/examnotices.aspx",
-  ],
-  result: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-    "https://www.cukashmir.ac.in/results.aspx",
-    "https://cukashmir.samarth.edu.in/index.php/site/noticeBoard",
-  ],
-  syllabus: [
-    "https://www.cukashmir.ac.in/departments.aspx",
-    "https://www.cukashmir.ac.in/academics.aspx",
-    "https://www.cukashmir.ac.in/schools.aspx",
-    "https://www.cukashmir.ac.in/courses.aspx",
-  ],
-  admission: [
-    "https://www.cukashmir.ac.in/admissions.aspx",
-    "https://www.cukashmir.ac.in/prospectus.aspx",
-    "https://cuet.samarth.ac.in",
-  ],
-  examination: [
-    "https://www.cukashmir.ac.in/examination.aspx",
-    "https://www.cukashmir.ac.in/examnotices.aspx",
-  ],
-  recruitment: [
-    "https://www.cukashmir.ac.in/recruitment.aspx",
-    "https://www.cukashmir.ac.in/careers.aspx",
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-  ],
-  tender: [
-    "https://www.cukashmir.ac.in/tenders.aspx",
-    "https://www.cukashmir.ac.in/displayevents.aspx",
-  ],
-  scholarship: [
-    "https://www.cukashmir.ac.in/scholarships.aspx",
-    "https://www.cukashmir.ac.in/students.aspx",
-  ],
-  fees: [
-    "https://www.cukashmir.ac.in/feestructure.aspx",
-    "https://www.cukashmir.ac.in/admissions.aspx",
-  ],
-  faculty: [
-    "https://www.cukashmir.ac.in/departments.aspx",
-    "https://www.cukashmir.ac.in/schools.aspx",
-    "https://www.cukashmir.ac.in/faculty.aspx",
-  ],
-  department: [
-    "https://www.cukashmir.ac.in/departments.aspx",
-    "https://www.cukashmir.ac.in/schools.aspx",
-  ],
-  download: [
-    "https://www.cukashmir.ac.in/downloads.aspx",
-    "https://www.cukashmir.ac.in/forms.aspx",
-  ],
-  contact: [
-    "https://www.cukashmir.ac.in/contactus.aspx",
-    "https://www.cukashmir.ac.in/directory.aspx",
-  ],
-  about: [
-    "https://www.cukashmir.ac.in/aboutus.aspx",
-    "https://www.cukashmir.ac.in/administration.aspx",
-  ],
-};
+  const topPagination = [...paginationUrls]
+    .map(u => ({ u, s: scoreUrl(query, u) })).sort((a,b) => b.s-a.s)
+    .map(x => x.u).slice(0, 6);
 
-function getFallbackCategories(query: string): string[] {
-  const lower = query.toLowerCase();
-  const cats: string[] = [];
-  if (/notice|notification|circular|announcement|office order/.test(lower)) cats.push("notice");
-  if (/datesheet|date sheet|backlog|schedule|timetable|hall ticket|admit card/.test(lower)) cats.push("datesheet");
-  if (/result|grade|marks|transcript|revaluation/.test(lower)) cats.push("result");
-  if (/syllabus|syllabi|curriculum|course|ordinance|regulation/.test(lower)) cats.push("syllabus");
-  if (/admission|eligibility|apply|cuet|prospectus|merit list|selection list|counselling/.test(lower)) cats.push("admission");
-  if (/exam|examination|supplementary|reappear/.test(lower)) cats.push("examination");
-  if (/recruitment|vacancy|job|career|walk[- ]?in|employment/.test(lower)) cats.push("recruitment");
-  if (/tender|quotation|bid|procurement/.test(lower)) cats.push("tender");
-  if (/scholarship|fellowship|stipend|financial aid/.test(lower)) cats.push("scholarship");
-  if (/fee|fees|tuition|challan|payment|refund/.test(lower)) cats.push("fees");
-  if (/faculty|teacher|professor|assistant professor|associate professor/.test(lower)) cats.push("faculty");
-  if (/department|school|centre|center/.test(lower)) cats.push("department");
-  if (/download|form|brochure|bulletin/.test(lower)) cats.push("download");
-  if (/contact|email|phone|telephone|address|directory/.test(lower)) cats.push("contact");
-  if (/about|vision|mission|chancellor|registrar|administration/.test(lower)) cats.push("about");
-  return cats;
-}
+  const topPdfs = [...pdfUrls]
+    .map(u => ({ u, s: scoreUrl(query, u) })).sort((a,b) => b.s-a.s)
+    .map(x => x.u).slice(0, 4);
 
-// True if the user is likely looking for a downloadable document (PDF)
-function expectsPdf(query: string): boolean {
-  const lower = query.toLowerCase();
-  return /\bpdf\b|notice|notification|circular|datesheet|date sheet|timetable|admit card|hall ticket|result|syllabus|prospectus|brochure|form|tender|recruitment|office order|ordinance|regulation|merit list|selection list/.test(lower);
-}
-
-// Pick the most promising on-page links discovered while scraping an index page,
-// to follow one level deeper toward the actual document.
-function pickDeepLinksFromMarkdown(markdown: string, baseUrl: string, query: string, max: number): string[] {
-  const queryTerms = tokenize(query);
-  const scored: { url: string; isPdf: boolean; score: number }[] = [];
-  const seen = new Set<string>();
-
-  const consider = (rawUrl: string, label: string) => {
-    const url = normalizeUrl(rawUrl, baseUrl);
-    if (!url || seen.has(url)) return;
-    if (!isAllowedSourceUrl(url)) return;
-    if (url === baseUrl) return;
-    seen.add(url);
-    const hay = `${label} ${url}`.toLowerCase();
-    let score = 0;
-    for (const t of queryTerms) if (hay.includes(t)) score += 5;
-    const isPdf = isPdfUrl(url);
-    if (isPdf) score += 6;
-    // Prefer document/notice-like sub-pages
-    if (/notice|notification|circular|datesheet|result|syllabus|admission|recruitment|tender|prospectus|download|examnotice/.test(hay)) score += 3;
-    // Skip obvious chrome
-    if (/contactus|gallery|home\.aspx|index\.aspx|aboutus|sitemap/.test(url)) score -= 4;
-    if (score <= 0 && !isPdf) return;
-    scored.push({ url, isPdf, score });
-  };
-
-  for (const m of markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) consider(m[2], m[1] || "");
-  for (const m of markdown.matchAll(/https?:\/\/[^\s)\]]+/g)) consider(m[0], "");
-
-  return scored
-    .sort((a, b) => Number(b.isPdf) - Number(a.isPdf) || b.score - a.score)
-    .slice(0, max)
-    .map((s) => s.url);
-}
-
-// ─── Main search ─────────────────────────────────────────────────────────────
-
-async function searchCUK(query: string, apiKey: string): Promise<SearchContext> {
-  // 30-min in-memory cache — repeat queries skip Firecrawl entirely.
-  const cached = getCachedSearch(query);
-  if (cached) { console.log("CUK cache hit"); return cached; }
-
-  try {
-    const expansions = expandQueryForSearch(query);
-    const expandedQuery = expansions.length > 0 ? `${query} ${expansions.slice(0, 2).join(" ")}` : query;
-    const searchQuery = expectsPdf(query)
-      ? `site:cukashmir.ac.in ${expandedQuery} (filetype:pdf OR notice OR notification)`
-      : `site:cukashmir.ac.in ${expandedQuery}`;
-
-    // ── Phase 1: Discover (Map + Search in parallel) ────────────────────────
-    const [mapLinks, searchResults] = await Promise.all([
-      firecrawlMap(apiKey, "https://www.cukashmir.ac.in", query, 40),
-      firecrawlSearch(apiKey, searchQuery, 6),
-    ]);
-
-    // Score and pick top candidates to scrape
-    type Candidate = { url: string; title: string; score: number; hasContent: boolean; content?: string; html?: string };
-    const candidates = new Map<string, Candidate>();
-
-    // ── Phase 0: Guaranteed fallback pages for this category ────────────────
-    // Search index often misses contact/directory/department pages because they
-    // rarely change. Force-scrape category fallback URLs in parallel so we
-    // always have authoritative content for predictable intents (contact, fees,
-    // departments, etc.).
-    const fallbackCats = getFallbackCategories(query);
-    const guaranteedUrls = new Set<string>();
-    for (const cat of fallbackCats) {
-      for (const u of FALLBACK_PAGES[cat] || []) guaranteedUrls.add(u);
-    }
-    const phase0Results = await Promise.all(
-      [...guaranteedUrls].slice(0, 6).map((u) => firecrawlScrape(apiKey, u).then((r) => ({ u, r }))),
-    );
-
-    for (const r of searchResults) {
-      const url = normalizeUrl(r.url);
-      if (!url || !isAllowedSourceUrl(url)) continue;
-      const title = r.title || deriveTitleFromUrl(url);
-      const content = r.markdown || r.description || "";
-      const sc = scoreSource(query, { title, url, content, isPdf: isPdfUrl(url) }) + 4; // boost search hits
-      candidates.set(dedupKeyForUrl(url), { url, title, score: sc, hasContent: !!content, content });
-    }
-    for (const { u, r } of phase0Results) {
-      if (!r) continue;
-      const key = dedupKeyForUrl(u);
-      const title = r.title || deriveTitleFromUrl(u);
-      const content = r.markdown || "";
-      // Big score boost — these are authoritative pages chosen by intent match.
-      const sc = scoreSource(query, { title, url: u, content, isPdf: isPdfUrl(u) }) + 12;
-      candidates.set(key, { url: u, title, score: sc, hasContent: true, content, html: r.html || "" });
-    }
-    for (const url of mapLinks) {
-      const norm = normalizeUrl(url);
-      if (!norm || !isAllowedSourceUrl(norm)) continue;
-      const key = dedupKeyForUrl(norm);
-      if (candidates.has(key)) continue;
-      const title = deriveTitleFromUrl(norm);
-      const sc = scoreSource(query, { title, url: norm, content: "", isPdf: isPdfUrl(norm) });
-      candidates.set(key, { url: norm, title, score: sc, hasContent: false });
-    }
-
-    if (candidates.size === 0) {
-      const empty = { context: "", verifiedSources: [] };
-      setCachedSearch(query, empty);
-      return empty;
-    }
-
-
-    // ── Phase 2: Scrape top 8 pages in parallel ─────────────────────────────
-    const ranked = [...candidates.values()].sort((a, b) => b.score - a.score);
-    const topToScrape = ranked.slice(0, 8).filter((c) => !c.hasContent || !c.html);
-    const phase2 = await Promise.all(topToScrape.map((c) => firecrawlScrape(apiKey, c.url).then((r) => ({ c, r }))));
-    for (const { c, r } of phase2) {
-      if (!r) continue;
-      c.content = r.markdown || c.content || "";
-      c.html = r.html || "";
-      c.title = r.title || c.title;
-      c.hasContent = true;
-    }
-
-    // ── Phase 3: Pagination + direct PDFs in parallel ───────────────────────
-    const followUrls = new Set<string>();
-    for (const c of ranked.slice(0, 8)) {
-      if (!c.content) continue;
-      // Pagination
-      for (const u of derivePaginationUrls(c.url, c.content, 3)) followUrls.add(u);
-      // Direct PDFs discovered on the page
-      const pdfs = extractPdfLinks({ html: c.html, markdown: c.content, baseUrl: c.url, parentTitle: c.title });
-      for (const p of pdfs.slice(0, 4)) followUrls.add(p.url);
-      // Deep on-page links (categorical follow-ups)
-      for (const u of pickDeepLinksFromMarkdown(c.content, c.url, query, 2)) followUrls.add(u);
-    }
-    // Don't re-scrape pages we already have
-    for (const c of candidates.values()) followUrls.delete(c.url);
-    const followList = [...followUrls].slice(0, 10);
-    const phase3 = await Promise.all(followList.map((u) => firecrawlScrape(apiKey, u).then((r) => ({ u, r }))));
-    for (const { u, r } of phase3) {
-      if (!r) continue;
-      const key = dedupKeyForUrl(u);
-      if (candidates.has(key)) continue;
-      const title = r.title || deriveTitleFromUrl(u);
-      const content = r.markdown || "";
-      candidates.set(key, {
-        url: u,
-        title,
-        score: scoreSource(query, { title, url: u, content, isPdf: isPdfUrl(u) }) + (isPdfUrl(u) ? 6 : 1),
-        hasContent: true,
-        content,
-        html: r.html || "",
-      });
-    }
-
-    // ── Build verified sources + LLM context from everything we collected ──
-    const verifiedCandidates: VerifiedSource[] = [];
-    const contextParts: string[] = [];
-    const finalRanked = [...candidates.values()].sort((a, b) => b.score - a.score);
-
-    let idx = 0;
-    for (const c of finalRanked) {
-      const isPdf = isPdfUrl(c.url);
-      verifiedCandidates.push({
-        title: cleanTitle(c.title, c.url),
-        url: c.url,
-        content: (c.content || "").slice(0, 4000),
-        isPdf,
-        score: c.score,
-      });
-      if (c.content) {
-        verifiedCandidates.push(...extractMarkdownLinks(c.content, c.url, c.title, query));
-      }
-      const pdfHits = extractPdfLinks({ html: c.html, markdown: c.content, baseUrl: c.url, parentTitle: c.title });
-      if (pdfHits.length) {
-        verifiedCandidates.push(...pdfHitsToSources(pdfHits, c.content || "", query));
-      }
-      if (c.content && idx < 5) {
-        idx++;
-        contextParts.push(`[${idx}]\nTitle: ${c.title}\nURL: ${c.url}\nCategory: ${isPdf ? "pdf" : "web"}\nContent:\n${c.content.slice(0, 3000)}`);
-      }
-    }
-
-    const rankedSources = dedupeAndRankSources(verifiedCandidates, 8);
-    const verifiedSources = filterWorkingSources(rankedSources, 6);
-
-    let context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
-    if (verifiedSources.length > 0) {
-      context += "\n\n--- VERIFIED SOURCE CATALOG ---\n";
-      for (const s of verifiedSources) {
-        context += `- ${s.title}${s.isPdf ? " (PDF)" : ""}: ${s.url}\n`;
-      }
-    }
-    context += "\n--- END OF SCRAPED DATA ---\n";
-    context += "\nIMPORTANT: Use the above data to answer. If a VERIFIED SOURCE CATALOG is present, rely on it for external links. Never mention a source title unless it exists in the data above.";
-
-    const result = { context, verifiedSources };
-    setCachedSearch(query, result);
-    return result;
-  } catch (e) {
-    console.error("CUK search error:", e);
-    return { context: "", verifiedSources: [] };
+  const phase3 = [...new Set([...topPagination, ...topPdfs])];
+  if (phase3.length > 0) {
+    const scraped3 = await batchScrape(apiKey, phase3, 6);
+    for (const r of scraped3) { const u = normalizeUrl(r.url); if (u) allScraped.set(u, r); }
   }
-}
 
-// ─── App-only query detection ────────────────────────────────────────────────
-// These are answered from the system prompt only — no web search needed.
-const APP_ONLY_RE = /\b(upload|submit|submission|rollback|cancel|review|approve|reject|datesheet editor|sidebar|dashboard|profile|settings|password|logout|sign\s*out|notification|alert|calendar|deadline|paper|inbox|archive)\b/i;
-function isAppOnlyQuery(text: string): boolean {
-  const lower = text.toLowerCase();
-  if (/\b(cuk|central university|kashmir|cuet|chancellor|admission|syllabus|notice|recruitment|tender|scholarship|fee|result|exam(?:ination)?\s+(?:notice|date|schedule))\b/.test(lower)) return false;
-  return APP_ONLY_RE.test(lower);
-}
+  const contextParts: string[] = [];
+  const candidates:  Source[]  = [];
+  let idx = 0;
 
-// ─── University query detection ──────────────────────────────────────────────
+  const sortedPages = [...allScraped.entries()]
+    .map(([url, page]) => ({
+      url, page,
+      score: scoreUrl(query, url, page.title||"", (page.markdown||"").slice(0,500)),
+      isPdfPage: isPdf(url),
+    }))
+    .sort((a,b) => Number(b.isPdfPage)-Number(a.isPdfPage) || b.score-a.score);
 
-function isUniversityQuery(message: string): boolean {
-  if (isAppOnlyQuery(message)) return false;
-  const lower = message.toLowerCase();
-  const allKeywords = new Set<string>();
-  for (const synonyms of Object.values(CATEGORY_SYNONYMS)) {
-    for (const s of synonyms) allKeywords.add(s);
+  for (const { url, page, isPdfPage } of sortedPages) {
+    const title   = page.title || "CUK";
+    const content = (page.markdown || page.description || "").slice(0, isPdfPage ? 8000 : 3500);
+    if (!content.trim()) continue;
+    idx++;
+    contextParts.push(`[${idx}] ${title}\nURL: ${url}\nType: ${isPdfPage ? "PDF" : "webpage"}\n${content}`);
+
+    if (isAllowed(url)) {
+      candidates.push({ title: cleanTitle(title, url), url, isPdf: isPdfPage, score: scoreUrl(query, url, title, content) });
+    }
+    for (const m of (page.markdown||"").matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) {
+      const u2 = normalizeUrl(m[2], url);
+      if (u2 && isAllowed(u2))
+        candidates.push({ title: cleanTitle(m[1], u2), url: u2, isPdf: isPdf(u2), score: scoreUrl(query, u2) });
+    }
   }
-  for (const k of [
-    "cuk", "central university", "kashmir", "university", "chancellor", "vice chancellor",
-    "phd", "mba", "mca", "btech", "bsc", "msc", "semester", "nss", "ncc", "sports",
-    "convocation", "holiday", "academic calendar", "anti ragging", "rti", "grievance",
-    "handbook", "rule", "policy", "who is", "what is", "tell me about", "how to apply",
-    "cutoff", "merit", "annual report", "minutes", "pdf", "document",
-  ]) allKeywords.add(k);
 
-  return [...allKeywords].some((k) => lower.includes(k));
+  const deduped = new Map<string, Source>();
+  for (const s of candidates) {
+    const k = dedupKey(s.url); const ex = deduped.get(k);
+    if (!ex || s.score > ex.score) deduped.set(k, s);
+  }
+  const sources = [...deduped.values()]
+    .sort((a,b) => Number(b.isPdf)-Number(a.isPdf) || b.score-a.score)
+    .slice(0, 6);
+
+  let context = "";
+  if (contextParts.length > 0) {
+    context = "\n\n--- LIVE DATA FROM CUK WEBSITE ---\n" + contextParts.join("\n\n");
+    if (sources.length > 0) {
+      context += "\n\n--- VERIFIED SOURCE CATALOG ---\n" +
+        sources.map(s => `- ${s.title}${s.isPdf?" (PDF)":""}: ${s.url}`).join("\n");
+    }
+    context += "\n--- END ---\nUse above to supplement the static knowledge base. Cite live sources as [1],[2] etc.";
+  }
+
+  console.log(`Context: ${contextParts.length} pages, ${sources.length} sources`);
+  return { context, sources };
 }
 
-// ─── Serve ───────────────────────────────────────────────────────────────────
+// ─── Serve ────────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { messages } = await req.json();
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "Messages array is required" }),
+    const { messages } = await req.json() as { messages: ChatMessage[] };
+    if (!messages?.length) {
+      return new Response(JSON.stringify({ error: "messages required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI service not configured" }),
+    const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_KEY) {
+      return new Response(JSON.stringify({ error: "AI not configured. Set ANTHROPIC_API_KEY secret." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const lastUserMessage = [...messages].reverse().find((m: ChatMessage) => m.role === "user");
-    let cukContext = "";
-    let verifiedSources: VerifiedSource[] = [];
-    let followUpSuggestions: string[] = [];
+    const FIRECRAWL_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+    const lastUser    = [...messages].reverse().find(m => m.role === "user");
+    const rawQuery    = lastUser?.content || "";
+    const searchQuery = rewriteQuery(rawQuery, messages.slice(0, -1));
 
-    if (lastUserMessage) {
-      const userText = lastUserMessage.content || "";
-      const FIRECRAWL_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+    let context = "";
+    let sources: Source[] = [];
 
-      // Rewrite follow-up queries using conversation history
-      const searchQuery = rewriteQuery(userText, messages.slice(0, -1));
-      if (searchQuery !== userText) {
-        console.log("Rewritten query:", searchQuery);
+    if (FIRECRAWL_KEY && isUniversityQuery(searchQuery) && !isAppNavOnly(rawQuery)) {
+      const cacheKey = searchQuery.toLowerCase().trim().slice(0, 200);
+      const cached   = cacheGet(cacheKey);
+      if (cached) {
+        context = cached.context;
+        sources = cached.sources;
+        console.log("Cache hit");
+      } else {
+        const result = await deepSearch(searchQuery, FIRECRAWL_KEY);
+        context = result.context;
+        sources = result.sources;
+        if (context) cacheSet(cacheKey, { context, sources });
       }
-
-      if (FIRECRAWL_KEY && isUniversityQuery(searchQuery)) {
-        console.log("Searching CUK website for:", searchQuery);
-        const searchResult = await searchCUK(searchQuery, FIRECRAWL_KEY);
-        cukContext = searchResult.context;
-        verifiedSources = searchResult.verifiedSources;
-      }
-
-      followUpSuggestions = getFollowUpSuggestions(userText);
     }
 
-    const systemMessage = cukContext ? SYSTEM_PROMPT + cukContext : SYSTEM_PROMPT;
+    const followUps    = getFollowUps(rawQuery);
+    const systemPrompt = SYSTEM_PROMPT + (context || "");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        "x-api-key":         ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type":      "application/json",
+      },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: systemMessage }, ...messages],
-        stream: true,
+        model:      "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        stream:     true,
+        system:     systemPrompt,
+        messages:   messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
       }),
     });
 
-    if (!response.ok || !response.body) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI service credits exhausted. Please contact admin." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      const text = await response.text().catch(() => "");
-      console.error("AI gateway error:", response.status, text);
-      return new Response(JSON.stringify({ error: "AI service error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!claudeResp.ok) {
+      const err = await claudeResp.json().catch(() => ({ error: {} }));
+      return new Response(JSON.stringify({ error: err?.error?.message || `API error ${claudeResp.status}` }),
+        { status: claudeResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // True streaming pipe: forward each delta as it arrives, then strip any
-    // model-emitted "Sources:" block from the tail and emit verified sources
-    // + follow-up suggestions in a final SSE frame before [DONE].
-    const fallbackSources = verifiedSources.length > 0
-      ? verifiedSources
-      : (lastUserMessage && isUniversityQuery(lastUserMessage.content || ""))
-        ? [{ title: "Central University of Kashmir", url: "https://www.cukashmir.ac.in", content: "", isPdf: false, score: 0 }]
-        : [];
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+    const enc    = new TextEncoder();
 
-    const upstreamReader = response.body.getReader();
-    const decoder = new TextDecoder();
-    const encoder = new TextEncoder();
+    const emit = async (obj: unknown) => {
+      await writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+    };
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        let buffer = "";
-        let assistantText = "";        // accumulated model output
-        let emittedText = "";          // what we've actually forwarded to client
-        const TAIL_HOLDBACK = 220;     // keep last N chars unflushed so we can scrub a trailing "Sources:" block
+    (async () => {
+      try {
+        const reader = claudeResp.body!.getReader();
+        const dec    = new TextDecoder();
+        let buf      = "";
 
-        const flushSafe = (final = false) => {
-          const target = final ? assistantText : assistantText.slice(0, Math.max(0, assistantText.length - TAIL_HOLDBACK));
-          if (target.length > emittedText.length) {
-            const delta = target.slice(emittedText.length);
-            emittedText = target;
-            const frame = {
-              object: "chat.completion.chunk",
-              choices: [{ index: 0, delta: { content: delta }, finish_reason: null }],
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
-          }
-        };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
 
-        try {
-          while (true) {
-            const { done, value } = await upstreamReader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            let nl: number;
-            while ((nl = buffer.indexOf("\n")) !== -1) {
-              let line = buffer.slice(0, nl);
-              buffer = buffer.slice(nl + 1);
-              if (line.endsWith("\r")) line = line.slice(0, -1);
-              if (!line.startsWith("data: ")) continue;
-              const json = line.slice(6).trim();
-              if (json === "[DONE]") continue;
-              try {
-                const parsed = JSON.parse(json);
-                const piece = parsed?.choices?.[0]?.delta?.content;
-                if (typeof piece === "string" && piece) {
-                  assistantText += piece;
-                  flushSafe(false);
+          let idx: number;
+          while ((idx = buf.indexOf("\n")) !== -1) {
+            const line = buf.slice(0, idx).trim();
+            buf = buf.slice(idx + 1);
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (json === "[DONE]") continue;
+            try {
+              const ev = JSON.parse(json);
+              if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
+                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: ev.delta.text }, finish_reason: null }] });
+              }
+              if (ev.type === "message_stop") {
+                if (sources.length > 0) {
+                  await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
                 }
-              } catch { /* partial chunk, ignore */ }
-            }
+                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+                await writer.write(enc.encode("data: [DONE]\n\n"));
+              }
+            } catch { /* skip malformed */ }
           }
-
-          // Scrub any "Sources:" block the model wrote, then emit final delta + verified sources.
-          assistantText = stripSourcesSection(assistantText);
-          flushSafe(true);
-
-          if (fallbackSources.length > 0) {
-            const tail = `\n\n${formatSourcesSection(fallbackSources)}`;
-            const finalFrame = {
-              object: "chat.completion.chunk",
-              choices: [{ index: 0, delta: { content: tail }, finish_reason: "stop" }],
-              follow_up_suggestions: followUpSuggestions,
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
-          } else if (followUpSuggestions.length > 0) {
-            const finalFrame = {
-              object: "chat.completion.chunk",
-              choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-              follow_up_suggestions: followUpSuggestions,
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalFrame)}\n\n`));
-          }
-
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (e) {
-          console.error("stream pipe error:", e);
-          controller.error(e);
         }
-      },
+      } catch (e) {
+        console.error("Stream error:", e);
+        await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [] }).catch(()=>{});
+        await writer.write(enc.encode("data: [DONE]\n\n")).catch(()=>{});
+      } finally {
+        await writer.close().catch(()=>{});
+      }
+    })();
+
+    return new Response(readable, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
 
-    return new Response(stream, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
   } catch (e) {
     console.error("Chatbot error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
