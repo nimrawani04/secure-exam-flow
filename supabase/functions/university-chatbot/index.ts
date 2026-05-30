@@ -661,23 +661,33 @@ async function firecrawlSearch(apiKey: string, searchQuery: string, limit = 8): 
 }
 
 async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSearchResult | null> {
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      // Request html too so the PDF detector can scan raw href/src attributes
-      // that markdown conversion sometimes drops (iframes, embeds, JS links).
-      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return {
-      title: data.data?.metadata?.title || "CUK Page",
-      url: data.data?.metadata?.sourceURL || url,
-      markdown: data.data?.markdown || "",
-      html: data.data?.html || "",
-    };
-  } catch { return null; }
+  // CUK runs ASP.NET WebForms — tables/lists render via JS after page load.
+  // 2000ms waitFor gives the DOM time to settle before Firecrawl snapshots.
+  const doScrape = async (waitFor: number, onlyMainContent: boolean) => {
+    try {
+      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent, waitFor }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        title: data.data?.metadata?.title || "CUK Page",
+        url: data.data?.metadata?.sourceURL || url,
+        markdown: data.data?.markdown || "",
+        html: data.data?.html || "",
+      } as FirecrawlSearchResult;
+    } catch { return null; }
+  };
+
+  const first = await doScrape(2000, false);
+  // Retry with longer wait if the page came back essentially empty —
+  // common for JS-heavy pages that need more time to populate.
+  const contentLen = (first?.markdown?.length || 0) + (first?.html?.length || 0);
+  if (first && contentLen >= 200) return first;
+  const retry = await doScrape(4500, false);
+  return retry || first;
 }
 
 // Firecrawl Map — discovers URLs across the entire site (full link graph,
