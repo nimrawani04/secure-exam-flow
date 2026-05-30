@@ -17,21 +17,21 @@ type SearchContext = { context: string; verifiedSources: VerifiedSource[] };
 
 const SYSTEM_PROMPT = `You are the official AI assistant for the Central University of Kashmir (CUK), integrated into a Confidential Exam Paper Management System.
 
-Answer only from the supplied context when context is provided.
+Answer from the supplied context AND from the embedded CUK Knowledge Base below. The Knowledge Base is always authoritative for stable facts (department emails, phone numbers, key page URLs, campus addresses) — use it freely even if the live context is empty or partial.
 
 Rules:
-- If the answer is supported by the context, answer clearly and cite sources like [1] or [2].
+- If the answer is supported by the context or the Knowledge Base, answer clearly and cite live-context sources like [1] or [2]. Knowledge Base facts do not need a numeric citation but should be linked when a URL is available.
 - If the answer is only partially supported, say what is confirmed and what is missing.
-- If the answer is not in the context, say exactly: "I don't have that information. Please contact the university office directly."
+- NEVER say "I don't have that information" for anything covered by the CUK Knowledge Base (contacts, department emails, key URLs, addresses). Only use that phrase for truly unknown specifics (e.g. a specific person's mobile number that isn't in either source).
+- For truly unknown specifics, say: "I don't have that exact detail. Please contact the university office directly at info@cukashmir.ac.in or +91-194-2147300."
 - Prefer exact facts, dates, eligibility rules, and links when they exist in the context.
-- Do not invent contact details, deadlines, fees, or policies.
-- For staff/faculty/contact questions, prefer official role/designation and direct contact fields from the context.
+- Do not invent contact details, deadlines, fees, or policies beyond what the Knowledge Base or context provides.
 - When the context contains table rows or row-like records, keep values matched to the correct row; do not mix cells from different rows.
 - For count questions, only count what is explicitly listed or stated, and say when the total is incomplete.
 - Start with a direct answer, then add short, well-grouped details that are easy to scan.
-- Use bullets for steps, requirements, dates, or lists when the context contains them.
-- Cite grounded claims. Keep citations tidy — prefer one citation block at the end of a sentence or bullet.
-- Mention official URLs from the context when they directly help the student act on the answer.
+- Use bullets for steps, requirements, dates, or lists.
+- Cite grounded claims from live context. Keep citations tidy — prefer one citation block at the end of a sentence or bullet.
+- Mention official URLs when they directly help the student act on the answer.
 - If a VERIFIED SOURCE CATALOG is provided, do NOT output a Sources section — the system will append verified links automatically. Never invent external links.
 - NEVER give numbered step-by-step walkthroughs unless explicitly asked.
 - NEVER say "visit the website" or "go to" — instead provide the direct clickable link.
@@ -44,17 +44,53 @@ Exam Paper System Help:
 - Admin: user management, departments, audit logs, broadcasts, security
 - For app features, use markdown links like [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings)
 
-CUK Baseline Contact Information (use only if the live context does not provide more specific or up-to-date contact details for the user's question):
+CUK Knowledge Base (always available, use even without live context):
+
+Campuses & General:
 - Main Campus: Ganderbal, Tulmulla, Jammu & Kashmir – 191201
 - Transit Campus: Sonwar, Srinagar, J&K – 190004
-- General enquiry email: info@cukashmir.ac.in
-- Registrar office: registrar@cukashmir.ac.in
-- Controller of Examinations: coe@cukashmir.ac.in
-- Phone (general): +91-194-2147300
+- General enquiry: info@cukashmir.ac.in | Phone: +91-194-2147300
 - Official website: https://www.cukashmir.ac.in
-- Directory of staff and departments: https://www.cukashmir.ac.in/directory.aspx
-- Contact us page: https://www.cukashmir.ac.in/contactus.aspx
-When asked about a specific department or person, prefer the live context. If only the baseline above is available, share it and direct the user to the directory page for department-specific contacts.`;
+
+Key Offices:
+- Registrar: registrar@cukashmir.ac.in
+- Controller of Examinations (Exam Cell): coe@cukashmir.ac.in
+- Admissions cell: admissions@cukashmir.ac.in
+- Public Relations Officer: pro@cukashmir.ac.in
+- RTI / Public Information Officer: pio@cukashmir.ac.in
+
+School & Department Emails (common):
+- School of Education (SoE): soe@cukashmir.ac.in
+- School of Computer Science & Mathematical Sciences (SCMS): scms@cukashmir.ac.in
+- School of Business Studies (SBS): sbs@cukashmir.ac.in
+- School of Legal Studies (SLS): sls@cukashmir.ac.in
+- School of Media Studies (SMS): sms@cukashmir.ac.in
+- School of Life Sciences: sols@cukashmir.ac.in
+- School of Languages: sol@cukashmir.ac.in
+- For any department not listed, direct users to the official directory.
+
+Key URLs (always linkable):
+- Directory of staff & departments: https://www.cukashmir.ac.in/directory.aspx
+- Contact us: https://www.cukashmir.ac.in/contactus.aspx
+- Notices & circulars: https://www.cukashmir.ac.in/displayevents.aspx
+- News: https://www.cukashmir.ac.in/news.aspx
+- Examinations: https://www.cukashmir.ac.in/examination.aspx
+- Exam notices: https://www.cukashmir.ac.in/examnotices.aspx
+- Datesheet / schedule: https://www.cukashmir.ac.in/examination.aspx
+- Results: https://www.cukashmir.ac.in/results.aspx
+- Admissions: https://www.cukashmir.ac.in/admissions.aspx
+- Downloads & forms: https://www.cukashmir.ac.in/downloads.aspx
+- Departments: https://www.cukashmir.ac.in/departments.aspx
+- Schools: https://www.cukashmir.ac.in/schools.aspx
+- Academics: https://www.cukashmir.ac.in/academics.aspx
+- Hostel: https://www.cukashmir.ac.in/hostel.aspx
+- Library: https://www.cukashmir.ac.in/library.aspx
+- RTI: https://www.cukashmir.ac.in/rti.aspx
+- Tenders: https://www.cukashmir.ac.in/tenders.aspx
+- Recruitment: https://www.cukashmir.ac.in/careers.aspx
+- Student portal (Samarth): https://cukashmir.samarth.edu.in
+
+When asked about a department or person, prefer the live context. If only the Knowledge Base is available, share its emails/URLs and link the directory page for further specifics.`;
 
 
 // ─── Category synonyms (from crawler.py) ────────────────────────────────────
@@ -625,23 +661,33 @@ async function firecrawlSearch(apiKey: string, searchQuery: string, limit = 8): 
 }
 
 async function firecrawlScrape(apiKey: string, url: string): Promise<FirecrawlSearchResult | null> {
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      // Request html too so the PDF detector can scan raw href/src attributes
-      // that markdown conversion sometimes drops (iframes, embeds, JS links).
-      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return {
-      title: data.data?.metadata?.title || "CUK Page",
-      url: data.data?.metadata?.sourceURL || url,
-      markdown: data.data?.markdown || "",
-      html: data.data?.html || "",
-    };
-  } catch { return null; }
+  // CUK runs ASP.NET WebForms — tables/lists render via JS after page load.
+  // 2000ms waitFor gives the DOM time to settle before Firecrawl snapshots.
+  const doScrape = async (waitFor: number, onlyMainContent: boolean) => {
+    try {
+      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent, waitFor }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        title: data.data?.metadata?.title || "CUK Page",
+        url: data.data?.metadata?.sourceURL || url,
+        markdown: data.data?.markdown || "",
+        html: data.data?.html || "",
+      } as FirecrawlSearchResult;
+    } catch { return null; }
+  };
+
+  const first = await doScrape(2000, false);
+  // Retry with longer wait if the page came back essentially empty —
+  // common for JS-heavy pages that need more time to populate.
+  const contentLen = (first?.markdown?.length || 0) + (first?.html?.length || 0);
+  if (first && contentLen >= 200) return first;
+  const retry = await doScrape(4500, false);
+  return retry || first;
 }
 
 // Firecrawl Map — discovers URLs across the entire site (full link graph,
