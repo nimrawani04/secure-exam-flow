@@ -4,6 +4,16 @@
   "webDir": "dist",
   "server": {
     "url": "https://6fa5125c-0bf4-41f8-8270-3ebe5a94c8a1.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
+    "cleartext": true,
+    "hostname": "confidential-exam.lovable.app",
+    "allowNavigation": [
+      "confidential-exam.lovable.app",
+      "*.lovableproject.com"
+    ]
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
   }
 }

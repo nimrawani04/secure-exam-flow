@@ -21,6 +21,7 @@ import HODCalendar from "./pages/HODCalendar";
 import TeacherCalendar from "./pages/TeacherCalendar";
 import DatesheetManagement from "./pages/DatesheetManagement";
 import { applyStoredAccent } from "./lib/theme";
+import { DeepLinkHandler } from "./components/DeepLinkHandler";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <DeepLinkHandler />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
