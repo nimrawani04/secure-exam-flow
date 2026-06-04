@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.6fa5125c0bf441f882703ebe5a94c8a1",
+  "appName": "confidential-exam",
+  "webDir": "dist",
+  "server": {
+    "url": "https://6fa5125c-0bf4-41f8-8270-3ebe5a94c8a1.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
