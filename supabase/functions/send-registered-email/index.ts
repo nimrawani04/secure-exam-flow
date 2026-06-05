@@ -72,9 +72,20 @@ serve(async (req) => {
       return new Response("Unauthorized", { status: 401 });
     }
 
+    // Only privileged roles may broadcast emails
+    const { data: roleRows } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["admin", "exam_cell", "hod"]);
+
+    if (!roleRows || roleRows.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+    }
+
     const body = (await req.json()) as RequestBody;
-    const subject = (body.subject || "").trim();
-    const message = (body.message || "").trim();
+    const subject = (body.subject || "").trim().slice(0, 200);
+    const message = (body.message || "").trim().slice(0, 5000);
     const toEmail = (body.toEmail || "").trim().toLowerCase();
     const userId = (body.userId || "").trim();
     const targetRoles = body.targetRoles || [];
