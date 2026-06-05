@@ -21,10 +21,10 @@ interface Department {
   code: string;
 }
 
+// Self-signup is restricted to the Teacher role. HOD, Examination Cell, and
+// Admin accounts must be provisioned by an administrator.
 const roles: { id: AppRole; label: string; description: string; icon: typeof User }[] = [
   { id: 'teacher', label: 'Teacher', description: 'Upload and manage exam papers', icon: GraduationCap },
-  { id: 'hod', label: 'Head of Department', description: 'Review and approve papers', icon: User },
-  { id: 'exam_cell', label: 'Examination Cell', description: 'Manage exams and access papers', icon: Building },
 ];
 
 export default function Auth() {
