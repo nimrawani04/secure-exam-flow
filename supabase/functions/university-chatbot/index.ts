@@ -494,10 +494,13 @@ serve(async (req) => {
             if (json === "[DONE]") {
               if (!finished) {
                 finished = true;
-                if (sources.length > 0) {
-                  await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
-                }
-                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
+                await emit({
+                  object: "chat.completion.chunk",
+                  choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+                  follow_up_suggestions: followUps,
+                  sources: sources.map((s, i) => ({ index: i + 1, title: s.title, url: s.url, isPdf: !!s.isPdf })),
+                  correlation_id: correlationId,
+                });
                 await writer.write(enc.encode("data: [DONE]\n\n"));
               }
               continue;
@@ -514,12 +517,16 @@ serve(async (req) => {
         }
 
         if (!finished) {
-          if (sources.length > 0) {
-            await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
-          }
-          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
+          await emit({
+            object: "chat.completion.chunk",
+            choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+            follow_up_suggestions: followUps,
+            sources: sources.map((s, i) => ({ index: i + 1, title: s.title, url: s.url, isPdf: !!s.isPdf })),
+            correlation_id: correlationId,
+          });
           await writer.write(enc.encode("data: [DONE]\n\n"));
         }
+
         log("info", "chatbot_stream_complete", {
           request_id: rid,
           user_id: userId,
