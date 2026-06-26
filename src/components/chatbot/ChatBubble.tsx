@@ -150,9 +150,11 @@ async function streamChat({
           if (parsed.correlation_id) setCid(String(parsed.correlation_id));
           const content = parsed.choices?.[0]?.delta?.content;
           const suggestions = parsed.follow_up_suggestions;
-          if (content || (Array.isArray(suggestions) && suggestions.length > 0)) {
-            onDelta(content || '', suggestions);
+          const srcs: CitedSource[] | undefined = Array.isArray(parsed.sources) ? parsed.sources : undefined;
+          if (content || (Array.isArray(suggestions) && suggestions.length > 0) || (srcs && srcs.length > 0)) {
+            onDelta(content || '', suggestions, srcs);
           }
+
         } catch {
           // Likely a chunk boundary mid-JSON — re-buffer and wait for more bytes.
           buffer = line + '\n' + buffer;
