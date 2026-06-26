@@ -364,6 +364,7 @@ async function upsertBatch(
   // Partition into changed vs unchanged
   const changedPayload: Array<Record<string, unknown>> = [];
   const unchangedUrls: string[] = [];
+  const resurrectUrls: string[] = [];
   const nowIso = new Date().toISOString();
   for (const { row, hash } of withHash) {
     const prev = existing.get(row.url);
@@ -378,9 +379,12 @@ async function upsertBatch(
         content_length: row.content.length,
         content_hash: hash,
         last_crawled_at: nowIso,
+        removed_at: null,
+        first_missing_at: null,
       });
-    } else if (prev !== hash) {
+    } else if (prev.hash !== hash) {
       stats.changed++;
+      if (prev.removed) stats.resurrected++;
       changedPayload.push({
         url: row.url,
         title: row.title,
@@ -390,10 +394,13 @@ async function upsertBatch(
         content_length: row.content.length,
         content_hash: hash,
         last_crawled_at: nowIso,
+        removed_at: null,
+        first_missing_at: null,
       });
     } else {
       stats.unchanged++;
       unchangedUrls.push(row.url);
+      if (prev.removed) resurrectUrls.push(row.url);
     }
   }
 
@@ -421,8 +428,20 @@ async function upsertBatch(
     if (error) console.error("touch unchanged error", error);
   }
 
+  // Resurrect previously-removed rows that came back unchanged.
+  for (let i = 0; i < resurrectUrls.length; i += 500) {
+    const chunk = resurrectUrls.slice(i, i + 500);
+    const { error } = await sb
+      .from("cuk_pages")
+      .update({ removed_at: null, first_missing_at: null })
+      .in("url", chunk);
+    if (error) console.error("resurrect error", error);
+    else stats.resurrected += chunk.length;
+  }
+
   return stats;
 }
+
 
 // ── Concurrency limiter ──────────────────────────────────────────────────────
 
