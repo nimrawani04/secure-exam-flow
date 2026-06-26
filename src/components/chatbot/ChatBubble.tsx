@@ -39,10 +39,14 @@ function newCorrelationId(): string {
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
+
 async function streamChat({
   messages,
   signal,
   correlationId,
+  onCorrelationId,
   onDelta,
   onDone,
   onError,
@@ -50,71 +54,135 @@ async function streamChat({
   messages: Message[];
   signal: AbortSignal;
   correlationId: string;
+  onCorrelationId: (cid: string) => void;
   onDelta: (text: string, suggestions?: string[]) => void;
   onDone: () => void;
   onError: (msg: string, serverCorrelationId?: string) => void;
 }) {
+  // Resolves to the best-known correlation id (server-confirmed if available).
+  let resolvedCid = correlationId;
+  const setCid = (cid?: string | null) => {
+    if (cid && cid !== resolvedCid) {
+      resolvedCid = cid;
+      onCorrelationId(cid);
+    }
+  };
+
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) {
-    onError('Please sign in again to use the assistant.', correlationId);
-    return;
-  }
-  const resp = await fetch(CHAT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      'x-correlation-id': correlationId,
-    },
-    body: JSON.stringify({
-      messages: messages.map(({ role, content }) => ({ role, content })),
-    }),
-    signal,
-  });
-
-  const serverCorrelationId = resp.headers.get('x-correlation-id') || correlationId;
-
-  if (!resp.ok) {
-    const data = await resp.json().catch(() => ({ error: 'Request failed' }));
-    onError(data.error || `Error ${resp.status}`, data.correlation_id || serverCorrelationId);
+    onError('Please sign in again to use the assistant.', resolvedCid);
     return;
   }
 
-  if (!resp.body) { onError('No response body', serverCorrelationId); return; }
+  // Local timeout — chained to the external abort signal so user aborts still cancel us.
+  const timeoutCtl = new AbortController();
+  let timedOut = false;
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    timeoutCtl.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const onExternalAbort = () => timeoutCtl.abort();
+  signal.addEventListener('abort', onExternalAbort, { once: true });
 
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let done = false;
+  try {
+    const resp = await fetch(CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'x-correlation-id': correlationId,
+      },
+      body: JSON.stringify({
+        messages: messages.map(({ role, content }) => ({ role, content })),
+      }),
+      signal: timeoutCtl.signal,
+    });
 
-  while (!done) {
-    const { done: rdone, value } = await reader.read();
-    if (rdone) break;
-    buffer += decoder.decode(value, { stream: true });
+    setCid(resp.headers.get('x-correlation-id'));
 
-    let idx: number;
-    while ((idx = buffer.indexOf('\n')) !== -1) {
-      let line = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 1);
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (line.startsWith(':') || line.trim() === '') continue;
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (json === '[DONE]') { done = true; break; }
+    if (!resp.ok) {
+      let serverCid: string | undefined;
+      let errMsg = `Error ${resp.status}`;
       try {
-        const parsed = JSON.parse(json);
-        const content = parsed.choices?.[0]?.delta?.content;
-        const suggestions = parsed.follow_up_suggestions;
-        if (content) onDelta(content, suggestions);
-      } catch {
-        buffer = line + '\n' + buffer;
-        break;
+        const data = await resp.json();
+        if (data?.correlation_id) serverCid = String(data.correlation_id);
+        if (data?.error) errMsg = String(data.error);
+      } catch (parseErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[chatbot] failed to parse error body', { correlation_id: resolvedCid, parseErr });
+        errMsg = `Request failed (${resp.status}) — response was not valid JSON`;
+      }
+      setCid(serverCid);
+      onError(errMsg, resolvedCid);
+      return;
+    }
+
+    if (!resp.body) { onError('No response body', resolvedCid); return; }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let done = false;
+    let consecutiveParseErrors = 0;
+
+    while (!done) {
+      const { done: rdone, value } = await reader.read();
+      if (rdone) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let idx: number;
+      while ((idx = buffer.indexOf('\n')) !== -1) {
+        let line = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (json === '[DONE]') { done = true; break; }
+        try {
+          const parsed = JSON.parse(json);
+          consecutiveParseErrors = 0;
+          if (parsed.correlation_id) setCid(String(parsed.correlation_id));
+          const content = parsed.choices?.[0]?.delta?.content;
+          const suggestions = parsed.follow_up_suggestions;
+          if (content) onDelta(content, suggestions);
+        } catch {
+          // Likely a chunk boundary mid-JSON — re-buffer and wait for more bytes.
+          buffer = line + '\n' + buffer;
+          consecutiveParseErrors += 1;
+          if (consecutiveParseErrors >= MAX_CONSECUTIVE_PARSE_ERRORS) {
+            // eslint-disable-next-line no-console
+            console.error('[chatbot] stream parse error', { correlation_id: resolvedCid, sample: json.slice(0, 120) });
+            onError('Received malformed stream from server.', resolvedCid);
+            return;
+          }
+          break;
+        }
       }
     }
+    onDone();
+  } catch (err) {
+    // Distinguish timeout from external abort vs network failure — all must include the cid.
+    if (timedOut) {
+      // eslint-disable-next-line no-console
+      console.error('[chatbot] timeout', { correlation_id: resolvedCid, after_ms: REQUEST_TIMEOUT_MS });
+      onError(`Request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s. Please try again.`, resolvedCid);
+      return;
+    }
+    if (signal.aborted) {
+      // User aborted (new send / unmount / clear) — caller already handles silently.
+      throw err;
+    }
+    const msg = err instanceof Error ? err.message : 'Network request failed';
+    // eslint-disable-next-line no-console
+    console.error('[chatbot] network error', { correlation_id: resolvedCid, err: msg });
+    onError(`Failed to connect: ${msg}`, resolvedCid);
+  } finally {
+    window.clearTimeout(timeoutId);
+    signal.removeEventListener('abort', onExternalAbort);
   }
-  onDone();
 }
 
 const SUGGESTIONS = [
@@ -210,11 +278,13 @@ export function ChatBubble() {
     };
 
     const correlationId = newCorrelationId();
+    let resolvedCid = correlationId;
     try {
       await streamChat({
         messages: nextHistory,
         signal: controller.signal,
         correlationId,
+        onCorrelationId: (cid) => { resolvedCid = cid; },
         onDelta: (c, s) => upsert(c, s),
         onDone: () => {
           if (controller.signal.aborted) return;
@@ -223,7 +293,7 @@ export function ChatBubble() {
         },
         onError: (msg, serverCid) => {
           if (controller.signal.aborted) return;
-          const cid = serverCid || correlationId;
+          const cid = serverCid || resolvedCid;
           // eslint-disable-next-line no-console
           console.error('[chatbot] error', { correlation_id: cid, message: msg });
           upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
@@ -235,8 +305,8 @@ export function ChatBubble() {
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (!isAbort) {
         // eslint-disable-next-line no-console
-        console.error('[chatbot] network failure', { correlation_id: correlationId, err });
-        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${correlationId}\`_`, undefined, { error: true });
+        console.error('[chatbot] network failure', { correlation_id: resolvedCid, err });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, { error: true });
         setIsLoading(false);
       }
     }
