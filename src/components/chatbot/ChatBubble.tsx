@@ -486,7 +486,11 @@ export function ChatBubble() {
                         <User className="h-3 w-3" />
                       </div>
                     )}
+                    {m.role === 'assistant' && !m.error && m.sources && m.sources.length > 0 && (
+                      <SourcesPanel sources={m.sources} />
+                    )}
                   </div>
+
                 ))}
 
                 {showRetry && (
