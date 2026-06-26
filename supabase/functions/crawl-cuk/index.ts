@@ -291,39 +291,134 @@ function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | 
   };
 }
 
-// ── Upsert ───────────────────────────────────────────────────────────────────
+// ── Hash & incremental upsert ────────────────────────────────────────────────
+
+async function sha1Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function fingerprint(r: PageRow): Promise<string> {
+  // Stable hash over the fields that affect search/answers.
+  return sha1Hex(`${r.title}\u0001${r.is_pdf ? 1 : 0}\u0001${r.content}`);
+}
+
+type UpsertStats = {
+  considered: number;
+  newRows: number;
+  changed: number;
+  unchanged: number;
+  touched: number;
+};
 
 async function upsertBatch(
   sb: ReturnType<typeof createClient>,
   rows: PageRow[],
-): Promise<number> {
-  if (!rows.length) return 0;
+): Promise<UpsertStats> {
+  const stats: UpsertStats = {
+    considered: 0,
+    newRows: 0,
+    changed: 0,
+    unchanged: 0,
+    touched: 0,
+  };
+  if (!rows.length) return stats;
+
   // Dedupe by URL within batch (last wins)
-  const map = new Map<string, PageRow>();
-  for (const r of rows) map.set(r.url, r);
-  const payload = Array.from(map.values()).map((r) => ({
-    url: r.url,
-    title: r.title,
-    content: r.content,
-    is_pdf: r.is_pdf,
-    http_status: 200,
-    content_length: r.content.length,
-    last_crawled_at: new Date().toISOString(),
-  }));
-  // Supabase upsert chunked at 500 to keep payloads small
-  let inserted = 0;
-  for (let i = 0; i < payload.length; i += 500) {
-    const chunk = payload.slice(i, i + 500);
+  const dedup = new Map<string, PageRow>();
+  for (const r of rows) dedup.set(r.url, r);
+  const uniques = Array.from(dedup.values());
+  stats.considered = uniques.length;
+
+  // Compute fingerprints in parallel
+  const withHash = await Promise.all(
+    uniques.map(async (r) => ({ row: r, hash: await fingerprint(r) })),
+  );
+
+  // Fetch existing hashes for these URLs (chunked to keep query strings small)
+  const existing = new Map<string, string | null>();
+  const urls = uniques.map((u) => u.url);
+  for (let i = 0; i < urls.length; i += 200) {
+    const slice = urls.slice(i, i + 200);
+    const { data, error } = await sb
+      .from("cuk_pages")
+      .select("url, content_hash")
+      .in("url", slice);
+    if (error) {
+      console.error("fetch existing hashes error", error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      existing.set(
+        (row as { url: string }).url,
+        (row as { content_hash: string | null }).content_hash ?? null,
+      );
+    }
+  }
+
+  // Partition into changed vs unchanged
+  const changedPayload: Array<Record<string, unknown>> = [];
+  const unchangedUrls: string[] = [];
+  const nowIso = new Date().toISOString();
+  for (const { row, hash } of withHash) {
+    const prev = existing.get(row.url);
+    if (prev === undefined) {
+      stats.newRows++;
+      changedPayload.push({
+        url: row.url,
+        title: row.title,
+        content: row.content,
+        is_pdf: row.is_pdf,
+        http_status: 200,
+        content_length: row.content.length,
+        content_hash: hash,
+        last_crawled_at: nowIso,
+      });
+    } else if (prev !== hash) {
+      stats.changed++;
+      changedPayload.push({
+        url: row.url,
+        title: row.title,
+        content: row.content,
+        is_pdf: row.is_pdf,
+        http_status: 200,
+        content_length: row.content.length,
+        content_hash: hash,
+        last_crawled_at: nowIso,
+      });
+    } else {
+      stats.unchanged++;
+      unchangedUrls.push(row.url);
+    }
+  }
+
+  // Write only changed/new rows
+  for (let i = 0; i < changedPayload.length; i += 500) {
+    const chunk = changedPayload.slice(i, i + 500);
     const { error } = await sb
       .from("cuk_pages")
       .upsert(chunk, { onConflict: "url" });
     if (error) {
       console.error("upsert error", error);
     } else {
-      inserted += chunk.length;
+      stats.touched += chunk.length;
     }
   }
-  return inserted;
+
+  // Cheaply refresh last_crawled_at for unchanged rows so we know they
+  // were re-verified this run (no rewrite of title/content/tsvector).
+  for (let i = 0; i < unchangedUrls.length; i += 500) {
+    const chunk = unchangedUrls.slice(i, i + 500);
+    const { error } = await sb
+      .from("cuk_pages")
+      .update({ last_crawled_at: nowIso })
+      .in("url", chunk);
+    if (error) console.error("touch unchanged error", error);
+  }
+
+  return stats;
 }
 
 // ── Concurrency limiter ──────────────────────────────────────────────────────
@@ -395,7 +490,7 @@ serve(async (req) => {
     totalRows = totalRows.concat(norm);
   });
 
-  const stored = await upsertBatch(sb, totalRows);
+  const upsertStats = await upsertBatch(sb, totalRows);
   const durationMs = Date.now() - startedAt;
 
   return new Response(
@@ -405,7 +500,7 @@ serve(async (req) => {
         durationMs,
         endpoints: stats.length,
         rowsCollected: totalRows.length,
-        rowsUpserted: stored,
+        incremental: upsertStats,
         perEndpoint: stats,
       },
       null,
