@@ -363,6 +363,148 @@ function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | 
   };
 }
 
+// ── Deep department/school crawl ─────────────────────────────────────────────
+
+type DepartmentStats = {
+  schools: number;
+  departmentApiCalls: number;
+  departmentPages: number;
+  pdfs: number;
+  rows: number;
+};
+
+function normaliseDepartmentPage(
+  raw: Record<string, unknown>,
+  path: string[],
+): { page: PageRow | null; pdfs: PageRow[]; childMasterId: string } {
+  const name = pick(raw, "DepartmentName", "DepartmentTitle", "Name") || "Department page";
+  const masterId = pick(raw, "DepartmentMasterId", "MasterId");
+  const parentId = pick(raw, "ParentDepartmentMasterId", "ParentMasterId");
+  const descriptionHtml = pick(raw, "DepartmentDescription", "Description", "Content");
+  const description = stripHtml(descriptionHtml);
+  const breadcrumb = [...path, name].filter(Boolean).join(" > ");
+  const url = masterId ? makeDepartmentRoute(masterId) : `${SPA_BASE}/departmentList`;
+
+  const content = [
+    "Category: Department Page",
+    `Title: ${name}`,
+    breadcrumb ? `Path: ${breadcrumb}` : "",
+    parentId ? `ParentDepartmentMasterId: ${parentId}` : "",
+    masterId ? `DepartmentMasterId: ${masterId}` : "",
+    description,
+  ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS);
+
+  const page = masterId || description
+    ? {
+      url,
+      title: breadcrumb ? `${name} — ${path[path.length - 1] ?? "CUK"}` : name,
+      content,
+      is_pdf: false,
+    }
+    : null;
+
+  const pdfs = extractPdfLinks(descriptionHtml).map(({ url: pdfUrl, title }) => ({
+    url: pdfUrl,
+    title: title || cleanFileTitle(pdfUrl),
+    content: [
+      "Category: Department PDF",
+      `Title: ${title || cleanFileTitle(pdfUrl)}`,
+      breadcrumb ? `Department path: ${breadcrumb}` : "",
+      description ? `Page context: ${description.slice(0, 4000)}` : "",
+    ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS),
+    is_pdf: true,
+  }));
+
+  return { page, pdfs, childMasterId: masterId };
+}
+
+async function crawlDepartmentTree(): Promise<{ rows: PageRow[]; stats: DepartmentStats }> {
+  const rows: PageRow[] = [];
+  const stats: DepartmentStats = {
+    schools: 0,
+    departmentApiCalls: 0,
+    departmentPages: 0,
+    pdfs: 0,
+    rows: 0,
+  };
+  const visited = new Set<string>();
+
+  const crawlNode = async (masterId: string, path: string[], depth = 0): Promise<void> => {
+    if (!masterId || visited.has(masterId) || depth > 8) return;
+    visited.add(masterId);
+    stats.departmentApiCalls += 1;
+
+    let list: unknown[] = [];
+    try {
+      list = await apiPost("department/departmentListById", { Id: masterId });
+    } catch (err) {
+      console.warn(`[crawl] department/departmentListById(${masterId}) -> ${(err as Error).message}`);
+      return;
+    }
+    if (!Array.isArray(list) || !list.length) return;
+
+    // The API returns either a list of child pages (for a root department) or a
+    // single content page (for a leaf/menu entry). Index both forms and recurse
+    // through every DepartmentMasterId we discover so syllabus/study-material
+    // PDFs buried in department menus are harvested.
+    for (const item of list) {
+      const raw = item as Record<string, unknown>;
+      const { page, pdfs, childMasterId } = normaliseDepartmentPage(raw, path);
+      if (page) {
+        rows.push(page);
+        stats.departmentPages += 1;
+      }
+      if (pdfs.length) {
+        rows.push(...pdfs);
+        stats.pdfs += pdfs.length;
+      }
+      if (childMasterId && childMasterId !== masterId) {
+        const childName = pick(raw, "DepartmentName", "DepartmentTitle", "Name");
+        await crawlNode(childMasterId, [...path, childName].filter(Boolean), depth + 1);
+      }
+    }
+  };
+
+  let schools: unknown[] = [];
+  try {
+    schools = await apiGet("school/schoolList");
+  } catch (err) {
+    console.warn(`[crawl] school/schoolList -> ${(err as Error).message}`);
+  }
+  stats.schools = Array.isArray(schools) ? schools.length : 0;
+
+  await mapLimit(schools as Record<string, unknown>[], PER_REQUEST_CONCURRENCY, async (school) => {
+    const schoolId = pick(school, "SchoolMasterId", "MasterId");
+    const schoolName = pick(school, "SchoolName", "Name") || "School";
+    if (!schoolId) return;
+    rows.push({
+      url: makeDepartmentRoute(schoolId, "school"),
+      title: schoolName,
+      content: [
+        "Category: School",
+        `Title: ${schoolName}`,
+        `SchoolMasterId: ${schoolId}`,
+      ].join("\n"),
+      is_pdf: false,
+    });
+
+    let departments: unknown[] = [];
+    try {
+      departments = await apiPost("department/getMappedDepartmentListBySchoolMasterId", {
+        SchoolMasterId: schoolId,
+      });
+    } catch (err) {
+      console.warn(`[crawl] department/getMappedDepartmentListBySchoolMasterId(${schoolId}) -> ${(err as Error).message}`);
+    }
+    for (const d of departments as Record<string, unknown>[]) {
+      await crawlNode(pick(d, "DepartmentMasterId", "MasterId"), [schoolName], 0);
+    }
+  });
+
+  stats.rows = rows.length;
+  return { rows, stats };
+}
+
 // ── Hash & incremental upsert ────────────────────────────────────────────────
 
 async function sha1Hex(s: string): Promise<string> {
