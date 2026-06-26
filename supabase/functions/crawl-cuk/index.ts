@@ -70,6 +70,8 @@ type EndpointSpec = {
   optional?: boolean;     // some endpoints may legitimately return []/2 bytes
 };
 
+type ApiMethod = "GET" | "POST";
+
 const ENDPOINTS: EndpointSpec[] = [
   { path: "noticeboard/getGeneralNoticesForWebSite", kind: "notice", next: 500 },
   { path: "examnotification/getAllNotificationForWebSite", kind: "exam-notification", next: 500 },
@@ -131,25 +133,33 @@ const pick = (row: Record<string, unknown>, ...keys: string[]): string => {
   return "";
 };
 
-function httpPostJson(url: string, body: string): Promise<{ status: number; text: string }> {
+function httpJson(
+  url: string,
+  method: ApiMethod = "POST",
+  body = "",
+): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
+    const headers: Record<string, string> = {
+      "Origin": SPA_BASE,
+      "Referer": `${SPA_BASE}/`,
+      "User-Agent":
+        "CUK-Confidential-Exam-Indexer/2.1 (+https://confidential-exam.lovable.app)",
+      "Accept": "application/json, text/plain, */*",
+      "langtype": "1",
+      "Connection": "close",
+    };
+    if (method === "POST") {
+      headers["Content-Type"] = "application/json";
+      headers["Content-Length"] = Buffer.byteLength(body).toString();
+    }
     const req = https.request(
       {
-        method: "POST",
+        method,
         host: u.hostname,
         port: u.port || 443,
         path: u.pathname + u.search,
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(body).toString(),
-          "Origin": SPA_BASE,
-          "Referer": `${SPA_BASE}/`,
-          "User-Agent":
-            "CUK-Confidential-Exam-Indexer/2.0 (+https://confidential-exam.lovable.app)",
-          "Accept": "application/json, text/plain, */*",
-          "Connection": "close",
-        },
+        headers,
         timeout: REQUEST_TIMEOUT_MS,
       },
       (res) => {
@@ -166,28 +176,42 @@ function httpPostJson(url: string, body: string): Promise<{ status: number; text
     req.on("timeout", () => {
       req.destroy(new Error(`timeout after ${REQUEST_TIMEOUT_MS}ms`));
     });
-    req.write(body);
+    if (method === "POST") req.write(body);
     req.end();
   });
 }
 
+const parseArrayResponse = (text: string): unknown[] => {
+  if (!text || text.length < 3) return [];
+  try {
+    const json = JSON.parse(text);
+    return Array.isArray(json) ? json : [];
+  } catch {
+    return [];
+  }
+};
+
+async function apiPost(path: string, payload: Record<string, unknown>): Promise<unknown[]> {
+  const { status, text } = await httpJson(`${API_BASE}/${path}`, "POST", JSON.stringify(payload));
+  if (status !== 200) {
+    console.warn(`[crawl] ${path} -> HTTP ${status}`);
+    return [];
+  }
+  return parseArrayResponse(text);
+}
+
+async function apiGet(path: string): Promise<unknown[]> {
+  const { status, text } = await httpJson(`${API_BASE}/${path}`, "GET");
+  if (status !== 200) {
+    console.warn(`[crawl] ${path} -> HTTP ${status}`);
+    return [];
+  }
+  return parseArrayResponse(text);
+}
+
 async function callApi(spec: EndpointSpec): Promise<unknown[]> {
   try {
-    const { status, text } = await httpPostJson(
-      `${API_BASE}/${spec.path}`,
-      JSON.stringify({ langType: 1, seen: 0, next: spec.next ?? 500 }),
-    );
-    if (status !== 200) {
-      console.warn(`[crawl] ${spec.path} -> HTTP ${status}`);
-      return [];
-    }
-    if (!text || text.length < 3) return [];
-    try {
-      const json = JSON.parse(text);
-      return Array.isArray(json) ? json : [];
-    } catch {
-      return [];
-    }
+    return await apiPost(spec.path, { langType: 1, seen: 0, next: spec.next ?? 500 });
   } catch (err) {
     console.warn(`[crawl] ${spec.path} -> ${(err as Error).message}`);
     return [];
@@ -202,6 +226,55 @@ type PageRow = {
   content: string;
   is_pdf: boolean;
 };
+
+const absoluteUrl = (u: string): string => {
+  const value = (u || "").trim();
+  if (!value || /^(javascript:|mailto:|tel:)/i.test(value)) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("/")) return `${API_BASE}${value}`;
+  return `${API_BASE}/${value.replace(/^\.\//, "")}`;
+};
+
+const cleanFileTitle = (url: string): string => {
+  try {
+    const name = decodeURIComponent(new URL(url).pathname.split("/").pop() || "PDF document");
+    return name
+      .replace(/\.pdf$/i, "")
+      .replace(/^\d{8,}-?\d*_?/g, "")
+      .replace(/^\d+[_-]+/g, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "PDF document";
+  } catch {
+    return "PDF document";
+  }
+};
+
+function extractPdfLinks(html: string): Array<{ url: string; title: string }> {
+  const found = new Map<string, string>();
+  const anchorRe = /<a\b[^>]*\bhref=["']([^"']+\.pdf(?:[?#][^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRe.exec(html))) {
+    const url = absoluteUrl(m[1]);
+    if (!url) continue;
+    const title = stripHtml(m[2]) || cleanFileTitle(url);
+    found.set(url, title);
+  }
+
+  const urlRe = /(?:href|src|data-[\w-]+)=["']([^"']+\.pdf(?:[?#][^"']*)?)["']/gi;
+  while ((m = urlRe.exec(html))) {
+    const url = absoluteUrl(m[1]);
+    if (url && !found.has(url)) found.set(url, cleanFileTitle(url));
+  }
+  return Array.from(found, ([url, title]) => ({ url, title }));
+}
+
+function makeDepartmentRoute(masterId: string, kind: "school" | "department" = "department"): string {
+  return kind === "school"
+    ? `${SPA_BASE}/departmentList;sid=${encodeURIComponent(masterId)}`
+    : `${SPA_BASE}/departmentList;id=${encodeURIComponent(masterId)}`;
+}
 
 function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | null {
   // The API uses inconsistent field names across endpoints; coalesce gently.
@@ -289,6 +362,153 @@ function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | 
     content: contentParts.join("\n").slice(0, MAX_CONTENT_CHARS),
     is_pdf: isPdf(url),
   };
+}
+
+// ── Deep department/school crawl ─────────────────────────────────────────────
+
+type DepartmentStats = {
+  schools: number;
+  departmentApiCalls: number;
+  departmentPages: number;
+  pdfs: number;
+  rows: number;
+};
+
+function normaliseDepartmentPage(
+  raw: Record<string, unknown>,
+  path: string[],
+): { page: PageRow | null; pdfs: PageRow[]; childMasterId: string } {
+  const name = pick(raw, "DepartmentName", "DepartmentTitle", "Name") || "Department page";
+  const masterId = pick(raw, "DepartmentMasterId", "MasterId");
+  const parentId = pick(raw, "ParentDepartmentMasterId", "ParentMasterId");
+  const descriptionHtml = pick(raw, "DepartmentDescription", "Description", "Content");
+  const description = stripHtml(descriptionHtml);
+  const breadcrumb = [...path, name].filter(Boolean).join(" > ");
+  const url = masterId ? makeDepartmentRoute(masterId) : `${SPA_BASE}/departmentList`;
+
+  const content = [
+    "Category: Department Page",
+    `Title: ${name}`,
+    breadcrumb ? `Path: ${breadcrumb}` : "",
+    parentId ? `ParentDepartmentMasterId: ${parentId}` : "",
+    masterId ? `DepartmentMasterId: ${masterId}` : "",
+    description,
+  ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS);
+
+  const page = masterId || description
+    ? {
+      url,
+      title: breadcrumb ? `${name} — ${path[path.length - 1] ?? "CUK"}` : name,
+      content,
+      is_pdf: false,
+    }
+    : null;
+
+  const pdfs = extractPdfLinks(descriptionHtml).map(({ url: pdfUrl, title }) => ({
+    url: pdfUrl,
+    title: title || cleanFileTitle(pdfUrl),
+    content: [
+      "Category: Department PDF",
+      `Title: ${title || cleanFileTitle(pdfUrl)}`,
+      breadcrumb ? `Department path: ${breadcrumb}` : "",
+      description ? `Page context: ${description.slice(0, 4000)}` : "",
+    ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS),
+    is_pdf: true,
+  }));
+
+  return { page, pdfs, childMasterId: masterId };
+}
+
+async function crawlDepartmentTree(): Promise<{ rows: PageRow[]; stats: DepartmentStats }> {
+  const rows: PageRow[] = [];
+  const stats: DepartmentStats = {
+    schools: 0,
+    departmentApiCalls: 0,
+    departmentPages: 0,
+    pdfs: 0,
+    rows: 0,
+  };
+  const visited = new Set<string>();
+  const queue: Array<{ id: string; path: string[]; depth: number }> = [];
+  const MAX_DEPARTMENT_API_CALLS = 450;
+
+  let schools: unknown[] = [];
+  try {
+    schools = await apiGet("school/schoolList");
+  } catch (err) {
+    console.warn(`[crawl] school/schoolList -> ${(err as Error).message}`);
+  }
+  stats.schools = Array.isArray(schools) ? schools.length : 0;
+
+  await mapLimit(schools as Record<string, unknown>[], PER_REQUEST_CONCURRENCY, async (school) => {
+    const schoolId = pick(school, "SchoolMasterId", "MasterId");
+    const schoolName = pick(school, "SchoolName", "Name") || "School";
+    if (!schoolId) return;
+    rows.push({
+      url: makeDepartmentRoute(schoolId, "school"),
+      title: schoolName,
+      content: ["Category: School", `Title: ${schoolName}`, `SchoolMasterId: ${schoolId}`].join("\n"),
+      is_pdf: false,
+    });
+
+    try {
+      const departments = await apiPost("department/getMappedDepartmentListBySchoolMasterId", {
+        SchoolMasterId: schoolId,
+      });
+      for (const d of departments as Record<string, unknown>[]) {
+        const id = pick(d, "DepartmentMasterId", "MasterId");
+        if (id) queue.push({ id, path: [schoolName], depth: 0 });
+      }
+    } catch (err) {
+      console.warn(`[crawl] department/getMappedDepartmentListBySchoolMasterId(${schoolId}) -> ${(err as Error).message}`);
+    }
+  });
+
+  // Breadth-first, concurrent traversal. This indexes every department/menu page
+  // returned by the official API without doing one long serial recursion that can
+  // hit Edge Function timeouts.
+  while (queue.length && stats.departmentApiCalls < MAX_DEPARTMENT_API_CALLS) {
+    const batch = queue.splice(0, PER_REQUEST_CONCURRENCY * 2);
+    const discovered = await mapLimit(batch, PER_REQUEST_CONCURRENCY, async (node) => {
+      const childNodes: Array<{ id: string; path: string[]; depth: number }> = [];
+      if (!node.id || visited.has(node.id) || node.depth > 8) return childNodes;
+      visited.add(node.id);
+      stats.departmentApiCalls += 1;
+
+      let list: unknown[] = [];
+      try {
+        list = await apiPost("department/departmentListById", { Id: node.id });
+      } catch (err) {
+        console.warn(`[crawl] department/departmentListById(${node.id}) -> ${(err as Error).message}`);
+        return childNodes;
+      }
+
+      for (const item of list as Record<string, unknown>[]) {
+        const { page, pdfs, childMasterId } = normaliseDepartmentPage(item, node.path);
+        if (page) {
+          rows.push(page);
+          stats.departmentPages += 1;
+        }
+        if (pdfs.length) {
+          rows.push(...pdfs);
+          stats.pdfs += pdfs.length;
+        }
+        if (childMasterId && childMasterId !== node.id && !visited.has(childMasterId)) {
+          const childName = pick(item, "DepartmentName", "DepartmentTitle", "Name");
+          childNodes.push({
+            id: childMasterId,
+            path: [...node.path, childName].filter(Boolean),
+            depth: node.depth + 1,
+          });
+        }
+      }
+      return childNodes;
+    });
+    for (const children of discovered) queue.push(...(children || []));
+  }
+
+  stats.rows = rows.length;
+  return { rows, stats };
 }
 
 // ── Hash & incremental upsert ────────────────────────────────────────────────
@@ -418,12 +638,14 @@ async function upsertBatch(
   }
 
   // Cheaply refresh last_crawled_at for unchanged rows so we know they
-  // were re-verified this run (no rewrite of title/content/tsvector).
+  // were re-verified this run (no rewrite of title/content/tsvector). Also
+  // clear first_missing_at because an unchanged row may have reappeared after
+  // a partial upstream outage.
   for (let i = 0; i < unchangedUrls.length; i += 500) {
     const chunk = unchangedUrls.slice(i, i + 500);
     const { error } = await sb
       .from("cuk_pages")
-      .update({ last_crawled_at: nowIso })
+      .update({ last_crawled_at: nowIso, first_missing_at: null })
       .in("url", chunk);
     if (error) console.error("touch unchanged error", error);
   }
@@ -511,6 +733,9 @@ serve(async (req) => {
     stats.push({ endpoint: spec.path, fetched: raw.length, stored: norm.length });
     totalRows = totalRows.concat(norm);
   });
+
+  const { rows: departmentRows, stats: departmentStats } = await crawlDepartmentTree();
+  totalRows = totalRows.concat(departmentRows);
 
   const upsertStats = await upsertBatch(sb, totalRows);
 
@@ -620,6 +845,7 @@ serve(async (req) => {
         durationMs,
         endpoints: stats.length,
         rowsCollected: totalRows.length,
+        departmentCrawl: departmentStats,
         incremental: upsertStats,
         removal: removalStats,
         perEndpoint: stats,
