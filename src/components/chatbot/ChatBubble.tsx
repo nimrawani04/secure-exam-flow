@@ -448,50 +448,54 @@ export function ChatBubble() {
             ) : (
               <>
                 {messages.map((m, i) => (
-                  <div key={i} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                    {m.role === 'assistant' && (
-                      <div className={cn(
-                        'h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-                        m.error ? 'bg-destructive/10' : 'bg-primary/10',
-                      )}>
-                        <Bot className={cn('h-3 w-3', m.error ? 'text-destructive' : 'text-primary')} />
-                      </div>
-                    )}
-                    <div className={cn(
-                      'max-w-[80%] rounded-xl px-3 py-2 text-sm',
-                      m.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-sm'
-                        : m.error
-                          ? 'bg-destructive/10 text-destructive rounded-bl-sm border border-destructive/20'
-                          : 'bg-muted rounded-bl-sm',
-                    )}>
-                      {m.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
-                          <ReactMarkdown
-                            components={{
-                              a: ({ href, children }) => (
-                                <a href={href} target="_blank" rel="noopener noreferrer">
-                                  {children}
-                                </a>
-                              ),
-                            }}
-                          >{m.content}</ReactMarkdown>
+                  <div key={i} className="space-y-2">
+                    <div className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                      {m.role === 'assistant' && (
+                        <div className={cn(
+                          'h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                          m.error ? 'bg-destructive/10' : 'bg-primary/10',
+                        )}>
+                          <Bot className={cn('h-3 w-3', m.error ? 'text-destructive' : 'text-primary')} />
                         </div>
-                      ) : (
-                        <span>{m.content}</span>
+                      )}
+                      <div className={cn(
+                        'max-w-[80%] rounded-xl px-3 py-2 text-sm',
+                        m.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-sm'
+                          : m.error
+                            ? 'bg-destructive/10 text-destructive rounded-bl-sm border border-destructive/20'
+                            : 'bg-muted rounded-bl-sm',
+                      )}>
+                        {m.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
+                            <ReactMarkdown
+                              components={{
+                                a: ({ href, children }) => (
+                                  <a href={href} target="_blank" rel="noopener noreferrer">
+                                    {children}
+                                  </a>
+                                ),
+                              }}
+                            >{m.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <span>{m.content}</span>
+                        )}
+                      </div>
+                      {m.role === 'user' && (
+                        <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
+                          <User className="h-3 w-3" />
+                        </div>
                       )}
                     </div>
-                    {m.role === 'user' && (
-                      <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="h-3 w-3" />
+                    {m.role === 'assistant' && !m.error && m.sources && m.sources.length > 0 && (
+                      <div className="pl-8">
+                        <SourcesPanel sources={m.sources} />
                       </div>
                     )}
-                    {m.role === 'assistant' && !m.error && m.sources && m.sources.length > 0 && (
-                      <SourcesPanel sources={m.sources} />
-                    )}
                   </div>
-
                 ))}
+
 
                 {showRetry && (
                   <div className="pl-8">
