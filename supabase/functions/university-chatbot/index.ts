@@ -150,6 +150,7 @@ const SYSTEM_PROMPT = `You are the official AI assistant for the Central Univers
 Rules:
 - Answer from the static knowledge base AND the LIVE CUK PAGE INDEX excerpts provided below.
 - For admission, eligibility, fees, scholarships, results, datesheet, syllabus, recruitment or contact questions, EVERY factual sentence MUST end with a numeric citation like [1] or [1][2] pointing to an entry in the VERIFIED SOURCE CATALOG.
+- ONLY cite [n] when that catalog entry's title/snippet directly supports the claim. If no catalog entry supports a sentence, write the sentence WITHOUT any [n] marker rather than citing an unrelated source. Never cite a source just because it exists.
 - The VERIFIED SOURCE CATALOG is always present — use the numbers exactly; do not invent, skip, or renumber.
 - NEVER say "I don't have that information" if the static knowledge base or page index covers it.
 - Never invent contact details, deadlines, fees, or policies.
@@ -473,6 +474,23 @@ serve(async (req) => {
 
     (async () => {
       let streamedChunks = 0;
+      let assistantText = "";
+      const buildCitedSources = () => {
+        const cited = new Set<number>();
+        const re = /\[(\d{1,2})\]/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(assistantText)) !== null) {
+          const n = parseInt(m[1], 10);
+          if (n >= 1 && n <= sources.length) cited.add(n);
+        }
+        const ordered = Array.from(cited).sort((a, b) => a - b);
+        // If model produced no [n] markers, omit sources entirely to avoid misleading citations.
+        if (ordered.length === 0) return [];
+        return ordered.map((n) => {
+          const s = sources[n - 1];
+          return { index: n, title: s.title, url: s.url, isPdf: !!s.isPdf };
+        });
+      };
       try {
         const reader = aiResp.body!.getReader();
         const dec = new TextDecoder();
@@ -498,7 +516,7 @@ serve(async (req) => {
                   object: "chat.completion.chunk",
                   choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
                   follow_up_suggestions: followUps,
-                  sources: sources.map((s, i) => ({ index: i + 1, title: s.title, url: s.url, isPdf: !!s.isPdf })),
+                  sources: buildCitedSources(),
                   correlation_id: correlationId,
                 });
                 await writer.write(enc.encode("data: [DONE]\n\n"));
@@ -510,6 +528,7 @@ serve(async (req) => {
               const delta = ev?.choices?.[0]?.delta?.content;
               if (delta) {
                 streamedChunks += 1;
+                assistantText += delta;
                 await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: delta }, finish_reason: null }] });
               }
             } catch { /* skip malformed */ }
@@ -521,11 +540,12 @@ serve(async (req) => {
             object: "chat.completion.chunk",
             choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
             follow_up_suggestions: followUps,
-            sources: sources.map((s, i) => ({ index: i + 1, title: s.title, url: s.url, isPdf: !!s.isPdf })),
+            sources: buildCitedSources(),
             correlation_id: correlationId,
           });
           await writer.write(enc.encode("data: [DONE]\n\n"));
         }
+
 
         log("info", "chatbot_stream_complete", {
           request_id: rid,
