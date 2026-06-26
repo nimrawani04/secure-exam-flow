@@ -316,7 +316,7 @@ export function ChatBubble() {
       if (!isAbort) {
         // eslint-disable-next-line no-console
         console.error('[chatbot] network failure', { correlation_id: resolvedCid, err });
-        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, { error: true });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, undefined, { error: true });
         setIsLoading(false);
       }
     }
