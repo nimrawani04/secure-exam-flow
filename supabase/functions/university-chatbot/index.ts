@@ -280,9 +280,15 @@ function formatSources(sources: Source[]): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const rid = requestId();
+  const { id: correlationId, source: correlationSource } = readOrMintCorrelationId(req);
+  const rid = correlationId;
   const startedAt = nowMs();
-  log("info", "chatbot_request_start", { request_id: rid, method: req.method });
+  log("info", "chatbot_request_start", {
+    request_id: rid,
+    correlation_id: correlationId,
+    correlation_source: correlationSource,
+    method: req.method,
+  });
 
   try {
     // Auth: require a signed-in caller so paid AI calls aren't abused anonymously.
