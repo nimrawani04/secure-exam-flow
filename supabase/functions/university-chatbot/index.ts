@@ -173,11 +173,17 @@ const FOLLOW_UPS: Record<string, string[]> = {
   examinations: ["Where can I check the latest exam notice?", "What are the confirmed exam dates?", "How do I get my admit card?"],
   contact:      ["Which office handles this?", "Do you have the official email or phone?"],
   results:      ["How do I apply for revaluation?", "Where can I download the marksheet?"],
+  syllabus:     ["Show me the official syllabus PDF.", "Which department page has this syllabus?", "Are there related scheme/course documents?"],
+  recruitment:  ["Show the latest recruitment notices.", "Which documents are PDFs?", "What is the last date mentioned?"],
+  tenders:      ["Show the latest tender PDFs.", "What is the submission deadline?", "Which tender document should I open?"],
   general:      ["Can you summarise the key points?", "Show me the official sources for this."],
 };
 
 function detectCategory(q: string): string {
   const l = q.toLowerCase();
+  if (/syllabus|curriculum|scheme|course structure|study material/.test(l)) return "syllabus";
+  if (/recruitment|vacancy|employment|job/.test(l)) return "recruitment";
+  if (/tender|quotation|bid|eoi/.test(l)) return "tenders";
   if (/admission|apply|eligibility|cuet|prospectus/.test(l)) return "admissions";
   if (/exam|datesheet|date sheet|result|grade|marks|admit card|hall ticket/.test(l)) return "examinations";
   if (/contact|email|phone|directory/.test(l)) return "contact";
