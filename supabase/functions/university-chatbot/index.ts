@@ -27,6 +27,47 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 type Source = { title: string; url: string; isPdf: boolean };
 type SearchRow = { id: string; url: string; title: string | null; snippet: string | null; is_pdf: boolean; rank: number };
 
+type LogLevel = "info" | "warn" | "error";
+
+function nowMs(): number { return Date.now(); }
+
+function elapsed(start: number): number { return Date.now() - start; }
+
+function requestId(): string { return crypto.randomUUID(); }
+
+function log(level: LogLevel, event: string, fields: Record<string, unknown> = {}) {
+  const payload = JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...fields,
+  });
+  if (level === "error") console.error(payload);
+  else if (level === "warn") console.warn(payload);
+  else console.log(payload);
+}
+
+function safeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isLikelyPublishableToken(jwt: string): boolean {
+  try {
+    const payload = JSON.parse(atob(jwt.split(".")[1] || ""));
+    return payload?.role === "anon" && !payload?.sub;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter((m) => {
+    if (m.role !== "assistant") return true;
+    const text = m.content.trim().toLowerCase();
+    return text !== "⚠️ unauthorized" && text !== "unauthorized";
+  });
+}
+
 // ─── Static CUK knowledge (always available, never needs scraping) ─────────────
 const CUK_STATIC_KNOWLEDGE = `
 === CENTRAL UNIVERSITY OF KASHMIR — STATIC KNOWLEDGE BASE ===
@@ -225,32 +266,62 @@ function formatSources(sources: Source[]): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const rid = requestId();
+  const startedAt = nowMs();
+  log("info", "chatbot_request_start", { request_id: rid, method: req.method });
+
   try {
     // Auth: require a signed-in caller so paid AI calls aren't abused anonymously.
+    const authStartedAt = nowMs();
     const authHeader = req.headers.get("Authorization") || "";
     const jwt = authHeader.replace(/^Bearer\s+/i, "");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!jwt) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${jwt}`, apikey: SUPABASE_ANON_KEY },
-    });
-    if (!userResp.ok) {
+    if (!authHeader.startsWith("Bearer ") || !jwt || isLikelyPublishableToken(jwt)) {
+      log("warn", "chatbot_jwt_validation", {
+        request_id: rid,
+        ok: false,
+        reason: !jwt ? "missing_bearer_token" : "publishable_key_not_user_jwt",
+        latency_ms: elapsed(authStartedAt),
+      });
       return new Response(JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { messages } = await req.json() as { messages: ChatMessage[] };
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(jwt);
+    const userId = claimsData?.claims?.sub;
+    if (claimsError || !userId) {
+      log("warn", "chatbot_jwt_validation", {
+        request_id: rid,
+        ok: false,
+        reason: claimsError?.message || "missing_sub_claim",
+        latency_ms: elapsed(authStartedAt),
+      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    log("info", "chatbot_jwt_validation", {
+      request_id: rid,
+      ok: true,
+      user_id: userId,
+      latency_ms: elapsed(authStartedAt),
+    });
+
+    const body = await req.json() as { messages: ChatMessage[] };
+    const messages = sanitizeMessages(body.messages || []);
     if (!messages?.length) {
+      log("warn", "chatbot_bad_request", { request_id: rid, reason: "messages_required", latency_ms: elapsed(startedAt) });
       return new Response(JSON.stringify({ error: "messages required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_KEY) {
+      log("error", "chatbot_configuration_error", { request_id: rid, reason: "missing_lovable_api_key", latency_ms: elapsed(startedAt) });
       return new Response(JSON.stringify({ error: "AI not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -258,8 +329,18 @@ serve(async (req) => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     const rawQuery = lastUser?.content || "";
     const searchQuery = rewriteQuery(rawQuery, messages.slice(0, -1));
+    log("info", "chatbot_request_parsed", {
+      request_id: rid,
+      user_id: userId,
+      message_count: messages.length,
+      query_length: rawQuery.length,
+      rewritten: searchQuery !== rawQuery,
+      app_nav_only: isAppNavOnly(rawQuery),
+      latency_ms: elapsed(startedAt),
+    });
 
     // ── Postgres full-text search against pre-crawled cuk_pages ──
+    const searchStartedAt = nowMs();
     let rows: SearchRow[] = [];
     if (!isAppNavOnly(rawQuery) && searchQuery.trim().length > 1) {
       try {
@@ -269,11 +350,45 @@ serve(async (req) => {
           _query: searchQuery,
           _limit: 8,
         });
-        if (error) console.error("search_cuk_pages error", error);
+        if (error) {
+          log("error", "chatbot_search_complete", {
+            request_id: rid,
+            user_id: userId,
+            ok: false,
+            error: error.message,
+            hit_count: 0,
+            latency_ms: elapsed(searchStartedAt),
+          });
+        }
         else rows = (data || []) as SearchRow[];
       } catch (e) {
-        console.error("index search failed", e);
+        log("error", "chatbot_search_complete", {
+          request_id: rid,
+          user_id: userId,
+          ok: false,
+          error: safeError(e),
+          hit_count: 0,
+          latency_ms: elapsed(searchStartedAt),
+        });
       }
+      if (rows.length > 0) {
+        log("info", "chatbot_search_complete", {
+          request_id: rid,
+          user_id: userId,
+          ok: true,
+          hit_count: rows.length,
+          pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
+          top_rank: rows[0]?.rank ?? null,
+          latency_ms: elapsed(searchStartedAt),
+        });
+      }
+    } else {
+      log("info", "chatbot_search_skipped", {
+        request_id: rid,
+        user_id: userId,
+        reason: isAppNavOnly(rawQuery) ? "app_nav_only" : "short_query",
+        latency_ms: elapsed(searchStartedAt),
+      });
     }
 
     const sources = rowsToSources(rows);
@@ -288,6 +403,7 @@ serve(async (req) => {
 
     const systemPrompt = SYSTEM_PROMPT + context + catalogBlock;
 
+    const aiStartedAt = nowMs();
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -304,9 +420,24 @@ serve(async (req) => {
       }),
     });
 
+    log(aiResp.ok ? "info" : "warn", "chatbot_upstream_response", {
+      request_id: rid,
+      user_id: userId,
+      upstream: "lovable_ai_gateway",
+      status: aiResp.status,
+      ok: aiResp.ok,
+      latency_ms: elapsed(aiStartedAt),
+    });
+
     if (!aiResp.ok) {
       const errText = await aiResp.text().catch(() => "");
-      console.error("Gateway error", aiResp.status, errText);
+      log("error", "chatbot_upstream_error", {
+        request_id: rid,
+        user_id: userId,
+        status: aiResp.status,
+        error_preview: errText.slice(0, 500),
+        latency_ms: elapsed(aiStartedAt),
+      });
       let msg = `AI gateway error ${aiResp.status}`;
       if (aiResp.status === 429) msg = "Too many requests right now. Please try again in a moment.";
       else if (aiResp.status === 402) msg = "AI usage limit reached. Please add credits to continue.";
@@ -322,6 +453,7 @@ serve(async (req) => {
     };
 
     (async () => {
+      let streamedChunks = 0;
       try {
         const reader = aiResp.body!.getReader();
         const dec = new TextDecoder();
@@ -355,6 +487,7 @@ serve(async (req) => {
               const ev = JSON.parse(json);
               const delta = ev?.choices?.[0]?.delta?.content;
               if (delta) {
+                streamedChunks += 1;
                 await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: delta }, finish_reason: null }] });
               }
             } catch { /* skip malformed */ }
@@ -368,8 +501,20 @@ serve(async (req) => {
           await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
           await writer.write(enc.encode("data: [DONE]\n\n"));
         }
+        log("info", "chatbot_stream_complete", {
+          request_id: rid,
+          user_id: userId,
+          chunks: streamedChunks,
+          source_count: sources.length,
+          total_latency_ms: elapsed(startedAt),
+        });
       } catch (e) {
-        console.error("Stream error:", e);
+        log("error", "chatbot_stream_error", {
+          request_id: rid,
+          user_id: userId,
+          error: safeError(e),
+          total_latency_ms: elapsed(startedAt),
+        });
         await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [] }).catch(() => {});
         await writer.write(enc.encode("data: [DONE]\n\n")).catch(() => {});
       } finally {
@@ -381,7 +526,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (e) {
-    console.error("Chatbot error:", e);
+    log("error", "chatbot_request_error", { request_id: rid, error: safeError(e), total_latency_ms: elapsed(startedAt) });
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
