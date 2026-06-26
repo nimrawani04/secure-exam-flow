@@ -156,8 +156,10 @@ Rules:
 - Never invent contact details, deadlines, fees, or policies.
 - For app features use markdown links: [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings).
 - Be concise — 2-4 sentences then bullets for lists/steps. Use [n] citations inline.
-- Give direct links; never say "visit the website."
+- GIVE THE ACTUAL DIRECT LINK from the VERIFIED SOURCE CATALOG — never tell the user to "visit the website and navigate to…". If a relevant PDF or page is in the catalog, link to it inline as a markdown link AND cite it with [n].
+- If the catalog has NO entry matching the request, say honestly: "I couldn't locate the exact document in our index" then list the closest 1-2 official pages from the catalog (if any) as direct links. Do NOT fabricate URLs.
 - Do NOT output your own "Sources" section — the system appends it from the VERIFIED SOURCE CATALOG.
+
 
 Exam Paper System Help (answer instantly):
 - Teachers: upload at [Upload Paper](/upload), track at [Submissions](/submissions)
@@ -259,6 +261,59 @@ function rowsToSources(rows: SearchRow[]): Source[] {
     isPdf: r.is_pdf || isPdfUrl(r.url),
   }));
 }
+
+// ─── Live Firecrawl fallback (when the local index has no good hit) ───────────
+type LiveHit = { url: string; title: string; snippet: string; isPdf: boolean };
+
+async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return [];
+  // Bias the query to the official CUK domain so we get authoritative docs.
+  const scoped = `site:cukashmir.ac.in ${query}`;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: scoped, limit }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return [];
+    const data = await resp.json().catch(() => null);
+    const raw: any[] = data?.data?.web || data?.web || data?.data || [];
+    const hits: LiveHit[] = [];
+    for (const r of raw) {
+      const url: string = r?.url || r?.link || "";
+      if (!url || !/cukashmir\.ac\.in|disgenweb\.in/i.test(url)) continue;
+      hits.push({
+        url,
+        title: (r?.title || r?.name || "").toString().trim(),
+        snippet: (r?.description || r?.snippet || r?.content || "").toString().trim(),
+        isPdf: isPdfUrl(url),
+      });
+    }
+    // PDFs first, then de-dupe.
+    const seen = new Set<string>();
+    return hits
+      .sort((a, b) => Number(b.isPdf) - Number(a.isPdf))
+      .filter((h) => { const k = h.url.split("#")[0]; if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, limit);
+  } catch { return []; }
+}
+
+function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
+  return hits.map((h, i) => ({
+    id: `live-${i}`,
+    url: h.url,
+    title: h.title || cleanTitle(null, h.url),
+    snippet: h.snippet || "",
+    is_pdf: h.isPdf,
+    rank: 2 + (h.isPdf ? 1 : 0) - i * 0.01,
+  }));
+}
+
 
 function buildContext(rows: SearchRow[]): string {
   if (!rows.length) return "";
@@ -491,6 +546,36 @@ serve(async (req) => {
         top_rank: rows[0]?.rank ?? null,
         latency_ms: elapsed(searchStartedAt),
       });
+
+      // ── Live Firecrawl fallback when the local index is weak ──
+      const topRank = rows[0]?.rank ?? 0;
+      const weakIndex = rows.length === 0 || topRank < 1.5 ||
+        !rows.some((r) => r.is_pdf || isPdfUrl(r.url));
+      if (weakIndex) {
+        const liveStart = nowMs();
+        const live = await firecrawlLiveSearch(searchQuery, 6);
+        log("info", "chatbot_live_fallback", {
+          request_id: rid,
+          user_id: userId,
+          reason: rows.length === 0 ? "no_index_hits" : `weak_top_rank_${topRank.toFixed(2)}`,
+          live_hit_count: live.length,
+          live_pdf_count: live.filter((h) => h.isPdf).length,
+          latency_ms: elapsed(liveStart),
+        });
+        if (live.length) {
+          const liveRows = liveHitsToRows(live);
+          // Merge: keep best of both, dedupe by URL stem.
+          const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+          for (const r of liveRows) {
+            const k = r.url.split("#")[0];
+            if (!seen.has(k)) { rows.push(r); seen.add(k); }
+          }
+          // Re-sort so PDFs and live hits float up when index was empty.
+          rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+          rows = rows.slice(0, 10);
+        }
+      }
+
     } else {
       log("info", "chatbot_search_skipped", {
         request_id: rid,
