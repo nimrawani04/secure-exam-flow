@@ -371,17 +371,15 @@ serve(async (req) => {
           latency_ms: elapsed(searchStartedAt),
         });
       }
-      if (rows.length > 0) {
-        log("info", "chatbot_search_complete", {
-          request_id: rid,
-          user_id: userId,
-          ok: true,
-          hit_count: rows.length,
-          pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
-          top_rank: rows[0]?.rank ?? null,
-          latency_ms: elapsed(searchStartedAt),
-        });
-      }
+      log("info", "chatbot_search_complete", {
+        request_id: rid,
+        user_id: userId,
+        ok: true,
+        hit_count: rows.length,
+        pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
+        top_rank: rows[0]?.rank ?? null,
+        latency_ms: elapsed(searchStartedAt),
+      });
     } else {
       log("info", "chatbot_search_skipped", {
         request_id: rid,
