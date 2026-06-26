@@ -325,8 +325,10 @@ async function upsertBatch(
     changed: 0,
     unchanged: 0,
     touched: 0,
+    resurrected: 0,
   };
   if (!rows.length) return stats;
+
 
   // Dedupe by URL within batch (last wins)
   const dedup = new Map<string, PageRow>();
