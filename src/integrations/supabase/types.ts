@@ -47,6 +47,78 @@ export type Database = {
         }
         Relationships: []
       }
+      crawl_queue: {
+        Row: {
+          attempts: number
+          depth: number
+          enqueued_at: string
+          id: string
+          last_error: string | null
+          processed_at: string | null
+          status: string
+          url: string
+        }
+        Insert: {
+          attempts?: number
+          depth?: number
+          enqueued_at?: string
+          id?: string
+          last_error?: string | null
+          processed_at?: string | null
+          status?: string
+          url: string
+        }
+        Update: {
+          attempts?: number
+          depth?: number
+          enqueued_at?: string
+          id?: string
+          last_error?: string | null
+          processed_at?: string | null
+          status?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      cuk_pages: {
+        Row: {
+          content: string
+          content_length: number | null
+          created_at: string
+          http_status: number | null
+          id: string
+          is_pdf: boolean
+          last_crawled_at: string
+          search_vector: unknown
+          title: string | null
+          url: string
+        }
+        Insert: {
+          content?: string
+          content_length?: number | null
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          is_pdf?: boolean
+          last_crawled_at?: string
+          search_vector?: unknown
+          title?: string | null
+          url: string
+        }
+        Update: {
+          content?: string
+          content_length?: number | null
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          is_pdf?: boolean
+          last_crawled_at?: string
+          search_vector?: unknown
+          title?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       datesheet_entries: {
         Row: {
           course_code: string
@@ -741,6 +813,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      search_cuk_pages: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          id: string
+          is_pdf: boolean
+          rank: number
+          snippet: string
+          title: string
+          url: string
+        }[]
       }
       select_paper_and_reject_others: {
         Args: {
