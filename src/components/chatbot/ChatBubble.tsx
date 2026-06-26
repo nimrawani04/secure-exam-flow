@@ -209,19 +209,24 @@ export function ChatBubble() {
       });
     };
 
+    const correlationId = newCorrelationId();
     try {
       await streamChat({
         messages: nextHistory,
         signal: controller.signal,
+        correlationId,
         onDelta: (c, s) => upsert(c, s),
         onDone: () => {
           if (controller.signal.aborted) return;
           setIsLoading(false);
           if (latestSuggestions.length > 0) setFollowUps(latestSuggestions);
         },
-        onError: (msg) => {
+        onError: (msg, serverCid) => {
           if (controller.signal.aborted) return;
-          upsert(`⚠️ ${msg}`, undefined, { error: true });
+          const cid = serverCid || correlationId;
+          // eslint-disable-next-line no-console
+          console.error('[chatbot] error', { correlation_id: cid, message: msg });
+          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
           setIsLoading(false);
         },
       });
@@ -229,7 +234,9 @@ export function ChatBubble() {
       if (controller.signal.aborted) return;
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (!isAbort) {
-        upsert('⚠️ Failed to connect. Please try again.', undefined, { error: true });
+        // eslint-disable-next-line no-console
+        console.error('[chatbot] network failure', { correlation_id: correlationId, err });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${correlationId}\`_`, undefined, { error: true });
         setIsLoading(false);
       }
     }
