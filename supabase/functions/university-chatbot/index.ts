@@ -491,7 +491,7 @@ serve(async (req) => {
                 if (sources.length > 0) {
                   await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
                 }
-                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
                 await writer.write(enc.encode("data: [DONE]\n\n"));
               }
               continue;
@@ -511,7 +511,7 @@ serve(async (req) => {
           if (sources.length > 0) {
             await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
           }
-          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
           await writer.write(enc.encode("data: [DONE]\n\n"));
         }
         log("info", "chatbot_stream_complete", {
@@ -528,7 +528,7 @@ serve(async (req) => {
           error: safeError(e),
           total_latency_ms: elapsed(startedAt),
         });
-        await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [] }).catch(() => {});
+        await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [], correlation_id: correlationId }).catch(() => {});
         await writer.write(enc.encode("data: [DONE]\n\n")).catch(() => {});
       } finally {
         await writer.close().catch(() => {});
