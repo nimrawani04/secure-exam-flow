@@ -632,12 +632,14 @@ async function upsertBatch(
   }
 
   // Cheaply refresh last_crawled_at for unchanged rows so we know they
-  // were re-verified this run (no rewrite of title/content/tsvector).
+  // were re-verified this run (no rewrite of title/content/tsvector). Also
+  // clear first_missing_at because an unchanged row may have reappeared after
+  // a partial upstream outage.
   for (let i = 0; i < unchangedUrls.length; i += 500) {
     const chunk = unchangedUrls.slice(i, i + 500);
     const { error } = await sb
       .from("cuk_pages")
-      .update({ last_crawled_at: nowIso })
+      .update({ last_crawled_at: nowIso, first_missing_at: null })
       .in("url", chunk);
     if (error) console.error("touch unchanged error", error);
   }
