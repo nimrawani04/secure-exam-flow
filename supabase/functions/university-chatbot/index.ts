@@ -63,6 +63,16 @@ const CUK_STATIC_KNOWLEDGE = `
 
 OFFICIAL WEBSITE: https://www.cukashmir.ac.in
 SAMARTH PORTAL:   https://cukashmir.samarth.edu.in
+ESTABLISHED:      2009, under the Central Universities Act 2009 (Act 25 of 2009)
+TYPE:             Central University, funded by Govt. of India (MoE / UGC)
+ACCREDITATION:    NAAC accredited; UGC recognised; member AIU
+MEDIUM:           English
+ACADEMIC SYSTEM:  Choice Based Credit System (CBCS) with semester pattern
+
+── CAMPUSES ─────────────────────────────────────────────────
+Main / Transit Campus:  Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190 015, J&K
+Tulmulla Campus (under-construction permanent campus): Ganderbal District, J&K
+Green Campus / Sonwar offices: Srinagar (administrative)
 
 ── GENERAL CONTACTS ─────────────────────────────────────────
 Main Office:    0194-2723001 / 2723002
@@ -71,58 +81,121 @@ Fax:            0194-2723009
 Address:        Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190 015, J&K
 
 ── KEY ADMINISTRATIVE OFFICERS ──────────────────────────────
-Vice-Chancellor:      Office — vc@cukashmir.ac.in
-Registrar:            registrar@cukashmir.ac.in  |  0194-2723003
-Finance Officer:      fo@cukashmir.ac.in
+Vice-Chancellor:             vc@cukashmir.ac.in
+Registrar:                   registrar@cukashmir.ac.in  |  0194-2723003
+Finance Officer:             fo@cukashmir.ac.in
 Controller of Examinations:  coe@cukashmir.ac.in  |  0194-2723006
 Dean, Academic Affairs:      daa@cukashmir.ac.in
 Dean, Student Welfare:       dsw@cukashmir.ac.in
+Dean, Research:              dor@cukashmir.ac.in
+Public Relations Officer:    pro@cukashmir.ac.in
 
-── SCHOOLS & DEPARTMENTS (with contact emails) ──────────────
-School of Education:              soe@cukashmir.ac.in
-School of Social Sciences:        soss@cukashmir.ac.in
-School of Languages:              sol@cukashmir.ac.in
-School of Sciences:               sos@cukashmir.ac.in
-School of Technology:             sot@cukashmir.ac.in
-School of Legal Studies:          sls@cukashmir.ac.in
-School of Commerce & Mgmt Sci:    scms@cukashmir.ac.in
-School of Visual Arts & Performing Arts: svapa@cukashmir.ac.in
+── SCHOOLS & DEPARTMENTS ────────────────────────────────────
+1. School of Education (SoE) — soe@cukashmir.ac.in
+   • Dept. of Education — B.Ed., M.Ed., Ph.D.
+   • Dept. of Educational Studies
+2. School of Social Sciences (SoSS) — soss@cukashmir.ac.in
+   • Politics & Governance — M.A., Ph.D.
+   • Economics — M.A., Ph.D.
+   • Sociology — M.A., Ph.D.
+   • Convergent Journalism — M.A., Ph.D.
+3. School of Languages (SoL) — sol@cukashmir.ac.in
+   • English — M.A., Ph.D.
+   • Urdu — M.A., Ph.D.
+   • Kashmiri — M.A., Ph.D.
+   • Arabic — M.A., Ph.D.
+4. School of Sciences (SoS) — sos@cukashmir.ac.in
+   • Mathematics — M.Sc., Ph.D.
+   • Chemistry — M.Sc., Ph.D.
+   • Physics — Integrated M.Sc., Ph.D.
+   • Environmental Science — M.Sc., Ph.D.
+5. School of Technology (SoT) — sot@cukashmir.ac.in
+   • Computer Science — M.Sc. CS, MCA, Ph.D.
+   • Information Technology — M.Tech. IT, Ph.D.
+   • Electronics & Communication Engg. — M.Tech., Ph.D.
+6. School of Legal Studies (SLS) — sls@cukashmir.ac.in
+   • Law — B.A. LL.B. (5 yr integrated), LL.M., Ph.D.
+7. School of Business Studies (SBS) / Commerce & Management — scms@cukashmir.ac.in
+   • Management Studies — MBA, Ph.D.
+   • Tourism Management — MTTM, Ph.D.
+   • Commerce — M.Com., Ph.D.
+8. School of Visual Arts & Performing Arts (SVAPA) — svapa@cukashmir.ac.in
+   • Music — M.A., Ph.D.
 
 ── EXAM CELL ────────────────────────────────────────────────
 Controller of Examinations:  coe@cukashmir.ac.in  |  0194-2723006
 Exam Cell notices:           https://www.cukashmir.ac.in/examination.aspx
+Datesheets:                  https://www.cukashmir.ac.in/examination.aspx
+Results:                     https://www.cukashmir.ac.in/results.aspx
+Revaluation / Re-checking:   Apply via the Exam Cell within 15 days of result declaration; forms on Downloads page.
 
-── ADMISSIONS ───────────────────────────────────────────────
+── ADMISSIONS (General) ─────────────────────────────────────
 Admissions office:    admissions@cukashmir.ac.in  |  0194-2723004
-Admission portal:     https://cuet.samarth.ac.in
-Prospectus:           https://www.cukashmir.ac.in/prospectus.aspx
 Admission notices:    https://www.cukashmir.ac.in/admissions.aspx
-Eligibility / CUET:   Common University Entrance Test (CUET) scores are mandatory for most UG/PG programmes.
+Prospectus:           https://www.cukashmir.ac.in/prospectus.aspx
 Academic calendar:    https://www.cukashmir.ac.in/academiccalendar.aspx
+UG admission portal:  https://cuet.samarth.ac.in   (CUET-UG)
+PG admission portal:  https://cuet.samarth.ac.in   (CUET-PG)
+Ph.D. admission:      Through CUET-PG / CSIR-UGC NET + interview. Notification on admissions page.
+Counselling:          Conducted online via Samarth — https://cukashmir.samarth.edu.in
+Reservation:          Follows Govt. of India norms — SC, ST, OBC (NCL), EWS, PwBD, J&K domicile categories as applicable.
+
+── ELIGIBILITY (typical, verify on prospectus) ──────────────
+UG (B.A. LL.B. 5-yr, Integrated M.Sc. Physics, etc.):
+  • 10+2 with min. 50% (45% for SC/ST) from a recognised board
+  • Valid CUET-UG score in relevant subjects
+PG (M.A. / M.Sc. / M.Com. / MBA / MCA / MTTM / M.Ed. / LL.M.):
+  • Bachelor's degree with min. 50% (45% for SC/ST) in a relevant discipline
+  • Valid CUET-PG score
+  • MBA additionally considers CAT/CMAT in some cycles
+  • MCA requires Maths at 10+2 or graduation level
+  • M.Ed. requires B.Ed.; LL.M. requires LL.B.
+M.Tech.: B.E./B.Tech. in relevant branch with min. 55%; GATE preferred.
+Ph.D.: Master's with min. 55% (50% for SC/ST/PwBD/OBC-NCL) + CUET-PG / NET / GATE / equivalent + RAT (Research Aptitude Test) + interview.
+B.Ed.: Bachelor's with 50% + valid entrance score per NCTE/UGC norms.
+
+── FEES (indicative — confirm yearly on website) ────────────
+UG / PG programmes:   ~ ₹3,000 – ₹6,000 per semester (Arts/Sciences/Commerce)
+Professional (MBA / MCA / B.Ed. / LL.B. / M.Tech.): higher; see prospectus
+Hostel fee:           ~ ₹8,000 – ₹15,000 per semester (separate boys/girls hostels)
+Examination fee:      Notified per semester by Exam Cell
+Current fee structure: https://www.cukashmir.ac.in/feestructure.aspx
+
+── SCHOLARSHIPS & FINANCIAL AID ─────────────────────────────
+Scholarships page:    https://www.cukashmir.ac.in/scholarships.aspx
+Central schemes:      National Scholarship Portal (NSP), PM-USP, Maulana Azad NFS, Post-Matric (SC/ST/OBC), J&K state scholarships
+Internal:             Merit-cum-means, Single-girl-child, Research fellowships (JRF/SRF) for Ph.D. scholars
+
+── HOSTEL & FACILITIES ──────────────────────────────────────
+Hostels:              Separate Boys' and Girls' hostels at Nowgam campus
+Library:              Central Library — print + e-resources, INFLIBNET / N-LIST access
+Health Centre:        Basic medical facility on campus
+Transport:            Limited shuttle between campuses
+Sports / Cultural:    NSS, NCC, sports facilities, cultural society
 
 ── IMPORTANT PAGES ──────────────────────────────────────────
 Notices / Circulars:  https://www.cukashmir.ac.in/displayevents.aspx
 Results:              https://www.cukashmir.ac.in/results.aspx
 Datesheet:            https://www.cukashmir.ac.in/examination.aspx
-Syllabus:             https://www.cukashmir.ac.in/departments.aspx (choose dept → syllabus)
+Departments index:    https://www.cukashmir.ac.in/departments.aspx
+Syllabus:             Choose dept → syllabus tab on department page
 Scholarship:          https://www.cukashmir.ac.in/scholarships.aspx
 Recruitment:          https://www.cukashmir.ac.in/recruitment.aspx
 Tenders:              https://www.cukashmir.ac.in/tenders.aspx
 Downloads / Forms:    https://www.cukashmir.ac.in/downloads.aspx
 RTI:                  https://www.cukashmir.ac.in/rti.aspx
-Anti-Ragging:         https://www.cukashmir.ac.in/antiragging.aspx
+Anti-Ragging:         https://www.cukashmir.ac.in/antiragging.aspx  (Toll-free: 1800-180-5522)
 Grievance Redressal:  https://www.cukashmir.ac.in/grievance.aspx
+Internal Complaints Cell (ICC): icc@cukashmir.ac.in
 Library:              https://www.cukashmir.ac.in/library.aspx
 Hostel:               https://www.cukashmir.ac.in/hostel.aspx
 IQAC:                 https://www.cukashmir.ac.in/iqac.aspx
 NSS/NCC:              https://www.cukashmir.ac.in/nss.aspx
-
-── FEE STRUCTURE ────────────────────────────────────────────
-For current fee structure visit: https://www.cukashmir.ac.in/feestructure.aspx
-General enquiry: admissions@cukashmir.ac.in
+Placement Cell:       placement@cukashmir.ac.in
 
 === END STATIC KNOWLEDGE BASE ===
 `;
+
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
