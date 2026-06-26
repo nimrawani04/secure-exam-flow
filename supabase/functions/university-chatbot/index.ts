@@ -544,6 +544,36 @@ serve(async (req) => {
         top_rank: rows[0]?.rank ?? null,
         latency_ms: elapsed(searchStartedAt),
       });
+
+      // ── Live Firecrawl fallback when the local index is weak ──
+      const topRank = rows[0]?.rank ?? 0;
+      const weakIndex = rows.length === 0 || topRank < 1.5 ||
+        !rows.some((r) => r.is_pdf || isPdfUrl(r.url));
+      if (weakIndex) {
+        const liveStart = nowMs();
+        const live = await firecrawlLiveSearch(searchQuery, 6);
+        log("info", "chatbot_live_fallback", {
+          request_id: rid,
+          user_id: userId,
+          reason: rows.length === 0 ? "no_index_hits" : `weak_top_rank_${topRank.toFixed(2)}`,
+          live_hit_count: live.length,
+          live_pdf_count: live.filter((h) => h.isPdf).length,
+          latency_ms: elapsed(liveStart),
+        });
+        if (live.length) {
+          const liveRows = liveHitsToRows(live);
+          // Merge: keep best of both, dedupe by URL stem.
+          const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+          for (const r of liveRows) {
+            const k = r.url.split("#")[0];
+            if (!seen.has(k)) { rows.push(r); seen.add(k); }
+          }
+          // Re-sort so PDFs and live hits float up when index was empty.
+          rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+          rows = rows.slice(0, 10);
+        }
+      }
+
     } else {
       log("info", "chatbot_search_skipped", {
         request_id: rid,
