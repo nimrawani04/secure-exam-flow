@@ -86,10 +86,12 @@ export type Database = {
           content_hash: string | null
           content_length: number | null
           created_at: string
+          first_missing_at: string | null
           http_status: number | null
           id: string
           is_pdf: boolean
           last_crawled_at: string
+          removed_at: string | null
           search_vector: unknown
           title: string | null
           url: string
@@ -99,10 +101,12 @@ export type Database = {
           content_hash?: string | null
           content_length?: number | null
           created_at?: string
+          first_missing_at?: string | null
           http_status?: number | null
           id?: string
           is_pdf?: boolean
           last_crawled_at?: string
+          removed_at?: string | null
           search_vector?: unknown
           title?: string | null
           url: string
@@ -112,10 +116,12 @@ export type Database = {
           content_hash?: string | null
           content_length?: number | null
           created_at?: string
+          first_missing_at?: string | null
           http_status?: number | null
           id?: string
           is_pdf?: boolean
           last_crawled_at?: string
+          removed_at?: string | null
           search_vector?: unknown
           title?: string | null
           url?: string
