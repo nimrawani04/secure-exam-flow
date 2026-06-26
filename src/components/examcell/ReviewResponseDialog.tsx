@@ -63,7 +63,6 @@ export function ReviewResponseDialog({
     try {
       const { error } = await supabase.rpc('exam_cell_respond_to_review', {
         _paper_id: paperId,
-        _user_id: user.id,
         _action: 'approve',
       });
 
@@ -111,7 +110,6 @@ export function ReviewResponseDialog({
     try {
       const { error } = await supabase.rpc('exam_cell_respond_to_review', {
         _paper_id: paperId,
-        _user_id: user.id,
         _action: 'feedback',
         _feedback: feedback.trim(),
       });
