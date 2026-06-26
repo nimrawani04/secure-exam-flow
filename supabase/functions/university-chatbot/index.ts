@@ -260,6 +260,59 @@ function rowsToSources(rows: SearchRow[]): Source[] {
   }));
 }
 
+// ─── Live Firecrawl fallback (when the local index has no good hit) ───────────
+type LiveHit = { url: string; title: string; snippet: string; isPdf: boolean };
+
+async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return [];
+  // Bias the query to the official CUK domain so we get authoritative docs.
+  const scoped = `site:cukashmir.ac.in ${query}`;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: scoped, limit }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return [];
+    const data = await resp.json().catch(() => null);
+    const raw: any[] = data?.data?.web || data?.web || data?.data || [];
+    const hits: LiveHit[] = [];
+    for (const r of raw) {
+      const url: string = r?.url || r?.link || "";
+      if (!url || !/cukashmir\.ac\.in|disgenweb\.in/i.test(url)) continue;
+      hits.push({
+        url,
+        title: (r?.title || r?.name || "").toString().trim(),
+        snippet: (r?.description || r?.snippet || r?.content || "").toString().trim(),
+        isPdf: isPdfUrl(url),
+      });
+    }
+    // PDFs first, then de-dupe.
+    const seen = new Set<string>();
+    return hits
+      .sort((a, b) => Number(b.isPdf) - Number(a.isPdf))
+      .filter((h) => { const k = h.url.split("#")[0]; if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, limit);
+  } catch { return []; }
+}
+
+function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
+  return hits.map((h, i) => ({
+    id: `live-${i}`,
+    url: h.url,
+    title: h.title || cleanTitle(null, h.url),
+    snippet: h.snippet || "",
+    is_pdf: h.isPdf,
+    rank: 2 + (h.isPdf ? 1 : 0) - i * 0.01,
+  }));
+}
+
+
 function buildContext(rows: SearchRow[]): string {
   if (!rows.length) return "";
   const parts: string[] = ["\n\n--- LIVE CUK PAGE INDEX (top matches) ---"];
