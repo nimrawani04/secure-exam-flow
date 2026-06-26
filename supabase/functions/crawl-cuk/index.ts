@@ -146,6 +146,7 @@ function httpJson(
       "User-Agent":
         "CUK-Confidential-Exam-Indexer/2.1 (+https://confidential-exam.lovable.app)",
       "Accept": "application/json, text/plain, */*",
+      "langtype": "1",
       "Connection": "close",
     };
     if (method === "POST") {
