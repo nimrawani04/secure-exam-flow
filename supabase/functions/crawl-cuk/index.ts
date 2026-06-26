@@ -728,6 +728,9 @@ serve(async (req) => {
     totalRows = totalRows.concat(norm);
   });
 
+  const { rows: departmentRows, stats: departmentStats } = await crawlDepartmentTree();
+  totalRows = totalRows.concat(departmentRows);
+
   const upsertStats = await upsertBatch(sb, totalRows);
 
   // ── Deletion detection ──────────────────────────────────────────────────
@@ -836,6 +839,7 @@ serve(async (req) => {
         durationMs,
         endpoints: stats.length,
         rowsCollected: totalRows.length,
+        departmentCrawl: departmentStats,
         incremental: upsertStats,
         removal: removalStats,
         perEndpoint: stats,
