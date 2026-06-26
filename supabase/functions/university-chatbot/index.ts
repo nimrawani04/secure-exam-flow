@@ -20,8 +20,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version",
+    "authorization, x-client-info, apikey, content-type, x-correlation-id, x-supabase-client-platform, x-supabase-client-platform-version",
+  "Access-Control-Expose-Headers": "x-correlation-id",
 };
+
+const CORRELATION_ID_RE = /^[A-Za-z0-9_-]{8,128}$/;
+function readOrMintCorrelationId(req: Request): { id: string; source: "client" | "server" } {
+  const incoming = req.headers.get("x-correlation-id");
+  if (incoming && CORRELATION_ID_RE.test(incoming)) return { id: incoming, source: "client" };
+  return { id: crypto.randomUUID(), source: "server" };
+}
+function jsonError(body: Record<string, unknown>, status: number, correlationId: string) {
+  return new Response(JSON.stringify({ ...body, correlation_id: correlationId }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
+  });
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type Source = { title: string; url: string; isPdf: boolean };
