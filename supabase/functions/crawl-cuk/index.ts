@@ -341,26 +341,25 @@ async function upsertBatch(
     uniques.map(async (r) => ({ row: r, hash: await fingerprint(r) })),
   );
 
-  // Fetch existing hashes for these URLs (chunked to keep query strings small)
-  const existing = new Map<string, string | null>();
+  // Fetch existing hashes + removal state for these URLs
+  const existing = new Map<string, { hash: string | null; removed: boolean }>();
   const urls = uniques.map((u) => u.url);
   for (let i = 0; i < urls.length; i += 200) {
     const slice = urls.slice(i, i + 200);
     const { data, error } = await sb
       .from("cuk_pages")
-      .select("url, content_hash")
+      .select("url, content_hash, removed_at")
       .in("url", slice);
     if (error) {
       console.error("fetch existing hashes error", error);
       continue;
     }
     for (const row of data ?? []) {
-      existing.set(
-        (row as { url: string }).url,
-        (row as { content_hash: string | null }).content_hash ?? null,
-      );
+      const r = row as { url: string; content_hash: string | null; removed_at: string | null };
+      existing.set(r.url, { hash: r.content_hash ?? null, removed: !!r.removed_at });
     }
   }
+
 
   // Partition into changed vs unchanged
   const changedPayload: Array<Record<string, unknown>> = [];
