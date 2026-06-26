@@ -278,11 +278,13 @@ export function ChatBubble() {
     };
 
     const correlationId = newCorrelationId();
+    let resolvedCid = correlationId;
     try {
       await streamChat({
         messages: nextHistory,
         signal: controller.signal,
         correlationId,
+        onCorrelationId: (cid) => { resolvedCid = cid; },
         onDelta: (c, s) => upsert(c, s),
         onDone: () => {
           if (controller.signal.aborted) return;
@@ -291,7 +293,7 @@ export function ChatBubble() {
         },
         onError: (msg, serverCid) => {
           if (controller.signal.aborted) return;
-          const cid = serverCid || correlationId;
+          const cid = serverCid || resolvedCid;
           // eslint-disable-next-line no-console
           console.error('[chatbot] error', { correlation_id: cid, message: msg });
           upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
@@ -303,8 +305,8 @@ export function ChatBubble() {
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (!isAbort) {
         // eslint-disable-next-line no-console
-        console.error('[chatbot] network failure', { correlation_id: correlationId, err });
-        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${correlationId}\`_`, undefined, { error: true });
+        console.error('[chatbot] network failure', { correlation_id: resolvedCid, err });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, { error: true });
         setIsLoading(false);
       }
     }
