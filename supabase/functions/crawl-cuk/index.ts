@@ -1,25 +1,25 @@
 /**
- * crawl-cuk — resumable BFS crawler for cukashmir.ac.in
+ * crawl-cuk — direct API harvester for the Central University of Kashmir
  *
- * Pulls every reachable page + PDF on the official CUK site (and a small
- * allow-list of related hosts) into the `public.cuk_pages` table. The BFS
- * frontier lives in `public.crawl_queue` so a single invocation can do as
- * much work as fits in the 150 s edge-function budget; the next invocation
- * resumes where this one stopped.
+ * The public CUK website (www.cukashmir.ac.in) is a JavaScript-rendered
+ * Angular SPA whose entire content comes from a JSON API at
+ *   https://cukapi.disgenweb.in/
+ *
+ * Static HTML scraping returns an empty <app-root/> shell, which is why the
+ * previous BFS crawler produced 0 bytes of content. This rewrite calls every
+ * "*ForWebSite" / "all*" endpoint that the SPA itself uses, normalises each
+ * record into a `cuk_pages` row, and upserts. The chatbot's existing
+ * `search_cuk_pages` RPC keeps working unchanged.
  *
  * Triggers
- *   - pg_cron POSTs `{ "secret": "<CRAWL_SECRET>" }` every day at 21:30 UTC.
- *   - Manual: same shape, optionally with `{ "force": true }` to re-enqueue
- *     stale pages older than 7 days.
+ *   - pg_cron POSTs `{ "secret": "<CRAWL_SECRET>" }` every day.
+ *   - Manual:  `curl -X POST .../crawl-cuk -H "x-crawl-secret: $SECRET"`
  *
  * Auth: header `x-crawl-secret` OR body `secret` MUST equal CRAWL_SECRET.
- * No user JWT involved (cron has no user).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import * as cheerio from "https://esm.sh/cheerio@1.0.0";
-import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,299 +29,359 @@ const corsHeaders = {
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const ALLOWED_HOSTS = new Set([
-  "cukashmir.ac.in",
-  "www.cukashmir.ac.in",
-]);
+const API_BASE = "https://cukapi.disgenweb.in";
+const SPA_BASE = "https://www.cukashmir.ac.in";
+const REQUEST_TIMEOUT_MS = 25_000;
+const PER_REQUEST_CONCURRENCY = 4;
+const MAX_CONTENT_CHARS = 20_000;
 
-const MAX_DEPTH = 4;                 // BFS depth from seed
-const MAX_PER_INVOCATION = 80;       // pages per run (stays under CPU budget)
-const CONCURRENCY = 5;               // parallel fetches
-const SOFT_DEADLINE_MS = 110_000;    // stop pulling new work after this
-const PAGE_TIMEOUT_MS = 20_000;      // per-page fetch timeout
-const MAX_HTML_BYTES = 2_000_000;    // 2 MB cap per page
-const MAX_PDF_BYTES = 15_000_000;    // 15 MB cap per PDF
-const MAX_CONTENT_CHARS = 60_000;    // stored body cap (FTS-friendly)
-const USER_AGENT =
-  "CUK-Confidential-Exam-Bot/1.0 (+https://confidential-exam.lovable.app)";
+// All endpoints exposed by the public website. Each is POSTed with
+// {langType:1, seen:0, next:N} — the API requires langType to be an integer.
+// `kind` lets us shape titles + URLs sensibly per record type.
+type EndpointSpec = {
+  path: string;
+  kind:
+    | "notice"
+    | "exam-notification"
+    | "exam-datesheet"
+    | "exam-result"
+    | "scholar-result"
+    | "admission"
+    | "tender"
+    | "employment"
+    | "press-release"
+    | "whatnew"
+    | "event"
+    | "message"
+    | "implink"
+    | "quicklink"
+    | "universitydoc"
+    | "moe"
+    | "promotion"
+    | "faculty"
+    | "media";
+  next?: number;          // pagination page-size for list endpoints
+  optional?: boolean;     // some endpoints may legitimately return []/2 bytes
+};
 
-const SKIP_EXT = /\.(jpg|jpeg|png|gif|webp|svg|ico|css|js|mp4|mp3|webm|zip|rar|7z|exe|woff2?|ttf|otf|eot)(?:$|[?#])/i;
-const PDF_EXT = /\.pdf(?:$|[?#])/i;
+const ENDPOINTS: EndpointSpec[] = [
+  { path: "noticeboard/getGeneralNoticesForWebSite", kind: "notice", next: 500 },
+  { path: "examnotification/getAllNotificationForWebSite", kind: "exam-notification", next: 500 },
+  { path: "examdatesheet/ExamDateSheetList", kind: "exam-datesheet", next: 500 },
+  { path: "examinationresult/ExaminationResultListForWebSite", kind: "exam-result", next: 500 },
+  { path: "scholarresults/ScholarExaminationResultListForWebSite", kind: "scholar-result", next: 500, optional: true },
+  { path: "admission/all", kind: "admission", next: 500 },
+  { path: "tender/getalltender", kind: "tender", next: 500, optional: true },
+  { path: "tender/all", kind: "tender", next: 500, optional: true },
+  { path: "employments/allemploymentsforwebsite", kind: "employment", next: 500, optional: true },
+  { path: "employments/all", kind: "employment", next: 500, optional: true },
+  { path: "pressrelease/getAllPressReleasesForWebSite", kind: "press-release", next: 500 },
+  { path: "whatnew/getAllWhatNewForWebSite", kind: "whatnew", next: 500 },
+  { path: "event/getallupcomingeventsforwebsite", kind: "event", next: 500, optional: true },
+  { path: "event/getall", kind: "event", next: 500, optional: true },
+  { path: "messages/allmessagesforwebsite", kind: "message", next: 500 },
+  { path: "implink/selectimplinksforwebsite", kind: "implink", next: 500 },
+  { path: "universitydoc/selectforwebsite", kind: "universitydoc", next: 500 },
+  { path: "publichomequicklinks/getquicklinksForwebSite", kind: "quicklink", next: 500 },
+  { path: "moe/getAllPressReleasesForWebSite", kind: "moe", next: 500, optional: true },
+  { path: "moes/getAllPressReleasesForWebSite", kind: "moe", next: 500, optional: true },
+  { path: "itandservices/ItAndServicesNotificationListForWebSite", kind: "notice", next: 500, optional: true },
+  { path: "promotions/getPromotionsForPublic", kind: "promotion", next: 500, optional: true },
+  { path: "faculty/getallforwebsite", kind: "faculty", next: 500, optional: true },
+  { path: "mediagallery/getmediagalleryforwebsite", kind: "media", next: 500, optional: true },
+];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function isAllowedHost(url: string): boolean {
-  try {
-    const h = new URL(url).hostname.toLowerCase();
-    return [...ALLOWED_HOSTS].some(a => h === a || h.endsWith(`.${a}`));
-  } catch { return false; }
-}
+const stripHtml = (s: string) =>
+  s
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
 
-function normalizeUrl(raw: string, base?: string): string | null {
-  if (!raw) return null;
-  const t = raw.trim().replace(/^<|>$/g, "");
-  if (!t || /^(javascript:|mailto:|tel:|#)/i.test(t)) return null;
-  try {
-    const u = base ? new URL(t, base) : new URL(t);
-    if (!["http:", "https:"].includes(u.protocol)) return null;
-    u.hash = "";
-    u.hostname = u.hostname.toLowerCase();
-    return u.toString();
-  } catch { return null; }
-}
+const formatDate = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+};
 
-function cleanWhitespace(s: string): string {
-  return s.replace(/\s+/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
-}
+const isPdf = (url: string) => /\.pdf(?:$|[?#])/i.test(url || "");
 
-async function fetchWithTimeout(url: string, opts: RequestInit = {}, ms = PAGE_TIMEOUT_MS) {
+/** Pick the first non-empty string field from an object. */
+const pick = (row: Record<string, unknown>, ...keys: string[]): string => {
+  for (const k of keys) {
+    const v = row[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+};
+
+async function callApi(spec: EndpointSpec): Promise<unknown[]> {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), ms);
+  const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      ...opts,
+    const res = await fetch(`${API_BASE}/${spec.path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Origin": SPA_BASE,
+        "Referer": `${SPA_BASE}/`,
+        "User-Agent":
+          "CUK-Confidential-Exam-Indexer/2.0 (+https://confidential-exam.lovable.app)",
+      },
+      body: JSON.stringify({
+        langType: 1,
+        seen: 0,
+        next: spec.next ?? 500,
+      }),
       signal: ctrl.signal,
-      headers: { "User-Agent": USER_AGENT, ...(opts.headers || {}) },
-      redirect: "follow",
     });
-  } finally { clearTimeout(tid); }
+    if (!res.ok) {
+      console.warn(`[crawl] ${spec.path} -> HTTP ${res.status}`);
+      return [];
+    }
+    const txt = await res.text();
+    if (!txt || txt.length < 3) return [];
+    try {
+      const json = JSON.parse(txt);
+      return Array.isArray(json) ? json : [];
+    } catch {
+      return [];
+    }
+  } catch (err) {
+    console.warn(`[crawl] ${spec.path} -> ${(err as Error).message}`);
+    return [];
+  } finally {
+    clearTimeout(t);
+  }
 }
 
-// ── Per-page processors ──────────────────────────────────────────────────────
+// ── Normalisers ──────────────────────────────────────────────────────────────
 
-type Processed = {
+type PageRow = {
   url: string;
   title: string;
   content: string;
-  isPdf: boolean;
-  status: number;
-  links: string[];
+  is_pdf: boolean;
 };
 
-async function processHtml(url: string, html: string): Promise<Processed> {
-  const $ = cheerio.load(html);
-  // strip noisy elements
-  $("script, style, noscript, svg, iframe, header nav, footer nav").remove();
+function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | null {
+  // The API uses inconsistent field names across endpoints; coalesce gently.
+  const title = pick(
+    raw,
+    "Name",
+    "Title",
+    "Notification_title",
+    "Result_title",
+    "ExternalTitle",
+    "FileName",
+    "filename",
+  );
 
-  const title =
-    cleanWhitespace($("title").first().text()) ||
-    cleanWhitespace($("h1").first().text()) ||
-    new URL(url).pathname;
-
-  // Collect headings + body text for richer FTS
-  const parts: string[] = [];
-  $("h1, h2, h3").each((_, el) => parts.push(cleanWhitespace($(el).text())));
-  parts.push(cleanWhitespace($("body").text()));
-  const content = cleanWhitespace(parts.filter(Boolean).join("\n\n")).slice(0, MAX_CONTENT_CHARS);
-
-  // Extract links
-  const links = new Set<string>();
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    const u = normalizeUrl(href || "", url);
-    if (u && isAllowedHost(u) && !SKIP_EXT.test(u)) links.add(u);
-  });
-  // Also pick up data-href / data-url
-  $("[data-href], [data-url]").each((_, el) => {
-    const href = $(el).attr("data-href") || $(el).attr("data-url");
-    const u = normalizeUrl(href || "", url);
-    if (u && isAllowedHost(u) && !SKIP_EXT.test(u)) links.add(u);
-  });
-
-  return { url, title, content, isPdf: false, status: 200, links: [...links] };
-}
-
-async function processPdf(url: string, bytes: Uint8Array): Promise<Processed> {
-  let content = "";
-  let title = "";
-  try {
-    const pdf = await getDocumentProxy(bytes);
-    const r = await extractText(pdf, { mergePages: true });
-    content = cleanWhitespace(Array.isArray(r.text) ? r.text.join("\n") : (r.text || "")).slice(0, MAX_CONTENT_CHARS);
-  } catch (e) {
-    console.warn("pdf parse failed", url, (e as Error).message);
+  // URL resolution: prefer direct file URL, then external link, then SPA route.
+  const httpPath = pick(raw, "HttpPath", "FileUrl");
+  const extUrl = pick(raw, "ExternalUrl", "Url");
+  // implink stores the link in Description for ContentType=="Link"
+  const ct = pick(raw, "ContentType");
+  let url = "";
+  if (httpPath) url = httpPath;
+  else if (extUrl) {
+    url = /^https?:\/\//.test(extUrl) ? extUrl : SPA_BASE + extUrl;
+  } else if (spec.kind === "implink" && /link/i.test(ct)) {
+    const desc = pick(raw, "Description");
+    if (/^https?:\/\//.test(desc)) url = desc;
   }
-  try {
-    const parts = new URL(url).pathname.split("/").filter(Boolean);
-    title = decodeURIComponent(parts.pop() || "").replace(/\.pdf$/i, "").replace(/[-_+]+/g, " ").trim()
-      || "PDF document";
-  } catch { title = "PDF document"; }
-  return { url, title, content, isPdf: true, status: 200, links: [] };
+
+  if (!url) {
+    // Fall back to a deterministic SPA route so the entry is still addressable.
+    const id =
+      pick(raw, "RowId", "uniqueId", "Id", "RecordId") ||
+      (typeof raw["Id"] === "number" ? String(raw["Id"]) : "");
+    if (!id) return null;
+    url = `${SPA_BASE}/#/${spec.kind}/${id}`;
+  }
+  if (!title && !url) return null;
+
+  // Compose searchable body
+  const department = pick(raw, "DepartmentName");
+  const description = stripHtml(pick(raw, "Description", "Result_Description", "scription"));
+  const created = formatDate(
+    pick(raw, "CreatedOn", "UploadDate", "PublishedOn", "ApprovedOn", "VisibleFromDate") || null,
+  );
+  const end = formatDate(pick(raw, "EndDate", "VisibleToDate") || null);
+  const filename = pick(raw, "FileName", "filename");
+
+  const tag = (() => {
+    switch (spec.kind) {
+      case "notice": return "Notice";
+      case "exam-notification": return "Examination Notification";
+      case "exam-datesheet": return "Date Sheet";
+      case "exam-result": return "Examination Result";
+      case "scholar-result": return "Scholar Result";
+      case "admission": return "Admission";
+      case "tender": return "Tender";
+      case "employment": return "Recruitment / Employment";
+      case "press-release": return "Press Release";
+      case "whatnew": return "What's New";
+      case "event": return "Event";
+      case "message": return "Message";
+      case "implink": return "Important Link";
+      case "quicklink": return "Quick Link";
+      case "universitydoc": return "University Document";
+      case "moe": return "MoE Press Release";
+      case "promotion": return "Promotion";
+      case "faculty": return "Faculty";
+      case "media": return "Media Gallery";
+    }
+  })();
+
+  const contentParts = [
+    `Category: ${tag}`,
+    title ? `Title: ${title}` : "",
+    department ? `Department: ${department}` : "",
+    created ? `Published: ${created}` : "",
+    end ? `Valid until: ${end}` : "",
+    filename ? `File: ${filename}` : "",
+    description,
+  ].filter(Boolean);
+
+  return {
+    url,
+    title: title || filename || `${tag} ${formatDate(pick(raw, "CreatedOn"))}`.trim(),
+    content: contentParts.join("\n").slice(0, MAX_CONTENT_CHARS),
+    is_pdf: isPdf(url),
+  };
 }
 
-async function fetchAndProcess(url: string): Promise<Processed | null> {
-  try {
-    // HEAD first to detect content type cheaply
-    let resp = await fetchWithTimeout(url, { method: "GET" });
-    if (!resp.ok) {
-      return { url, title: "", content: "", isPdf: false, status: resp.status, links: [] };
-    }
-    const ctype = (resp.headers.get("content-type") || "").toLowerCase();
-    const isPdf = ctype.includes("application/pdf") || PDF_EXT.test(url);
+// ── Upsert ───────────────────────────────────────────────────────────────────
 
-    if (isPdf) {
-      const buf = await resp.arrayBuffer();
-      if (buf.byteLength > MAX_PDF_BYTES) {
-        return { url, title: "", content: "", isPdf: true, status: 200, links: [] };
+async function upsertBatch(
+  sb: ReturnType<typeof createClient>,
+  rows: PageRow[],
+): Promise<number> {
+  if (!rows.length) return 0;
+  // Dedupe by URL within batch (last wins)
+  const map = new Map<string, PageRow>();
+  for (const r of rows) map.set(r.url, r);
+  const payload = Array.from(map.values()).map((r) => ({
+    url: r.url,
+    title: r.title,
+    content: r.content,
+    is_pdf: r.is_pdf,
+    http_status: 200,
+    content_length: r.content.length,
+    last_crawled_at: new Date().toISOString(),
+  }));
+  // Supabase upsert chunked at 500 to keep payloads small
+  let inserted = 0;
+  for (let i = 0; i < payload.length; i += 500) {
+    const chunk = payload.slice(i, i + 500);
+    const { error } = await sb
+      .from("cuk_pages")
+      .upsert(chunk, { onConflict: "url" });
+    if (error) {
+      console.error("upsert error", error);
+    } else {
+      inserted += chunk.length;
+    }
+  }
+  return inserted;
+}
+
+// ── Concurrency limiter ──────────────────────────────────────────────────────
+
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) return;
+      try {
+        results[idx] = await fn(items[idx]);
+      } catch (e) {
+        console.error("worker error", e);
+        // @ts-ignore
+        results[idx] = undefined;
       }
-      return await processPdf(url, new Uint8Array(buf));
     }
-
-    if (!ctype.includes("text/html") && !ctype.includes("application/xhtml")) {
-      return null; // skip non-html non-pdf
-    }
-    const text = await resp.text();
-    if (text.length > MAX_HTML_BYTES) {
-      return await processHtml(url, text.slice(0, MAX_HTML_BYTES));
-    }
-    return await processHtml(url, text);
-  } catch (e) {
-    console.warn("fetch failed", url, (e as Error).message);
-    return null;
-  }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Entry point ──────────────────────────────────────────────────────────────
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  const t0 = Date.now();
-  try {
-    const body = await req.json().catch(() => ({}));
-    const secretIn = req.headers.get("x-crawl-secret") || body?.secret || "";
-    const SECRET = Deno.env.get("CRAWL_SECRET");
-    if (!SECRET || secretIn !== SECRET) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-
-    // If `force`, re-enqueue any page not crawled in the last 7 days.
-    if (body?.force) {
-      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: stale } = await sb
-        .from("cuk_pages")
-        .select("url")
-        .lt("last_crawled_at", cutoff)
-        .limit(500);
-      if (stale && stale.length) {
-        const rows = stale.map((r: { url: string }) => ({ url: r.url, depth: 0, status: "pending" }));
-        await sb.from("crawl_queue").upsert(rows, { onConflict: "url" });
-      }
-    }
-
-    let totalProcessed = 0;
-    let totalDiscovered = 0;
-    let totalFailed = 0;
-
-    // Drain the queue in batches until budget exhausted
-    while (Date.now() - t0 < SOFT_DEADLINE_MS && totalProcessed < MAX_PER_INVOCATION) {
-      const remaining = MAX_PER_INVOCATION - totalProcessed;
-      const batchSize = Math.min(CONCURRENCY * 2, remaining);
-
-      const { data: claimed, error: claimErr } = await sb
-        .from("crawl_queue")
-        .select("id, url, depth, attempts")
-        .eq("status", "pending")
-        .order("enqueued_at", { ascending: true })
-        .limit(batchSize);
-      if (claimErr) throw claimErr;
-      if (!claimed || claimed.length === 0) break;
-
-      // Mark as processing so a concurrent run does not double-fetch
-      const ids = claimed.map((r) => r.id);
-      await sb.from("crawl_queue").update({ status: "processing" }).in("id", ids);
-
-      // Process with bounded concurrency
-      const queue = [...claimed];
-      const workers: Promise<void>[] = [];
-      for (let i = 0; i < CONCURRENCY; i++) {
-        workers.push((async () => {
-          while (queue.length) {
-            const item = queue.shift();
-            if (!item) break;
-            if (Date.now() - t0 > SOFT_DEADLINE_MS) {
-              // put it back as pending so next run picks it up
-              await sb.from("crawl_queue")
-                .update({ status: "pending" })
-                .eq("id", item.id);
-              continue;
-            }
-
-            const proc = await fetchAndProcess(item.url);
-            if (!proc || (proc.status >= 400)) {
-              totalFailed++;
-              await sb.from("crawl_queue").update({
-                status: proc && proc.status >= 400 ? "failed" : "failed",
-                attempts: item.attempts + 1,
-                last_error: proc ? `status ${proc.status}` : "fetch failed",
-                processed_at: new Date().toISOString(),
-              }).eq("id", item.id);
-              continue;
-            }
-
-            // Upsert into cuk_pages — skip if there's literally no text.
-            if (proc.content || proc.title) {
-              await sb.from("cuk_pages").upsert({
-                url: proc.url,
-                title: proc.title?.slice(0, 500) || null,
-                content: proc.content || "",
-                is_pdf: proc.isPdf,
-                http_status: proc.status,
-                content_length: proc.content?.length || 0,
-                last_crawled_at: new Date().toISOString(),
-              }, { onConflict: "url" });
-            }
-
-            // Enqueue discovered links if under depth limit
-            if (proc.links.length && item.depth < MAX_DEPTH) {
-              const fresh = proc.links
-                .filter((u) => isAllowedHost(u))
-                .slice(0, 80)
-                .map((u) => ({ url: u, depth: item.depth + 1, status: "pending" }));
-              if (fresh.length) {
-                const { error: insErr, count } = await sb
-                  .from("crawl_queue")
-                  .upsert(fresh, { onConflict: "url", ignoreDuplicates: true, count: "exact" });
-                if (!insErr) totalDiscovered += count ?? 0;
-              }
-            }
-
-            totalProcessed++;
-            await sb.from("crawl_queue").update({
-              status: "done",
-              attempts: item.attempts + 1,
-              processed_at: new Date().toISOString(),
-            }).eq("id", item.id);
-          }
-        })());
-      }
-      await Promise.all(workers);
-    }
-
-    const elapsedMs = Date.now() - t0;
-    const { count: pageCount } = await sb
-      .from("cuk_pages").select("*", { count: "exact", head: true });
-    const { count: pending } = await sb
-      .from("crawl_queue").select("*", { count: "exact", head: true })
-      .eq("status", "pending");
-
-    return new Response(JSON.stringify({
-      ok: true,
-      processed: totalProcessed,
-      discovered: totalDiscovered,
-      failed: totalFailed,
-      pending_in_queue: pending ?? 0,
-      total_pages_indexed: pageCount ?? 0,
-      elapsed_ms: elapsedMs,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    console.error("crawl-cuk error", e);
-    return new Response(JSON.stringify({ error: (e as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
+
+  const secret = Deno.env.get("CRAWL_SECRET");
+  const headerSecret = req.headers.get("x-crawl-secret");
+  let bodySecret: string | undefined;
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+    bodySecret = body?.secret as string | undefined;
+  } catch {
+    /* no body */
+  }
+  if (!secret || (headerSecret !== secret && bodySecret !== secret)) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const sb = createClient(supabaseUrl, serviceKey);
+
+  const startedAt = Date.now();
+  const stats: Array<{ endpoint: string; fetched: number; stored: number }> = [];
+  let totalRows: PageRow[] = [];
+
+  await mapLimit(ENDPOINTS, PER_REQUEST_CONCURRENCY, async (spec) => {
+    const raw = await callApi(spec);
+    const norm: PageRow[] = [];
+    for (const r of raw) {
+      const row = normalise(spec, r as Record<string, unknown>);
+      if (row) norm.push(row);
+    }
+    stats.push({ endpoint: spec.path, fetched: raw.length, stored: norm.length });
+    totalRows = totalRows.concat(norm);
+  });
+
+  const stored = await upsertBatch(sb, totalRows);
+  const durationMs = Date.now() - startedAt;
+
+  return new Response(
+    JSON.stringify(
+      {
+        ok: true,
+        durationMs,
+        endpoints: stats.length,
+        rowsCollected: totalRows.length,
+        rowsUpserted: stored,
+        perEndpoint: stats,
+      },
+      null,
+      2,
+    ),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 });
