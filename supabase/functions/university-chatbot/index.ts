@@ -282,6 +282,94 @@ function formatSources(sources: Source[]): string {
   return lines.join("\n");
 }
 
+// ─── Citation verification ────────────────────────────────────────────────────
+const STOPWORDS = new Set([
+  "the","a","an","and","or","of","to","for","in","on","at","is","are","was","were","be","by",
+  "with","from","as","that","this","it","its","into","about","over","under","you","your","we",
+  "our","they","their","i","my","me","he","she","his","her","them","but","not","no","yes","if",
+  "then","than","so","do","does","did","can","could","should","would","will","shall","may","might",
+  "have","has","had","been","being","also","more","most","such","via","per","any","all","one","two",
+  "cuk","university","kashmir","central","page","pages","pdf","source","sources","official","website",
+  "click","here","link","links","please","note","kindly","information","details","detail",
+]);
+
+function tokenize(s: string): string[] {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+}
+
+function hostKeywords(url: string): string[] {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\.(pdf|aspx?|html?)$/i, "").replace(/[\/_-]+/g, " ");
+    return tokenize(path);
+  } catch { return []; }
+}
+
+/**
+ * For each [n] marker the model emitted, verify that the cited source's
+ * title/snippet/url actually relates to the surrounding sentence. If a
+ * citation has no meaningful term overlap with the answer's local context,
+ * drop that source from the visible Sources panel.
+ */
+function verifyCitedSources(
+  answerText: string,
+  cited: number[],
+  catalog: Source[],
+  snippets: Record<number, string>,
+): { kept: number[]; dropped: { index: number; reason: string }[] } {
+  const kept: number[] = [];
+  const dropped: { index: number; reason: string }[] = [];
+  const answerTokens = new Set(tokenize(answerText));
+
+  for (const n of cited) {
+    const src = catalog[n - 1];
+    if (!src) { dropped.push({ index: n, reason: "missing_in_catalog" }); continue; }
+
+    // Collect text windows surrounding each occurrence of [n] in the answer.
+    const re = new RegExp(`\\[${n}\\]`, "g");
+    const windows: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(answerText)) !== null) {
+      const start = Math.max(0, m.index - 240);
+      const end = Math.min(answerText.length, m.index + 240);
+      windows.push(answerText.slice(start, end));
+    }
+    const localText = windows.join(" ") || answerText;
+    const localTokens = new Set(tokenize(localText));
+
+    const srcTokens = new Set([
+      ...tokenize(src.title || ""),
+      ...tokenize(snippets[n] || ""),
+      ...hostKeywords(src.url),
+    ]);
+
+    if (srcTokens.size === 0) {
+      dropped.push({ index: n, reason: "source_has_no_keywords" });
+      continue;
+    }
+
+    // Overlap against the local sentence context AND the whole answer.
+    let localOverlap = 0;
+    let globalOverlap = 0;
+    for (const t of srcTokens) {
+      if (localTokens.has(t)) localOverlap++;
+      if (answerTokens.has(t)) globalOverlap++;
+    }
+
+    // Require at least 2 shared meaningful tokens locally, or 3 globally for
+    // short titles. This blocks "decorative" citations on unrelated claims.
+    const ok = localOverlap >= 2 || globalOverlap >= 3;
+    if (ok) kept.push(n);
+    else dropped.push({ index: n, reason: `low_overlap_local_${localOverlap}_global_${globalOverlap}` });
+  }
+  return { kept, dropped };
+}
+
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -475,6 +563,8 @@ serve(async (req) => {
     (async () => {
       let streamedChunks = 0;
       let assistantText = "";
+      const snippetMap: Record<number, string> = {};
+      rows.slice(0, sources.length).forEach((r, i) => { snippetMap[i + 1] = r.snippet || ""; });
       const buildCitedSources = () => {
         const cited = new Set<number>();
         const re = /\[(\d{1,2})\]/g;
@@ -484,13 +574,23 @@ serve(async (req) => {
           if (n >= 1 && n <= sources.length) cited.add(n);
         }
         const ordered = Array.from(cited).sort((a, b) => a - b);
-        // If model produced no [n] markers, omit sources entirely to avoid misleading citations.
         if (ordered.length === 0) return [];
-        return ordered.map((n) => {
+        const { kept, dropped } = verifyCitedSources(assistantText, ordered, sources, snippetMap);
+        if (dropped.length) {
+          log("info", "chatbot_citations_filtered", {
+            request_id: rid,
+            user_id: userId,
+            cited: ordered,
+            kept,
+            dropped,
+          });
+        }
+        return kept.map((n) => {
           const s = sources[n - 1];
           return { index: n, title: s.title, url: s.url, isPdf: !!s.isPdf };
         });
       };
+
       try {
         const reader = aiResp.body!.getReader();
         const dec = new TextDecoder();
