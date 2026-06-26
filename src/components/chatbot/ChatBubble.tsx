@@ -57,9 +57,10 @@ async function streamChat({
   signal: AbortSignal;
   correlationId: string;
   onCorrelationId: (cid: string) => void;
-  onDelta: (text: string, suggestions?: string[]) => void;
+  onDelta: (text: string, suggestions?: string[], sources?: CitedSource[]) => void;
   onDone: () => void;
   onError: (msg: string, serverCorrelationId?: string) => void;
+
 }) {
   // Resolves to the best-known correlation id (server-confirmed if available).
   let resolvedCid = correlationId;
