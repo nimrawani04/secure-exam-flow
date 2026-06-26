@@ -70,6 +70,8 @@ type EndpointSpec = {
   optional?: boolean;     // some endpoints may legitimately return []/2 bytes
 };
 
+type ApiMethod = "GET" | "POST";
+
 const ENDPOINTS: EndpointSpec[] = [
   { path: "noticeboard/getGeneralNoticesForWebSite", kind: "notice", next: 500 },
   { path: "examnotification/getAllNotificationForWebSite", kind: "exam-notification", next: 500 },
@@ -131,25 +133,32 @@ const pick = (row: Record<string, unknown>, ...keys: string[]): string => {
   return "";
 };
 
-function httpPostJson(url: string, body: string): Promise<{ status: number; text: string }> {
+function httpJson(
+  url: string,
+  method: ApiMethod = "POST",
+  body = "",
+): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
+    const headers: Record<string, string> = {
+      "Origin": SPA_BASE,
+      "Referer": `${SPA_BASE}/`,
+      "User-Agent":
+        "CUK-Confidential-Exam-Indexer/2.1 (+https://confidential-exam.lovable.app)",
+      "Accept": "application/json, text/plain, */*",
+      "Connection": "close",
+    };
+    if (method === "POST") {
+      headers["Content-Type"] = "application/json";
+      headers["Content-Length"] = Buffer.byteLength(body).toString();
+    }
     const req = https.request(
       {
-        method: "POST",
+        method,
         host: u.hostname,
         port: u.port || 443,
         path: u.pathname + u.search,
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(body).toString(),
-          "Origin": SPA_BASE,
-          "Referer": `${SPA_BASE}/`,
-          "User-Agent":
-            "CUK-Confidential-Exam-Indexer/2.0 (+https://confidential-exam.lovable.app)",
-          "Accept": "application/json, text/plain, */*",
-          "Connection": "close",
-        },
+        headers,
         timeout: REQUEST_TIMEOUT_MS,
       },
       (res) => {
@@ -166,28 +175,42 @@ function httpPostJson(url: string, body: string): Promise<{ status: number; text
     req.on("timeout", () => {
       req.destroy(new Error(`timeout after ${REQUEST_TIMEOUT_MS}ms`));
     });
-    req.write(body);
+    if (method === "POST") req.write(body);
     req.end();
   });
 }
 
+const parseArrayResponse = (text: string): unknown[] => {
+  if (!text || text.length < 3) return [];
+  try {
+    const json = JSON.parse(text);
+    return Array.isArray(json) ? json : [];
+  } catch {
+    return [];
+  }
+};
+
+async function apiPost(path: string, payload: Record<string, unknown>): Promise<unknown[]> {
+  const { status, text } = await httpJson(`${API_BASE}/${path}`, "POST", JSON.stringify(payload));
+  if (status !== 200) {
+    console.warn(`[crawl] ${path} -> HTTP ${status}`);
+    return [];
+  }
+  return parseArrayResponse(text);
+}
+
+async function apiGet(path: string): Promise<unknown[]> {
+  const { status, text } = await httpJson(`${API_BASE}/${path}`, "GET");
+  if (status !== 200) {
+    console.warn(`[crawl] ${path} -> HTTP ${status}`);
+    return [];
+  }
+  return parseArrayResponse(text);
+}
+
 async function callApi(spec: EndpointSpec): Promise<unknown[]> {
   try {
-    const { status, text } = await httpPostJson(
-      `${API_BASE}/${spec.path}`,
-      JSON.stringify({ langType: 1, seen: 0, next: spec.next ?? 500 }),
-    );
-    if (status !== 200) {
-      console.warn(`[crawl] ${spec.path} -> HTTP ${status}`);
-      return [];
-    }
-    if (!text || text.length < 3) return [];
-    try {
-      const json = JSON.parse(text);
-      return Array.isArray(json) ? json : [];
-    } catch {
-      return [];
-    }
+    return await apiPost(spec.path, { langType: 1, seen: 0, next: spec.next ?? 500 });
   } catch (err) {
     console.warn(`[crawl] ${spec.path} -> ${(err as Error).message}`);
     return [];
@@ -202,6 +225,55 @@ type PageRow = {
   content: string;
   is_pdf: boolean;
 };
+
+const absoluteUrl = (u: string): string => {
+  const value = (u || "").trim();
+  if (!value || /^(javascript:|mailto:|tel:)/i.test(value)) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("/")) return `${API_BASE}${value}`;
+  return `${API_BASE}/${value.replace(/^\.\//, "")}`;
+};
+
+const cleanFileTitle = (url: string): string => {
+  try {
+    const name = decodeURIComponent(new URL(url).pathname.split("/").pop() || "PDF document");
+    return name
+      .replace(/\.pdf$/i, "")
+      .replace(/^\d{8,}-?\d*_?/g, "")
+      .replace(/^\d+[_-]+/g, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "PDF document";
+  } catch {
+    return "PDF document";
+  }
+};
+
+function extractPdfLinks(html: string): Array<{ url: string; title: string }> {
+  const found = new Map<string, string>();
+  const anchorRe = /<a\b[^>]*\bhref=["']([^"']+\.pdf(?:[?#][^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRe.exec(html))) {
+    const url = absoluteUrl(m[1]);
+    if (!url) continue;
+    const title = stripHtml(m[2]) || cleanFileTitle(url);
+    found.set(url, title);
+  }
+
+  const urlRe = /(?:href|src|data-[\w-]+)=["']([^"']+\.pdf(?:[?#][^"']*)?)["']/gi;
+  while ((m = urlRe.exec(html))) {
+    const url = absoluteUrl(m[1]);
+    if (url && !found.has(url)) found.set(url, cleanFileTitle(url));
+  }
+  return Array.from(found, ([url, title]) => ({ url, title }));
+}
+
+function makeDepartmentRoute(masterId: string, kind: "school" | "department" = "department"): string {
+  return kind === "school"
+    ? `${SPA_BASE}/departmentList;sid=${encodeURIComponent(masterId)}`
+    : `${SPA_BASE}/departmentList;id=${encodeURIComponent(masterId)}`;
+}
 
 function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | null {
   // The API uses inconsistent field names across endpoints; coalesce gently.
