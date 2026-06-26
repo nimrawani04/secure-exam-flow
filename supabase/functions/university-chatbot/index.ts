@@ -288,17 +288,17 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${jwt}`, apikey: SUPABASE_ANON_KEY },
     });
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(jwt);
-    const userId = claimsData?.claims?.sub;
-    if (claimsError || !userId) {
+    const userData = userResp.ok ? await userResp.json().catch(() => null) : null;
+    const userId = typeof userData?.id === "string" ? userData.id : null;
+    if (!userResp.ok || !userId) {
       log("warn", "chatbot_jwt_validation", {
         request_id: rid,
         ok: false,
-        reason: claimsError?.message || "missing_sub_claim",
+        status: userResp.status,
+        reason: userResp.ok ? "missing_user_id" : "auth_user_lookup_failed",
         latency_ms: elapsed(authStartedAt),
       });
       return new Response(JSON.stringify({ error: "Unauthorized" }),
