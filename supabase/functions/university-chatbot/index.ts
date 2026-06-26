@@ -574,8 +574,101 @@ async function batchScrape(apiKey: string, urls: string[], concurrency = 6): Pro
 }
 
 function formatSources(sources: Source[]): string {
-  return `**Sources:**\n${sources.map(s => `- [${s.title.replace(/[\[\]]/g,"")}](${s.url})`).join("\n")}`;
+  return `**Sources:**\n${sources.map((s, i) => `${i+1}. [${s.title.replace(/[\[\]]/g,"")}](${s.url})${s.isPdf ? " *(PDF)*" : ""}`).join("\n")}`;
 }
+
+// ─── Static authoritative sources (always cited for KB-only answers) ──────────
+
+type StaticSrc = { title: string; url: string; isPdf?: boolean };
+
+const STATIC_SOURCES: Record<string, StaticSrc[]> = {
+  admissions: [
+    { title: "CUK Admissions Notices", url: "https://www.cukashmir.ac.in/admissions.aspx" },
+    { title: "CUK Prospectus", url: "https://www.cukashmir.ac.in/prospectus.aspx" },
+    { title: "CUET — Samarth Admission Portal", url: "https://cuet.samarth.ac.in" },
+    { title: "CUK Academic Calendar", url: "https://www.cukashmir.ac.in/academiccalendar.aspx" },
+    { title: "CUK Departments (Programmes & Syllabus)", url: "https://www.cukashmir.ac.in/departments.aspx" },
+    { title: "CUK Fee Structure", url: "https://www.cukashmir.ac.in/feestructure.aspx" },
+  ],
+  eligibility: [
+    { title: "CUK Prospectus (Eligibility & Programmes)", url: "https://www.cukashmir.ac.in/prospectus.aspx" },
+    { title: "CUK Admissions Notices", url: "https://www.cukashmir.ac.in/admissions.aspx" },
+    { title: "CUET — Samarth Admission Portal", url: "https://cuet.samarth.ac.in" },
+    { title: "CUK Departments", url: "https://www.cukashmir.ac.in/departments.aspx" },
+  ],
+  examinations: [
+    { title: "CUK Examination Cell (Datesheet & Notices)", url: "https://www.cukashmir.ac.in/examination.aspx" },
+    { title: "CUK Results", url: "https://www.cukashmir.ac.in/results.aspx" },
+    { title: "CUK Notices / Circulars", url: "https://www.cukashmir.ac.in/displayevents.aspx" },
+  ],
+  results: [
+    { title: "CUK Results", url: "https://www.cukashmir.ac.in/results.aspx" },
+    { title: "CUK Examination Cell", url: "https://www.cukashmir.ac.in/examination.aspx" },
+  ],
+  contact: [
+    { title: "CUK Official Website", url: "https://www.cukashmir.ac.in" },
+    { title: "CUK Departments & Schools", url: "https://www.cukashmir.ac.in/departments.aspx" },
+  ],
+  fees: [
+    { title: "CUK Fee Structure", url: "https://www.cukashmir.ac.in/feestructure.aspx" },
+    { title: "CUK Scholarships", url: "https://www.cukashmir.ac.in/scholarships.aspx" },
+  ],
+  scholarship: [
+    { title: "CUK Scholarships", url: "https://www.cukashmir.ac.in/scholarships.aspx" },
+    { title: "National Scholarship Portal (NSP)", url: "https://scholarships.gov.in" },
+  ],
+  syllabus: [
+    { title: "CUK Departments (Choose dept → Syllabus)", url: "https://www.cukashmir.ac.in/departments.aspx" },
+    { title: "CUK Downloads / Forms", url: "https://www.cukashmir.ac.in/downloads.aspx" },
+  ],
+  recruitment: [
+    { title: "CUK Recruitment", url: "https://www.cukashmir.ac.in/recruitment.aspx" },
+    { title: "CUK Notices / Circulars", url: "https://www.cukashmir.ac.in/displayevents.aspx" },
+  ],
+  hostel: [
+    { title: "CUK Hostel", url: "https://www.cukashmir.ac.in/hostel.aspx" },
+  ],
+  library: [
+    { title: "CUK Library", url: "https://www.cukashmir.ac.in/library.aspx" },
+  ],
+};
+
+function staticSourceCategories(q: string): string[] {
+  const l = q.toLowerCase();
+  const cats: string[] = [];
+  if (/admission|apply|application|cuet|prospectus|counsel|allotment/.test(l)) cats.push("admissions");
+  if (/eligib|qualif|criteria|cut[\s-]?off|minimum marks|percentage required/.test(l)) cats.push("eligibility");
+  if (/exam|datesheet|date sheet|admit card|hall ticket|timetable|time table/.test(l)) cats.push("examinations");
+  if (/result|grade|marks|gazette|revaluation|rechecking|transcript|marksheet/.test(l)) cats.push("results");
+  if (/fee|fees|tuition|cost|payment/.test(l)) cats.push("fees");
+  if (/scholarship|stipend|fellowship|financial aid/.test(l)) cats.push("scholarship");
+  if (/syllabus|curriculum|course content|cbcs/.test(l)) cats.push("syllabus");
+  if (/recruit|vacancy|job|career|hiring|faculty position/.test(l)) cats.push("recruitment");
+  if (/contact|email|phone|address|office|directory|reach/.test(l)) cats.push("contact");
+  if (/hostel|accommodation|warden/.test(l)) cats.push("hostel");
+  if (/library|book|inflibnet|n-list/.test(l)) cats.push("library");
+  if (cats.length === 0 && /(department|school|programme|program|course|degree|phd|mba|mca|m\.?sc|b\.?ed|ll\.?b|ll\.?m|m\.?tech)/i.test(l)) {
+    cats.push("admissions");
+  }
+  return cats;
+}
+
+function mergeStaticSources(query: string, live: Source[]): Source[] {
+  const cats = staticSourceCategories(query);
+  if (cats.length === 0) return live;
+  const merged: Source[] = [...live];
+  const seen = new Set(live.map(s => dedupKey(s.url)));
+  for (const cat of cats) {
+    for (const s of (STATIC_SOURCES[cat] || [])) {
+      const k = dedupKey(s.url);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push({ title: s.title, url: s.url, isPdf: !!s.isPdf, score: 0 });
+    }
+  }
+  return merged.slice(0, 8);
+}
+
 
 // ─── Deep search ──────────────────────────────────────────────────────────────
 
