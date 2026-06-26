@@ -311,7 +311,9 @@ type UpsertStats = {
   changed: number;
   unchanged: number;
   touched: number;
+  resurrected: number;
 };
+
 
 async function upsertBatch(
   sb: ReturnType<typeof createClient>,
@@ -323,8 +325,10 @@ async function upsertBatch(
     changed: 0,
     unchanged: 0,
     touched: 0,
+    resurrected: 0,
   };
   if (!rows.length) return stats;
+
 
   // Dedupe by URL within batch (last wins)
   const dedup = new Map<string, PageRow>();
@@ -337,30 +341,30 @@ async function upsertBatch(
     uniques.map(async (r) => ({ row: r, hash: await fingerprint(r) })),
   );
 
-  // Fetch existing hashes for these URLs (chunked to keep query strings small)
-  const existing = new Map<string, string | null>();
+  // Fetch existing hashes + removal state for these URLs
+  const existing = new Map<string, { hash: string | null; removed: boolean }>();
   const urls = uniques.map((u) => u.url);
   for (let i = 0; i < urls.length; i += 200) {
     const slice = urls.slice(i, i + 200);
     const { data, error } = await sb
       .from("cuk_pages")
-      .select("url, content_hash")
+      .select("url, content_hash, removed_at")
       .in("url", slice);
     if (error) {
       console.error("fetch existing hashes error", error);
       continue;
     }
     for (const row of data ?? []) {
-      existing.set(
-        (row as { url: string }).url,
-        (row as { content_hash: string | null }).content_hash ?? null,
-      );
+      const r = row as { url: string; content_hash: string | null; removed_at: string | null };
+      existing.set(r.url, { hash: r.content_hash ?? null, removed: !!r.removed_at });
     }
   }
+
 
   // Partition into changed vs unchanged
   const changedPayload: Array<Record<string, unknown>> = [];
   const unchangedUrls: string[] = [];
+  const resurrectUrls: string[] = [];
   const nowIso = new Date().toISOString();
   for (const { row, hash } of withHash) {
     const prev = existing.get(row.url);
@@ -375,9 +379,12 @@ async function upsertBatch(
         content_length: row.content.length,
         content_hash: hash,
         last_crawled_at: nowIso,
+        removed_at: null,
+        first_missing_at: null,
       });
-    } else if (prev !== hash) {
+    } else if (prev.hash !== hash) {
       stats.changed++;
+      if (prev.removed) stats.resurrected++;
       changedPayload.push({
         url: row.url,
         title: row.title,
@@ -387,10 +394,13 @@ async function upsertBatch(
         content_length: row.content.length,
         content_hash: hash,
         last_crawled_at: nowIso,
+        removed_at: null,
+        first_missing_at: null,
       });
     } else {
       stats.unchanged++;
       unchangedUrls.push(row.url);
+      if (prev.removed) resurrectUrls.push(row.url);
     }
   }
 
@@ -418,8 +428,20 @@ async function upsertBatch(
     if (error) console.error("touch unchanged error", error);
   }
 
+  // Resurrect previously-removed rows that came back unchanged.
+  for (let i = 0; i < resurrectUrls.length; i += 500) {
+    const chunk = resurrectUrls.slice(i, i + 500);
+    const { error } = await sb
+      .from("cuk_pages")
+      .update({ removed_at: null, first_missing_at: null })
+      .in("url", chunk);
+    if (error) console.error("resurrect error", error);
+    else stats.resurrected += chunk.length;
+  }
+
   return stats;
 }
+
 
 // ── Concurrency limiter ──────────────────────────────────────────────────────
 
@@ -491,6 +513,104 @@ serve(async (req) => {
   });
 
   const upsertStats = await upsertBatch(sb, totalRows);
+
+  // ── Deletion detection ──────────────────────────────────────────────────
+  // A row is considered "missing" when none of this run's endpoints returned
+  // its URL. We use a two-phase soft delete so a single flaky upstream run
+  // can't wipe live records:
+  //   1. First time a row is missing → stamp first_missing_at (still searchable).
+  //   2. Still missing >= REMOVAL_GRACE_HOURS later → stamp removed_at
+  //      (excluded from search by search_cuk_pages).
+  // We also require this run to have collected at least MIN_SEEN_RATIO of the
+  // currently-alive row count, otherwise we abort the sweep entirely.
+  const REMOVAL_GRACE_HOURS = 48;
+  const MIN_SEEN_RATIO = 0.5;
+  const forceSweep = body?.forceRemovalSweep === true;
+
+  const seenSet = new Set(totalRows.map((r) => r.url));
+  const removalStats = {
+    sweepRan: false,
+    aborted: false as boolean | string,
+    aliveBefore: 0,
+    seenThisRun: seenSet.size,
+    newlyMissing: 0,
+    confirmedRemoved: 0,
+  };
+
+  const { count: aliveBefore } = await sb
+    .from("cuk_pages")
+    .select("id", { count: "exact", head: true })
+    .is("removed_at", null);
+  removalStats.aliveBefore = aliveBefore ?? 0;
+
+  const ratio = removalStats.aliveBefore
+    ? seenSet.size / removalStats.aliveBefore
+    : 1;
+
+  if (!forceSweep && ratio < MIN_SEEN_RATIO) {
+    removalStats.aborted = `seen/alive ratio ${ratio.toFixed(2)} < ${MIN_SEEN_RATIO} — upstream likely degraded`;
+  } else {
+    removalStats.sweepRan = true;
+    // Page through alive rows and partition by membership in seenSet.
+    const nowIso = new Date().toISOString();
+    const cutoffIso = new Date(
+      Date.now() - REMOVAL_GRACE_HOURS * 3600_000,
+    ).toISOString();
+
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      const { data, error } = await sb
+        .from("cuk_pages")
+        .select("url, first_missing_at")
+        .is("removed_at", null)
+        .order("url")
+        .range(from, from + PAGE - 1);
+      if (error) {
+        console.error("deletion sweep page error", error);
+        break;
+      }
+      const rows = (data ?? []) as Array<{
+        url: string;
+        first_missing_at: string | null;
+      }>;
+      if (!rows.length) break;
+
+      const newlyMissing: string[] = [];
+      const confirmRemoved: string[] = [];
+      for (const r of rows) {
+        if (seenSet.has(r.url)) continue;
+        if (!r.first_missing_at) {
+          newlyMissing.push(r.url);
+        } else if (r.first_missing_at <= cutoffIso) {
+          confirmRemoved.push(r.url);
+        }
+      }
+
+      for (let i = 0; i < newlyMissing.length; i += 500) {
+        const chunk = newlyMissing.slice(i, i + 500);
+        const { error: e } = await sb
+          .from("cuk_pages")
+          .update({ first_missing_at: nowIso })
+          .in("url", chunk);
+        if (e) console.error("mark first_missing error", e);
+        else removalStats.newlyMissing += chunk.length;
+      }
+      for (let i = 0; i < confirmRemoved.length; i += 500) {
+        const chunk = confirmRemoved.slice(i, i + 500);
+        const { error: e } = await sb
+          .from("cuk_pages")
+          .update({ removed_at: nowIso })
+          .in("url", chunk);
+        if (e) console.error("mark removed error", e);
+        else removalStats.confirmedRemoved += chunk.length;
+      }
+
+      if (rows.length < PAGE) break;
+      from += PAGE;
+    }
+  }
+
   const durationMs = Date.now() - startedAt;
 
   return new Response(
@@ -501,11 +621,13 @@ serve(async (req) => {
         endpoints: stats.length,
         rowsCollected: totalRows.length,
         incremental: upsertStats,
+        removal: removalStats,
         perEndpoint: stats,
       },
       null,
       2,
     ),
+
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
