@@ -20,6 +20,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+// The upstream CUK API server emits an invalid `keep-alive` header in HTTP/2
+// frames which Deno's HTTP/2 client refuses with PROTOCOL_ERROR. We bypass
+// that by routing every upstream call through Node's https module (HTTP/1.1
+// only).
+import * as https from "node:https";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
