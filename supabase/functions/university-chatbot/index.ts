@@ -20,8 +20,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version",
+    "authorization, x-client-info, apikey, content-type, x-correlation-id, x-supabase-client-platform, x-supabase-client-platform-version",
+  "Access-Control-Expose-Headers": "x-correlation-id",
 };
+
+const CORRELATION_ID_RE = /^[A-Za-z0-9_-]{8,128}$/;
+function readOrMintCorrelationId(req: Request): { id: string; source: "client" | "server" } {
+  const incoming = req.headers.get("x-correlation-id");
+  if (incoming && CORRELATION_ID_RE.test(incoming)) return { id: incoming, source: "client" };
+  return { id: crypto.randomUUID(), source: "server" };
+}
+function jsonError(body: Record<string, unknown>, status: number, correlationId: string) {
+  return new Response(JSON.stringify({ ...body, correlation_id: correlationId }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
+  });
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type Source = { title: string; url: string; isPdf: boolean };
@@ -266,9 +280,15 @@ function formatSources(sources: Source[]): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const rid = requestId();
+  const { id: correlationId, source: correlationSource } = readOrMintCorrelationId(req);
+  const rid = correlationId;
   const startedAt = nowMs();
-  log("info", "chatbot_request_start", { request_id: rid, method: req.method });
+  log("info", "chatbot_request_start", {
+    request_id: rid,
+    correlation_id: correlationId,
+    correlation_source: correlationSource,
+    method: req.method,
+  });
 
   try {
     // Auth: require a signed-in caller so paid AI calls aren't abused anonymously.
@@ -284,8 +304,7 @@ serve(async (req) => {
         reason: !jwt ? "missing_bearer_token" : "publishable_key_not_user_jwt",
         latency_ms: elapsed(authStartedAt),
       });
-      return new Response(JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonError({ error: "Unauthorized" }, 401, correlationId);
     }
 
     const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -301,8 +320,7 @@ serve(async (req) => {
         reason: userResp.ok ? "missing_user_id" : "auth_user_lookup_failed",
         latency_ms: elapsed(authStartedAt),
       });
-      return new Response(JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonError({ error: "Unauthorized" }, 401, correlationId);
     }
     log("info", "chatbot_jwt_validation", {
       request_id: rid,
@@ -315,15 +333,13 @@ serve(async (req) => {
     const messages = sanitizeMessages(body.messages || []);
     if (!messages?.length) {
       log("warn", "chatbot_bad_request", { request_id: rid, reason: "messages_required", latency_ms: elapsed(startedAt) });
-      return new Response(JSON.stringify({ error: "messages required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonError({ error: "messages required" }, 400, correlationId);
     }
 
     const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_KEY) {
       log("error", "chatbot_configuration_error", { request_id: rid, reason: "missing_lovable_api_key", latency_ms: elapsed(startedAt) });
-      return new Response(JSON.stringify({ error: "AI not configured." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonError({ error: "AI not configured." }, 500, correlationId);
     }
 
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -439,8 +455,7 @@ serve(async (req) => {
       let msg = `AI gateway error ${aiResp.status}`;
       if (aiResp.status === 429) msg = "Too many requests right now. Please try again in a moment.";
       else if (aiResp.status === 402) msg = "AI usage limit reached. Please add credits to continue.";
-      return new Response(JSON.stringify({ error: msg }),
-        { status: aiResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonError({ error: msg }, aiResp.status, correlationId);
     }
 
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
@@ -476,7 +491,7 @@ serve(async (req) => {
                 if (sources.length > 0) {
                   await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
                 }
-                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
                 await writer.write(enc.encode("data: [DONE]\n\n"));
               }
               continue;
@@ -496,7 +511,7 @@ serve(async (req) => {
           if (sources.length > 0) {
             await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
           }
-          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, correlation_id: correlationId });
           await writer.write(enc.encode("data: [DONE]\n\n"));
         }
         log("info", "chatbot_stream_complete", {
@@ -513,7 +528,7 @@ serve(async (req) => {
           error: safeError(e),
           total_latency_ms: elapsed(startedAt),
         });
-        await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [] }).catch(() => {});
+        await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "\n\n⚠️ Connection interrupted. Please try again." }, finish_reason: "stop" }], follow_up_suggestions: [], correlation_id: correlationId }).catch(() => {});
         await writer.write(enc.encode("data: [DONE]\n\n")).catch(() => {});
       } finally {
         await writer.close().catch(() => {});
@@ -521,11 +536,10 @@ serve(async (req) => {
     })();
 
     return new Response(readable, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "x-correlation-id": correlationId },
     });
   } catch (e) {
     log("error", "chatbot_request_error", { request_id: rid, error: safeError(e), total_latency_ms: elapsed(startedAt) });
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return jsonError({ error: e instanceof Error ? e.message : "Unknown error" }, 500, correlationId);
   }
 });

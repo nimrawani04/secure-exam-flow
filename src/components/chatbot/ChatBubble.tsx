@@ -30,23 +30,34 @@ function isUniversityQuery(text: string): boolean {
   return UNIVERSITY_HINTS.some((k) => lower.includes(k));
 }
 
+function newCorrelationId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch { /* ignore */ }
+  return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 async function streamChat({
   messages,
   signal,
+  correlationId,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
   signal: AbortSignal;
+  correlationId: string;
   onDelta: (text: string, suggestions?: string[]) => void;
   onDone: () => void;
-  onError: (msg: string) => void;
+  onError: (msg: string, serverCorrelationId?: string) => void;
 }) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) {
-    onError('Please sign in again to use the assistant.');
+    onError('Please sign in again to use the assistant.', correlationId);
     return;
   }
   const resp = await fetch(CHAT_URL, {
@@ -55,6 +66,7 @@ async function streamChat({
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      'x-correlation-id': correlationId,
     },
     body: JSON.stringify({
       messages: messages.map(({ role, content }) => ({ role, content })),
@@ -62,14 +74,15 @@ async function streamChat({
     signal,
   });
 
+  const serverCorrelationId = resp.headers.get('x-correlation-id') || correlationId;
 
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({ error: 'Request failed' }));
-    onError(data.error || `Error ${resp.status}`);
+    onError(data.error || `Error ${resp.status}`, data.correlation_id || serverCorrelationId);
     return;
   }
 
-  if (!resp.body) { onError('No response body'); return; }
+  if (!resp.body) { onError('No response body', serverCorrelationId); return; }
 
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -196,19 +209,24 @@ export function ChatBubble() {
       });
     };
 
+    const correlationId = newCorrelationId();
     try {
       await streamChat({
         messages: nextHistory,
         signal: controller.signal,
+        correlationId,
         onDelta: (c, s) => upsert(c, s),
         onDone: () => {
           if (controller.signal.aborted) return;
           setIsLoading(false);
           if (latestSuggestions.length > 0) setFollowUps(latestSuggestions);
         },
-        onError: (msg) => {
+        onError: (msg, serverCid) => {
           if (controller.signal.aborted) return;
-          upsert(`⚠️ ${msg}`, undefined, { error: true });
+          const cid = serverCid || correlationId;
+          // eslint-disable-next-line no-console
+          console.error('[chatbot] error', { correlation_id: cid, message: msg });
+          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
           setIsLoading(false);
         },
       });
@@ -216,7 +234,9 @@ export function ChatBubble() {
       if (controller.signal.aborted) return;
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (!isAbort) {
-        upsert('⚠️ Failed to connect. Please try again.', undefined, { error: true });
+        // eslint-disable-next-line no-console
+        console.error('[chatbot] network failure', { correlation_id: correlationId, err });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${correlationId}\`_`, undefined, { error: true });
         setIsLoading(false);
       }
     }
