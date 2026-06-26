@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 
-type Message = { role: 'user' | 'assistant'; content: string; error?: boolean };
+export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
+type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[] };
+
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/university-chatbot`;
 
@@ -55,9 +57,10 @@ async function streamChat({
   signal: AbortSignal;
   correlationId: string;
   onCorrelationId: (cid: string) => void;
-  onDelta: (text: string, suggestions?: string[]) => void;
+  onDelta: (text: string, suggestions?: string[], sources?: CitedSource[]) => void;
   onDone: () => void;
   onError: (msg: string, serverCorrelationId?: string) => void;
+
 }) {
   // Resolves to the best-known correlation id (server-confirmed if available).
   let resolvedCid = correlationId;
@@ -147,9 +150,11 @@ async function streamChat({
           if (parsed.correlation_id) setCid(String(parsed.correlation_id));
           const content = parsed.choices?.[0]?.delta?.content;
           const suggestions = parsed.follow_up_suggestions;
-          if (content || (Array.isArray(suggestions) && suggestions.length > 0)) {
-            onDelta(content || '', suggestions);
+          const srcs: CitedSource[] | undefined = Array.isArray(parsed.sources) ? parsed.sources : undefined;
+          if (content || (Array.isArray(suggestions) && suggestions.length > 0) || (srcs && srcs.length > 0)) {
+            onDelta(content || '', suggestions, srcs);
           }
+
         } catch {
           // Likely a chunk boundary mid-JSON — re-buffer and wait for more bytes.
           buffer = line + '\n' + buffer;
@@ -262,20 +267,22 @@ export function ChatBubble() {
 
     let assistantSoFar = '';
     let latestSuggestions: string[] = [];
+    let latestSources: CitedSource[] = [];
 
-    const upsert = (chunk: string, suggestions?: string[], opts?: { error?: boolean }) => {
+    const upsert = (chunk: string, suggestions?: string[], sources?: CitedSource[], opts?: { error?: boolean }) => {
       assistantSoFar += chunk;
       if (suggestions && suggestions.length > 0) latestSuggestions = suggestions;
+      if (sources && sources.length > 0) latestSources = sources;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
           return prev.map((m, i) =>
             i === prev.length - 1
-              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error }
+              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources }
               : m,
           );
         }
-        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error }];
+        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined }];
       });
     };
 
@@ -287,7 +294,7 @@ export function ChatBubble() {
         signal: controller.signal,
         correlationId,
         onCorrelationId: (cid) => { resolvedCid = cid; },
-        onDelta: (c, s) => upsert(c, s),
+        onDelta: (c, s, src) => upsert(c, s, src),
         onDone: () => {
           if (controller.signal.aborted) return;
           setIsLoading(false);
@@ -298,17 +305,18 @@ export function ChatBubble() {
           const cid = serverCid || resolvedCid;
           // eslint-disable-next-line no-console
           console.error('[chatbot] error', { correlation_id: cid, message: msg });
-          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
+          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, undefined, { error: true });
           setIsLoading(false);
         },
       });
+
     } catch (err) {
       if (controller.signal.aborted) return;
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (!isAbort) {
         // eslint-disable-next-line no-console
         console.error('[chatbot] network failure', { correlation_id: resolvedCid, err });
-        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, { error: true });
+        upsert(`⚠️ Failed to connect. Please try again.\n\n_Reference ID: \`${resolvedCid}\`_`, undefined, undefined, { error: true });
         setIsLoading(false);
       }
     }
@@ -440,46 +448,54 @@ export function ChatBubble() {
             ) : (
               <>
                 {messages.map((m, i) => (
-                  <div key={i} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                    {m.role === 'assistant' && (
-                      <div className={cn(
-                        'h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-                        m.error ? 'bg-destructive/10' : 'bg-primary/10',
-                      )}>
-                        <Bot className={cn('h-3 w-3', m.error ? 'text-destructive' : 'text-primary')} />
-                      </div>
-                    )}
-                    <div className={cn(
-                      'max-w-[80%] rounded-xl px-3 py-2 text-sm',
-                      m.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-sm'
-                        : m.error
-                          ? 'bg-destructive/10 text-destructive rounded-bl-sm border border-destructive/20'
-                          : 'bg-muted rounded-bl-sm',
-                    )}>
-                      {m.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
-                          <ReactMarkdown
-                            components={{
-                              a: ({ href, children }) => (
-                                <a href={href} target="_blank" rel="noopener noreferrer">
-                                  {children}
-                                </a>
-                              ),
-                            }}
-                          >{m.content}</ReactMarkdown>
+                  <div key={i} className="space-y-2">
+                    <div className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                      {m.role === 'assistant' && (
+                        <div className={cn(
+                          'h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                          m.error ? 'bg-destructive/10' : 'bg-primary/10',
+                        )}>
+                          <Bot className={cn('h-3 w-3', m.error ? 'text-destructive' : 'text-primary')} />
                         </div>
-                      ) : (
-                        <span>{m.content}</span>
+                      )}
+                      <div className={cn(
+                        'max-w-[80%] rounded-xl px-3 py-2 text-sm',
+                        m.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-sm'
+                          : m.error
+                            ? 'bg-destructive/10 text-destructive rounded-bl-sm border border-destructive/20'
+                            : 'bg-muted rounded-bl-sm',
+                      )}>
+                        {m.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
+                            <ReactMarkdown
+                              components={{
+                                a: ({ href, children }) => (
+                                  <a href={href} target="_blank" rel="noopener noreferrer">
+                                    {children}
+                                  </a>
+                                ),
+                              }}
+                            >{m.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <span>{m.content}</span>
+                        )}
+                      </div>
+                      {m.role === 'user' && (
+                        <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
+                          <User className="h-3 w-3" />
+                        </div>
                       )}
                     </div>
-                    {m.role === 'user' && (
-                      <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="h-3 w-3" />
+                    {m.role === 'assistant' && !m.error && m.sources && m.sources.length > 0 && (
+                      <div className="pl-8">
+                        <SourcesPanel sources={m.sources} />
                       </div>
                     )}
                   </div>
                 ))}
+
 
                 {showRetry && (
                   <div className="pl-8">
@@ -558,3 +574,61 @@ export function ChatBubble() {
     </>
   );
 }
+
+function hostnameOf(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+}
+
+function SourcesPanel({ sources }: { sources: CitedSource[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? sources : sources.slice(0, 3);
+  return (
+    <section
+      aria-label="Sources cited in this answer"
+      className="rounded-lg border border-border/60 bg-card/50 px-3 py-2"
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Sources ({sources.length})
+        </p>
+        {sources.length > 3 && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="text-[11px] text-primary hover:underline"
+          >
+            {expanded ? 'Show less' : `Show all ${sources.length}`}
+          </button>
+        )}
+      </div>
+      <ol className="space-y-1.5">
+        {visible.map((s) => {
+          const Icon = s.isPdf ? FileText : LinkIcon;
+          return (
+            <li key={`${s.index}-${s.url}`} className="flex items-start gap-2">
+              <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
+                {s.index}
+              </span>
+              <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex-1 min-w-0 text-[12px] leading-snug"
+              >
+                <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
+                  {s.title || s.url}
+                  {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
+                </span>
+                <span className="block truncate text-[10.5px] text-muted-foreground">
+                  {hostnameOf(s.url)}
+                </span>
+              </a>
+              <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
