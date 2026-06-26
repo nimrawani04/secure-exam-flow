@@ -470,11 +470,25 @@ export function ChatBubble() {
                           <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-1.5 [&>ul]:mb-1.5 [&>ol]:mb-1.5 [&>p:last-child]:mb-0 [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
                             <ReactMarkdown
                               components={{
-                                a: ({ href, children }) => (
-                                  <a href={href} target="_blank" rel="noopener noreferrer">
-                                    {children}
-                                  </a>
-                                ),
+                                a: ({ href, children }) => {
+                                  const isPdf = !!href && /\.pdf(\?|#|$)/i.test(href);
+                                  return (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={isPdf ? 'Open PDF in new tab' : href}
+                                      className="inline-flex items-center gap-1"
+                                    >
+                                      {children}
+                                      {isPdf && (
+                                        <span className="ml-1 inline-flex items-center rounded bg-red-500/15 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-red-400 no-underline">
+                                          PDF
+                                        </span>
+                                      )}
+                                    </a>
+                                  );
+                                },
                               }}
                             >{m.content}</ReactMarkdown>
                           </div>
