@@ -83,6 +83,7 @@ export type Database = {
       cuk_pages: {
         Row: {
           content: string
+          content_hash: string | null
           content_length: number | null
           created_at: string
           http_status: number | null
@@ -95,6 +96,7 @@ export type Database = {
         }
         Insert: {
           content?: string
+          content_hash?: string | null
           content_length?: number | null
           created_at?: string
           http_status?: number | null
@@ -107,6 +109,7 @@ export type Database = {
         }
         Update: {
           content?: string
+          content_hash?: string | null
           content_length?: number | null
           created_at?: string
           http_status?: number | null
