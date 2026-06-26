@@ -25,6 +25,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 // that by routing every upstream call through Node's https module (HTTP/1.1
 // only).
 import * as https from "node:https";
+import { Buffer } from "node:buffer";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
