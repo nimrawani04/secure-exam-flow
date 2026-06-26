@@ -490,7 +490,7 @@ serve(async (req) => {
     totalRows = totalRows.concat(norm);
   });
 
-  const stored = await upsertBatch(sb, totalRows);
+  const upsertStats = await upsertBatch(sb, totalRows);
   const durationMs = Date.now() - startedAt;
 
   return new Response(
@@ -500,7 +500,7 @@ serve(async (req) => {
         durationMs,
         endpoints: stats.length,
         rowsCollected: totalRows.length,
-        rowsUpserted: stored,
+        incremental: upsertStats,
         perEndpoint: stats,
       },
       null,
