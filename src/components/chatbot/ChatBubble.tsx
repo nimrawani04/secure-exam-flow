@@ -604,26 +604,29 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
         {visible.map((s) => {
           const Icon = s.isPdf ? FileText : LinkIcon;
           return (
-            <li key={`${s.index}-${s.url}`} className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
-                {s.index}
-              </span>
-              <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+            <li key={`${s.index}-${s.url}`}>
               <a
                 href={s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex-1 min-w-0 text-[12px] leading-snug"
+                aria-label={`Open source ${s.index}: ${s.title || s.url}`}
+                className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
-                  {s.title || s.url}
-                  {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
+                <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
+                  {s.index}
                 </span>
-                <span className="block truncate text-[10.5px] text-muted-foreground">
-                  {hostnameOf(s.url)}
+                <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                <span className="flex-1 min-w-0 text-[12px] leading-snug">
+                  <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
+                    {s.title || s.url}
+                    {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
+                  </span>
+                  <span className="block truncate text-[10.5px] text-muted-foreground">
+                    {hostnameOf(s.url)}
+                  </span>
                 </span>
+                <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-muted-foreground group-hover:text-primary" />
               </a>
-              <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
             </li>
           );
         })}
