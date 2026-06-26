@@ -24,6 +24,7 @@ export function ThemeToggle({ className, compact = false }: { className?: string
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const nextLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   return (
     <Button
       type="button"
@@ -31,6 +32,8 @@ export function ThemeToggle({ className, compact = false }: { className?: string
       size="sm"
       className={className}
       onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+      aria-label={nextLabel}
+      title={nextLabel}
     >
       {theme === 'dark' ? (
         <>

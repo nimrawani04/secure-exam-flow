@@ -54,8 +54,13 @@ export function TeacherDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {firstName}</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">
+            Teacher Dashboard
+            <span className="block text-base font-normal text-muted-foreground mt-1">
+              Welcome back, {firstName}
+            </span>
+          </h1>
+          <p className="text-muted-foreground mt-2">
             Manage your exam papers and track submission status
           </p>
         </div>

@@ -1,0 +1,9 @@
+# CUK Exam System
+
+> Secure examination paper management platform for Central University of Kashmir, with role-based access for teachers, HODs, and the examination cell.
+
+The application is a gated internal system. All workflows beyond the landing page require authentication.
+
+## Pages
+
+- [Sign in / Sign up](/): Landing page with authentication for teachers, HODs, and examination cell staff.
