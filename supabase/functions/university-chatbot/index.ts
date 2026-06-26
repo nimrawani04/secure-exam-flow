@@ -635,9 +635,9 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured. Set ANTHROPIC_API_KEY secret." }),
+    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_KEY) {
+      return new Response(JSON.stringify({ error: "AI not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -657,36 +657,44 @@ serve(async (req) => {
         sources = cached.sources;
         console.log("Cache hit");
       } else {
-        const result = await deepSearch(searchQuery, FIRECRAWL_KEY);
-        context = result.context;
-        sources = result.sources;
-        if (context) cacheSet(cacheKey, { context, sources });
+        try {
+          const result = await deepSearch(searchQuery, FIRECRAWL_KEY);
+          context = result.context;
+          sources = result.sources;
+          if (context) cacheSet(cacheKey, { context, sources });
+        } catch (e) {
+          console.error("deepSearch failed:", e);
+        }
       }
     }
 
     const followUps    = getFollowUps(rawQuery);
     const systemPrompt = SYSTEM_PROMPT + (context || "");
 
-    const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key":         ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type":      "application/json",
+        "Authorization": `Bearer ${LOVABLE_KEY}`,
+        "Content-Type":  "application/json",
       },
       body: JSON.stringify({
-        model:      "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        stream:     true,
-        system:     systemPrompt,
-        messages:   messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
+        model:    "google/gemini-2.5-flash",
+        stream:   true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+        ],
       }),
     });
 
-    if (!claudeResp.ok) {
-      const err = await claudeResp.json().catch(() => ({ error: {} }));
-      return new Response(JSON.stringify({ error: err?.error?.message || `API error ${claudeResp.status}` }),
-        { status: claudeResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!aiResp.ok) {
+      const errText = await aiResp.text().catch(() => "");
+      console.error("Gateway error", aiResp.status, errText);
+      let msg = `AI gateway error ${aiResp.status}`;
+      if (aiResp.status === 429) msg = "Too many requests right now. Please try again in a moment.";
+      else if (aiResp.status === 402) msg = "AI usage limit reached. Please add credits to continue.";
+      return new Response(JSON.stringify({ error: msg }),
+        { status: aiResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
@@ -699,9 +707,10 @@ serve(async (req) => {
 
     (async () => {
       try {
-        const reader = claudeResp.body!.getReader();
+        const reader = aiResp.body!.getReader();
         const dec    = new TextDecoder();
         let buf      = "";
+        let finished = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -712,23 +721,36 @@ serve(async (req) => {
           while ((idx = buf.indexOf("\n")) !== -1) {
             const line = buf.slice(0, idx).trim();
             buf = buf.slice(idx + 1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (json === "[DONE]") continue;
-            try {
-              const ev = JSON.parse(json);
-              if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
-                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: ev.delta.text }, finish_reason: null }] });
-              }
-              if (ev.type === "message_stop") {
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json) continue;
+            if (json === "[DONE]") {
+              if (!finished) {
+                finished = true;
                 if (sources.length > 0) {
                   await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
                 }
                 await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
                 await writer.write(enc.encode("data: [DONE]\n\n"));
               }
+              continue;
+            }
+            try {
+              const ev = JSON.parse(json);
+              const delta = ev?.choices?.[0]?.delta?.content;
+              if (delta) {
+                await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: delta }, finish_reason: null }] });
+              }
             } catch { /* skip malformed */ }
           }
+        }
+
+        if (!finished) {
+          if (sources.length > 0) {
+            await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: `\n\n${formatSources(sources)}` }, finish_reason: null }] });
+          }
+          await emit({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps });
+          await writer.write(enc.encode("data: [DONE]\n\n"));
         }
       } catch (e) {
         console.error("Stream error:", e);
@@ -738,6 +760,7 @@ serve(async (req) => {
         await writer.close().catch(()=>{});
       }
     })();
+
 
     return new Response(readable, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
