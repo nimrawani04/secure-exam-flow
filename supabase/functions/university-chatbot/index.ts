@@ -836,8 +836,22 @@ serve(async (req) => {
       }
     }
 
+    // Merge static authoritative sources so admission/eligibility/etc. answers
+    // always have a citable catalog, even when live scraping yields nothing.
+    sources = mergeStaticSources(rawQuery, sources);
+
+    // Always include a VERIFIED SOURCE CATALOG block in the prompt so the model
+    // can cite [n] inline, regardless of whether live scraping succeeded.
+    let catalogBlock = "";
+    if (sources.length > 0) {
+      catalogBlock = "\n\n--- VERIFIED SOURCE CATALOG (cite as [n]) ---\n" +
+        sources.map((s, i) => `[${i+1}] ${s.title}${s.isPdf ? " (PDF)" : ""} — ${s.url}`).join("\n") +
+        "\n--- END CATALOG ---\n";
+    }
+
     const followUps    = getFollowUps(rawQuery);
-    const systemPrompt = SYSTEM_PROMPT + (context || "");
+    const systemPrompt = SYSTEM_PROMPT + (context || "") + catalogBlock;
+
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
