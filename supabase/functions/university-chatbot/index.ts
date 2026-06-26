@@ -563,6 +563,8 @@ serve(async (req) => {
     (async () => {
       let streamedChunks = 0;
       let assistantText = "";
+      const snippetMap: Record<number, string> = {};
+      rows.slice(0, sources.length).forEach((r, i) => { snippetMap[i + 1] = r.snippet || ""; });
       const buildCitedSources = () => {
         const cited = new Set<number>();
         const re = /\[(\d{1,2})\]/g;
@@ -572,13 +574,23 @@ serve(async (req) => {
           if (n >= 1 && n <= sources.length) cited.add(n);
         }
         const ordered = Array.from(cited).sort((a, b) => a - b);
-        // If model produced no [n] markers, omit sources entirely to avoid misleading citations.
         if (ordered.length === 0) return [];
-        return ordered.map((n) => {
+        const { kept, dropped } = verifyCitedSources(assistantText, ordered, sources, snippetMap);
+        if (dropped.length) {
+          log("info", "chatbot_citations_filtered", {
+            request_id: rid,
+            user_id: userId,
+            cited: ordered,
+            kept,
+            dropped,
+          });
+        }
+        return kept.map((n) => {
           const s = sources[n - 1];
           return { index: n, title: s.title, url: s.url, isPdf: !!s.isPdf };
         });
       };
+
       try {
         const reader = aiResp.body!.getReader();
         const dec = new TextDecoder();
