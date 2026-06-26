@@ -311,7 +311,9 @@ type UpsertStats = {
   changed: number;
   unchanged: number;
   touched: number;
+  resurrected: number;
 };
+
 
 async function upsertBatch(
   sb: ReturnType<typeof createClient>,
