@@ -429,42 +429,8 @@ async function crawlDepartmentTree(): Promise<{ rows: PageRow[]; stats: Departme
     rows: 0,
   };
   const visited = new Set<string>();
-
-  const crawlNode = async (masterId: string, path: string[], depth = 0): Promise<void> => {
-    if (!masterId || visited.has(masterId) || depth > 8) return;
-    visited.add(masterId);
-    stats.departmentApiCalls += 1;
-
-    let list: unknown[] = [];
-    try {
-      list = await apiPost("department/departmentListById", { Id: masterId });
-    } catch (err) {
-      console.warn(`[crawl] department/departmentListById(${masterId}) -> ${(err as Error).message}`);
-      return;
-    }
-    if (!Array.isArray(list) || !list.length) return;
-
-    // The API returns either a list of child pages (for a root department) or a
-    // single content page (for a leaf/menu entry). Index both forms and recurse
-    // through every DepartmentMasterId we discover so syllabus/study-material
-    // PDFs buried in department menus are harvested.
-    for (const item of list) {
-      const raw = item as Record<string, unknown>;
-      const { page, pdfs, childMasterId } = normaliseDepartmentPage(raw, path);
-      if (page) {
-        rows.push(page);
-        stats.departmentPages += 1;
-      }
-      if (pdfs.length) {
-        rows.push(...pdfs);
-        stats.pdfs += pdfs.length;
-      }
-      if (childMasterId && childMasterId !== masterId) {
-        const childName = pick(raw, "DepartmentName", "DepartmentTitle", "Name");
-        await crawlNode(childMasterId, [...path, childName].filter(Boolean), depth + 1);
-      }
-    }
-  };
+  const queue: Array<{ id: string; path: string[]; depth: number }> = [];
+  const MAX_DEPARTMENT_API_CALLS = 450;
 
   let schools: unknown[] = [];
   try {
@@ -481,26 +447,65 @@ async function crawlDepartmentTree(): Promise<{ rows: PageRow[]; stats: Departme
     rows.push({
       url: makeDepartmentRoute(schoolId, "school"),
       title: schoolName,
-      content: [
-        "Category: School",
-        `Title: ${schoolName}`,
-        `SchoolMasterId: ${schoolId}`,
-      ].join("\n"),
+      content: ["Category: School", `Title: ${schoolName}`, `SchoolMasterId: ${schoolId}`].join("\n"),
       is_pdf: false,
     });
 
-    let departments: unknown[] = [];
     try {
-      departments = await apiPost("department/getMappedDepartmentListBySchoolMasterId", {
+      const departments = await apiPost("department/getMappedDepartmentListBySchoolMasterId", {
         SchoolMasterId: schoolId,
       });
+      for (const d of departments as Record<string, unknown>[]) {
+        const id = pick(d, "DepartmentMasterId", "MasterId");
+        if (id) queue.push({ id, path: [schoolName], depth: 0 });
+      }
     } catch (err) {
       console.warn(`[crawl] department/getMappedDepartmentListBySchoolMasterId(${schoolId}) -> ${(err as Error).message}`);
     }
-    for (const d of departments as Record<string, unknown>[]) {
-      await crawlNode(pick(d, "DepartmentMasterId", "MasterId"), [schoolName], 0);
-    }
   });
+
+  // Breadth-first, concurrent traversal. This indexes every department/menu page
+  // returned by the official API without doing one long serial recursion that can
+  // hit Edge Function timeouts.
+  while (queue.length && stats.departmentApiCalls < MAX_DEPARTMENT_API_CALLS) {
+    const batch = queue.splice(0, PER_REQUEST_CONCURRENCY * 2);
+    const discovered = await mapLimit(batch, PER_REQUEST_CONCURRENCY, async (node) => {
+      const childNodes: Array<{ id: string; path: string[]; depth: number }> = [];
+      if (!node.id || visited.has(node.id) || node.depth > 8) return childNodes;
+      visited.add(node.id);
+      stats.departmentApiCalls += 1;
+
+      let list: unknown[] = [];
+      try {
+        list = await apiPost("department/departmentListById", { Id: node.id });
+      } catch (err) {
+        console.warn(`[crawl] department/departmentListById(${node.id}) -> ${(err as Error).message}`);
+        return childNodes;
+      }
+
+      for (const item of list as Record<string, unknown>[]) {
+        const { page, pdfs, childMasterId } = normaliseDepartmentPage(item, node.path);
+        if (page) {
+          rows.push(page);
+          stats.departmentPages += 1;
+        }
+        if (pdfs.length) {
+          rows.push(...pdfs);
+          stats.pdfs += pdfs.length;
+        }
+        if (childMasterId && childMasterId !== node.id && !visited.has(childMasterId)) {
+          const childName = pick(item, "DepartmentName", "DepartmentTitle", "Name");
+          childNodes.push({
+            id: childMasterId,
+            path: [...node.path, childName].filter(Boolean),
+            depth: node.depth + 1,
+          });
+        }
+      }
+      return childNodes;
+    });
+    for (const children of discovered) queue.push(...(children || []));
+  }
 
   stats.rows = rows.length;
   return { rows, stats };
