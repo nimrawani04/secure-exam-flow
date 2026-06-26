@@ -574,3 +574,61 @@ export function ChatBubble() {
     </>
   );
 }
+
+function hostnameOf(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+}
+
+function SourcesPanel({ sources }: { sources: CitedSource[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? sources : sources.slice(0, 3);
+  return (
+    <section
+      aria-label="Sources cited in this answer"
+      className="rounded-lg border border-border/60 bg-card/50 px-3 py-2"
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Sources ({sources.length})
+        </p>
+        {sources.length > 3 && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="text-[11px] text-primary hover:underline"
+          >
+            {expanded ? 'Show less' : `Show all ${sources.length}`}
+          </button>
+        )}
+      </div>
+      <ol className="space-y-1.5">
+        {visible.map((s) => {
+          const Icon = s.isPdf ? FileText : LinkIcon;
+          return (
+            <li key={`${s.index}-${s.url}`} className="flex items-start gap-2">
+              <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
+                {s.index}
+              </span>
+              <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex-1 min-w-0 text-[12px] leading-snug"
+              >
+                <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
+                  {s.title || s.url}
+                  {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
+                </span>
+                <span className="block truncate text-[10.5px] text-muted-foreground">
+                  {hostnameOf(s.url)}
+                </span>
+              </a>
+              <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
