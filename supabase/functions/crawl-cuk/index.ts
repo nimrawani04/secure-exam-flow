@@ -130,34 +130,59 @@ const pick = (row: Record<string, unknown>, ...keys: string[]): string => {
   return "";
 };
 
-async function callApi(spec: EndpointSpec): Promise<unknown[]> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${API_BASE}/${spec.path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Origin": SPA_BASE,
-        "Referer": `${SPA_BASE}/`,
-        "User-Agent":
-          "CUK-Confidential-Exam-Indexer/2.0 (+https://confidential-exam.lovable.app)",
+function httpPostJson(url: string, body: string): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        method: "POST",
+        host: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body).toString(),
+          "Origin": SPA_BASE,
+          "Referer": `${SPA_BASE}/`,
+          "User-Agent":
+            "CUK-Confidential-Exam-Indexer/2.0 (+https://confidential-exam.lovable.app)",
+          "Accept": "application/json, text/plain, */*",
+          "Connection": "close",
+        },
+        timeout: REQUEST_TIMEOUT_MS,
       },
-      body: JSON.stringify({
-        langType: 1,
-        seen: 0,
-        next: spec.next ?? 500,
-      }),
-      signal: ctrl.signal,
+      (res) => {
+        const chunks: Uint8Array[] = [];
+        res.on("data", (c: Uint8Array) => chunks.push(c));
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          resolve({ status: res.statusCode ?? 0, text });
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy(new Error(`timeout after ${REQUEST_TIMEOUT_MS}ms`));
     });
-    if (!res.ok) {
-      console.warn(`[crawl] ${spec.path} -> HTTP ${res.status}`);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function callApi(spec: EndpointSpec): Promise<unknown[]> {
+  try {
+    const { status, text } = await httpPostJson(
+      `${API_BASE}/${spec.path}`,
+      JSON.stringify({ langType: 1, seen: 0, next: spec.next ?? 500 }),
+    );
+    if (status !== 200) {
+      console.warn(`[crawl] ${spec.path} -> HTTP ${status}`);
       return [];
     }
-    const txt = await res.text();
-    if (!txt || txt.length < 3) return [];
+    if (!text || text.length < 3) return [];
     try {
-      const json = JSON.parse(txt);
+      const json = JSON.parse(text);
       return Array.isArray(json) ? json : [];
     } catch {
       return [];
@@ -165,8 +190,6 @@ async function callApi(spec: EndpointSpec): Promise<unknown[]> {
   } catch (err) {
     console.warn(`[crawl] ${spec.path} -> ${(err as Error).message}`);
     return [];
-  } finally {
-    clearTimeout(t);
   }
 }
 
