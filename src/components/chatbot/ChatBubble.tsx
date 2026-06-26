@@ -267,20 +267,22 @@ export function ChatBubble() {
 
     let assistantSoFar = '';
     let latestSuggestions: string[] = [];
+    let latestSources: CitedSource[] = [];
 
-    const upsert = (chunk: string, suggestions?: string[], opts?: { error?: boolean }) => {
+    const upsert = (chunk: string, suggestions?: string[], sources?: CitedSource[], opts?: { error?: boolean }) => {
       assistantSoFar += chunk;
       if (suggestions && suggestions.length > 0) latestSuggestions = suggestions;
+      if (sources && sources.length > 0) latestSources = sources;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
           return prev.map((m, i) =>
             i === prev.length - 1
-              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error }
+              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources }
               : m,
           );
         }
-        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error }];
+        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined }];
       });
     };
 
@@ -292,7 +294,7 @@ export function ChatBubble() {
         signal: controller.signal,
         correlationId,
         onCorrelationId: (cid) => { resolvedCid = cid; },
-        onDelta: (c, s) => upsert(c, s),
+        onDelta: (c, s, src) => upsert(c, s, src),
         onDone: () => {
           if (controller.signal.aborted) return;
           setIsLoading(false);
@@ -303,10 +305,11 @@ export function ChatBubble() {
           const cid = serverCid || resolvedCid;
           // eslint-disable-next-line no-console
           console.error('[chatbot] error', { correlation_id: cid, message: msg });
-          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, { error: true });
+          upsert(`⚠️ ${msg}\n\n_Reference ID: \`${cid}\`_`, undefined, undefined, { error: true });
           setIsLoading(false);
         },
       });
+
     } catch (err) {
       if (controller.signal.aborted) return;
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
