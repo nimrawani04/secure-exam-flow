@@ -272,14 +272,13 @@ function rowsToSources(rows: SearchRow[]): Source[] {
 // ─── Live Firecrawl fallback (when the local index has no good hit) ───────────
 type LiveHit = { url: string; title: string; snippet: string; isPdf: boolean };
 
-async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]> {
+async function firecrawlLiveSearch(query: string, limit = 6, extraScope = ""): Promise<LiveHit[]> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
   if (!key) return [];
-  // Bias the query to the official CUK domain so we get authoritative docs.
-  const scoped = `site:cukashmir.ac.in ${query}`;
+  const scoped = `site:cukashmir.ac.in ${extraScope} ${query}`.replace(/\s+/g, " ").trim();
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 9000);
     const resp = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -294,6 +293,8 @@ async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]>
     for (const r of raw) {
       const url: string = r?.url || r?.link || "";
       if (!url || !/cukashmir\.ac\.in|disgenweb\.in/i.test(url)) continue;
+      // Skip generic landing pages so deep content surfaces first.
+      if (/^https?:\/\/(www\.)?cukashmir\.ac\.in\/?(index\.aspx)?$/i.test(url)) continue;
       hits.push({
         url,
         title: (r?.title || r?.name || "").toString().trim(),
@@ -301,13 +302,30 @@ async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]>
         isPdf: isPdfUrl(url),
       });
     }
-    // PDFs first, then de-dupe.
     const seen = new Set<string>();
     return hits
       .sort((a, b) => Number(b.isPdf) - Number(a.isPdf))
       .filter((h) => { const k = h.url.split("#")[0]; if (seen.has(k)) return false; seen.add(k); return true; })
       .slice(0, limit);
   } catch { return []; }
+}
+
+// Run scoped + PDF-targeted searches in parallel and merge.
+async function firecrawlDeepHunt(query: string): Promise<LiveHit[]> {
+  const [generic, pdfs] = await Promise.all([
+    firecrawlLiveSearch(query, 6, ""),
+    firecrawlLiveSearch(query, 6, "filetype:pdf"),
+  ]);
+  const merged: LiveHit[] = [];
+  const seen = new Set<string>();
+  // PDFs first.
+  for (const h of [...pdfs, ...generic]) {
+    const k = h.url.split("#")[0];
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(h);
+  }
+  return merged.slice(0, 10);
 }
 
 function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
