@@ -530,38 +530,34 @@ serve(async (req) => {
       latency_ms: elapsed(startedAt),
     });
 
-    // ── Postgres full-text search against pre-crawled cuk_pages ──
+    // ── Run pre-indexed FTS + live Firecrawl deep hunt IN PARALLEL ──
+    // Why: the index only knows pages our crawler has visited. Department
+    // sub-pages, PDFs in /downloads, scheme files, etc. are often missing.
+    // We always ask Firecrawl for fresh deep links and merge them.
     const searchStartedAt = nowMs();
     let rows: SearchRow[] = [];
     if (!isAppNavOnly(rawQuery) && searchQuery.trim().length > 1) {
-      try {
-        const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-          { auth: { persistSession: false } });
-        const { data, error } = await sb.rpc("search_cuk_pages", {
-          _query: searchQuery,
-          _limit: 8,
+      const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } });
+
+      const indexPromise = sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 })
+        .then(({ data, error }) => {
+          if (error) {
+            log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: error.message, hit_count: 0, latency_ms: elapsed(searchStartedAt) });
+            return [] as SearchRow[];
+          }
+          return (data || []) as SearchRow[];
+        })
+        .catch((e) => {
+          log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: safeError(e), hit_count: 0, latency_ms: elapsed(searchStartedAt) });
+          return [] as SearchRow[];
         });
-        if (error) {
-          log("error", "chatbot_search_complete", {
-            request_id: rid,
-            user_id: userId,
-            ok: false,
-            error: error.message,
-            hit_count: 0,
-            latency_ms: elapsed(searchStartedAt),
-          });
-        }
-        else rows = (data || []) as SearchRow[];
-      } catch (e) {
-        log("error", "chatbot_search_complete", {
-          request_id: rid,
-          user_id: userId,
-          ok: false,
-          error: safeError(e),
-          hit_count: 0,
-          latency_ms: elapsed(searchStartedAt),
-        });
-      }
+
+      const livePromise = firecrawlDeepHunt(searchQuery).catch(() => [] as LiveHit[]);
+
+      const [indexRows, liveHits] = await Promise.all([indexPromise, livePromise]);
+      rows = indexRows;
+
       log("info", "chatbot_search_complete", {
         request_id: rid,
         user_id: userId,
@@ -569,36 +565,25 @@ serve(async (req) => {
         hit_count: rows.length,
         pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
         top_rank: rows[0]?.rank ?? null,
+        live_hit_count: liveHits.length,
+        live_pdf_count: liveHits.filter((h) => h.isPdf).length,
         latency_ms: elapsed(searchStartedAt),
       });
 
-      // ── Live Firecrawl fallback when the local index is weak ──
-      const topRank = rows[0]?.rank ?? 0;
-      const weakIndex = rows.length === 0 || topRank < 1.5 ||
-        !rows.some((r) => r.is_pdf || isPdfUrl(r.url));
-      if (weakIndex) {
-        const liveStart = nowMs();
-        const live = await firecrawlLiveSearch(searchQuery, 6);
-        log("info", "chatbot_live_fallback", {
-          request_id: rid,
-          user_id: userId,
-          reason: rows.length === 0 ? "no_index_hits" : `weak_top_rank_${topRank.toFixed(2)}`,
-          live_hit_count: live.length,
-          live_pdf_count: live.filter((h) => h.isPdf).length,
-          latency_ms: elapsed(liveStart),
-        });
-        if (live.length) {
-          const liveRows = liveHitsToRows(live);
-          // Merge: keep best of both, dedupe by URL stem.
-          const seen = new Set(rows.map((r) => r.url.split("#")[0]));
-          for (const r of liveRows) {
-            const k = r.url.split("#")[0];
-            if (!seen.has(k)) { rows.push(r); seen.add(k); }
-          }
-          // Re-sort so PDFs and live hits float up when index was empty.
-          rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
-          rows = rows.slice(0, 10);
+      if (liveHits.length) {
+        const liveRows = liveHitsToRows(liveHits);
+        const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+        for (const r of liveRows) {
+          const k = r.url.split("#")[0];
+          if (!seen.has(k)) { rows.push(r); seen.add(k); }
         }
+        // Prefer PDFs and high-ranked rows.
+        rows.sort((a, b) => {
+          const pdfDelta = Number(b.is_pdf || isPdfUrl(b.url)) - Number(a.is_pdf || isPdfUrl(a.url));
+          if (pdfDelta !== 0) return pdfDelta;
+          return (b.rank || 0) - (a.rank || 0);
+        });
+        rows = rows.slice(0, 10);
       }
 
     } else {
