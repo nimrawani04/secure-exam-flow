@@ -156,7 +156,8 @@ Rules:
 - Never invent contact details, deadlines, fees, or policies.
 - For app features use markdown links: [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings).
 - Be concise — 2-4 sentences then bullets for lists/steps. Use [n] citations inline.
-- GIVE THE ACTUAL DIRECT LINK from the VERIFIED SOURCE CATALOG — never tell the user to "visit the website and navigate to…". If a relevant PDF or page is in the catalog, link to it inline as a markdown link AND cite it with [n].
+- GIVE THE ACTUAL DIRECT LINK from the VERIFIED SOURCE CATALOG — never tell the user to "visit the website and navigate to…", "go to the departments section", or any similar navigation instruction. That phrasing is FORBIDDEN. Always paste the exact deep URL of the PDF or sub-page.
+- ENUMERATE every relevant catalog entry, not just one. If the user asks for "B.Tech resources" or any broad topic, list 3-6 specific deep links (syllabus PDFs, scheme PDFs, notices, department pages) from the catalog — each on its own line with the inline preview format.
 - INLINE PREVIEW FORMAT: For every document you reference, render it on its own line as: **Section / topic name** — [Open document title (PDF)](URL) [n]. Use the real section/topic the user asked about (e.g. "B.Tech CSE 6th Semester Syllabus", "M.A. English Admission Notice 2025", "Non-Teaching Recruitment Notification"). If the catalog entry is a PDF, append " (PDF)" inside the link text so the UI can preview it directly.
 - DEEP ANCHOR LINKS: Whenever you know (or can confidently infer) the exact location of the section inside the document, append a URL fragment that jumps the reader directly to it:
   • PDFs: append "#page=N" (e.g. ".../syllabus.pdf#page=42") when a page number is known. You may also use "#page=N&zoom=page-width" or "#nameddest=SectionName" when the catalog entry exposes a named destination.
@@ -272,14 +273,13 @@ function rowsToSources(rows: SearchRow[]): Source[] {
 // ─── Live Firecrawl fallback (when the local index has no good hit) ───────────
 type LiveHit = { url: string; title: string; snippet: string; isPdf: boolean };
 
-async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]> {
+async function firecrawlLiveSearch(query: string, limit = 6, extraScope = ""): Promise<LiveHit[]> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
   if (!key) return [];
-  // Bias the query to the official CUK domain so we get authoritative docs.
-  const scoped = `site:cukashmir.ac.in ${query}`;
+  const scoped = `site:cukashmir.ac.in ${extraScope} ${query}`.replace(/\s+/g, " ").trim();
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 9000);
     const resp = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -294,6 +294,8 @@ async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]>
     for (const r of raw) {
       const url: string = r?.url || r?.link || "";
       if (!url || !/cukashmir\.ac\.in|disgenweb\.in/i.test(url)) continue;
+      // Skip generic landing pages so deep content surfaces first.
+      if (/^https?:\/\/(www\.)?cukashmir\.ac\.in\/?(index\.aspx)?$/i.test(url)) continue;
       hits.push({
         url,
         title: (r?.title || r?.name || "").toString().trim(),
@@ -301,13 +303,30 @@ async function firecrawlLiveSearch(query: string, limit = 6): Promise<LiveHit[]>
         isPdf: isPdfUrl(url),
       });
     }
-    // PDFs first, then de-dupe.
     const seen = new Set<string>();
     return hits
       .sort((a, b) => Number(b.isPdf) - Number(a.isPdf))
       .filter((h) => { const k = h.url.split("#")[0]; if (seen.has(k)) return false; seen.add(k); return true; })
       .slice(0, limit);
   } catch { return []; }
+}
+
+// Run scoped + PDF-targeted searches in parallel and merge.
+async function firecrawlDeepHunt(query: string): Promise<LiveHit[]> {
+  const [generic, pdfs] = await Promise.all([
+    firecrawlLiveSearch(query, 6, ""),
+    firecrawlLiveSearch(query, 6, "filetype:pdf"),
+  ]);
+  const merged: LiveHit[] = [];
+  const seen = new Set<string>();
+  // PDFs first.
+  for (const h of [...pdfs, ...generic]) {
+    const k = h.url.split("#")[0];
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(h);
+  }
+  return merged.slice(0, 10);
 }
 
 function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
@@ -512,38 +531,34 @@ serve(async (req) => {
       latency_ms: elapsed(startedAt),
     });
 
-    // ── Postgres full-text search against pre-crawled cuk_pages ──
+    // ── Run pre-indexed FTS + live Firecrawl deep hunt IN PARALLEL ──
+    // Why: the index only knows pages our crawler has visited. Department
+    // sub-pages, PDFs in /downloads, scheme files, etc. are often missing.
+    // We always ask Firecrawl for fresh deep links and merge them.
     const searchStartedAt = nowMs();
     let rows: SearchRow[] = [];
     if (!isAppNavOnly(rawQuery) && searchQuery.trim().length > 1) {
-      try {
-        const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-          { auth: { persistSession: false } });
-        const { data, error } = await sb.rpc("search_cuk_pages", {
-          _query: searchQuery,
-          _limit: 8,
+      const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } });
+
+      const indexPromise = sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 })
+        .then(({ data, error }) => {
+          if (error) {
+            log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: error.message, hit_count: 0, latency_ms: elapsed(searchStartedAt) });
+            return [] as SearchRow[];
+          }
+          return (data || []) as SearchRow[];
+        })
+        .catch((e) => {
+          log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: safeError(e), hit_count: 0, latency_ms: elapsed(searchStartedAt) });
+          return [] as SearchRow[];
         });
-        if (error) {
-          log("error", "chatbot_search_complete", {
-            request_id: rid,
-            user_id: userId,
-            ok: false,
-            error: error.message,
-            hit_count: 0,
-            latency_ms: elapsed(searchStartedAt),
-          });
-        }
-        else rows = (data || []) as SearchRow[];
-      } catch (e) {
-        log("error", "chatbot_search_complete", {
-          request_id: rid,
-          user_id: userId,
-          ok: false,
-          error: safeError(e),
-          hit_count: 0,
-          latency_ms: elapsed(searchStartedAt),
-        });
-      }
+
+      const livePromise = firecrawlDeepHunt(searchQuery).catch(() => [] as LiveHit[]);
+
+      const [indexRows, liveHits] = await Promise.all([indexPromise, livePromise]);
+      rows = indexRows;
+
       log("info", "chatbot_search_complete", {
         request_id: rid,
         user_id: userId,
@@ -551,36 +566,25 @@ serve(async (req) => {
         hit_count: rows.length,
         pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
         top_rank: rows[0]?.rank ?? null,
+        live_hit_count: liveHits.length,
+        live_pdf_count: liveHits.filter((h) => h.isPdf).length,
         latency_ms: elapsed(searchStartedAt),
       });
 
-      // ── Live Firecrawl fallback when the local index is weak ──
-      const topRank = rows[0]?.rank ?? 0;
-      const weakIndex = rows.length === 0 || topRank < 1.5 ||
-        !rows.some((r) => r.is_pdf || isPdfUrl(r.url));
-      if (weakIndex) {
-        const liveStart = nowMs();
-        const live = await firecrawlLiveSearch(searchQuery, 6);
-        log("info", "chatbot_live_fallback", {
-          request_id: rid,
-          user_id: userId,
-          reason: rows.length === 0 ? "no_index_hits" : `weak_top_rank_${topRank.toFixed(2)}`,
-          live_hit_count: live.length,
-          live_pdf_count: live.filter((h) => h.isPdf).length,
-          latency_ms: elapsed(liveStart),
-        });
-        if (live.length) {
-          const liveRows = liveHitsToRows(live);
-          // Merge: keep best of both, dedupe by URL stem.
-          const seen = new Set(rows.map((r) => r.url.split("#")[0]));
-          for (const r of liveRows) {
-            const k = r.url.split("#")[0];
-            if (!seen.has(k)) { rows.push(r); seen.add(k); }
-          }
-          // Re-sort so PDFs and live hits float up when index was empty.
-          rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
-          rows = rows.slice(0, 10);
+      if (liveHits.length) {
+        const liveRows = liveHitsToRows(liveHits);
+        const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+        for (const r of liveRows) {
+          const k = r.url.split("#")[0];
+          if (!seen.has(k)) { rows.push(r); seen.add(k); }
         }
+        // Prefer PDFs and high-ranked rows.
+        rows.sort((a, b) => {
+          const pdfDelta = Number(b.is_pdf || isPdfUrl(b.url)) - Number(a.is_pdf || isPdfUrl(a.url));
+          if (pdfDelta !== 0) return pdfDelta;
+          return (b.rank || 0) - (a.rank || 0);
+        });
+        rows = rows.slice(0, 10);
       }
 
     } else {
