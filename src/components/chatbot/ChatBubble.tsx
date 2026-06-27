@@ -472,18 +472,30 @@ export function ChatBubble() {
                               components={{
                                 a: ({ href, children }) => {
                                   const isPdf = !!href && /\.pdf(\?|#|$)/i.test(href);
+                                  const pageMatch = href?.match(/[#&]page=(\d+)/i);
+                                  const hashMatch = href?.match(/#([^&]+)$/);
+                                  const anchorLabel = pageMatch
+                                    ? `p.${pageMatch[1]}`
+                                    : hashMatch && !pageMatch && !/^page=/i.test(hashMatch[1])
+                                    ? `§ ${decodeURIComponent(hashMatch[1]).replace(/[-_]/g, ' ').slice(0, 32)}`
+                                    : null;
                                   return (
                                     <a
                                       href={href}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title={isPdf ? 'Open PDF in new tab' : href}
+                                      title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : href}
                                       className="inline-flex items-center gap-1"
                                     >
                                       {children}
                                       {isPdf && (
                                         <span className="ml-1 inline-flex items-center rounded bg-red-500/15 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-red-400 no-underline">
                                           PDF
+                                        </span>
+                                      )}
+                                      {anchorLabel && (
+                                        <span className="ml-1 inline-flex items-center rounded bg-blue-500/15 px-1 py-px text-[10px] font-semibold tracking-wide text-blue-400 no-underline">
+                                          {anchorLabel}
                                         </span>
                                       )}
                                     </a>
