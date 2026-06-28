@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
