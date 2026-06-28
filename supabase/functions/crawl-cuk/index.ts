@@ -1059,6 +1059,7 @@ serve(async (req) => {
         rowsCollected: totalRows.length,
         departmentCrawl: departmentStats,
         studentZoneCrawl: studentZoneStats,
+        staticSeeds: seedRows.length,
         incremental: upsertStats,
         removal: removalStats,
         perEndpoint: stats,
