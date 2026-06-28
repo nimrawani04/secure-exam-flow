@@ -740,6 +740,11 @@ export function ChatBubble() {
                 })}
               </div>
             )}
+            {messages.length > 0 && (
+              <div className="px-2 pb-2">
+                <DepartmentCourseActions sendMessage={sendMessage} disabled={isLoading} compact />
+              </div>
+            )}
             <div className="px-3 py-2.5">
             <div className="flex items-end gap-2">
               <textarea
