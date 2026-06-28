@@ -396,8 +396,8 @@ function curatedOfficialRows(query: string): SearchRow[] {
 
   if (/\b(contact|email|phone|registrar|controller|admission|address|campus|nowgam|tulmulla)\b/.test(q)) {
     push(
-      "https://www.cukashmir.ac.in",
-      "Central University of Kashmir — Official Website",
+      "https://www.cukashmir.ac.in#contact",
+      "Central University of Kashmir — Official Contact Details",
       "Official CUK contact reference. Main Office: 0194-2723001 / 2723002. Email: info@cukashmir.ac.in. Registrar: registrar@cukashmir.ac.in / 0194-2723003. Controller of Examinations: coe@cukashmir.ac.in / 0194-2723006. Admissions: admissions@cukashmir.ac.in / 0194-2723004. Main/Transit Campus: Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190015, J&K.",
       5,
     );
