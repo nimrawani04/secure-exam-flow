@@ -609,6 +609,51 @@ export type Database = {
           },
         ]
       }
+      pdf_requests: {
+        Row: {
+          correlation_id: string | null
+          course: string | null
+          created_at: string
+          department: string | null
+          document_type: string | null
+          id: string
+          notes: string | null
+          query: string
+          semester: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          correlation_id?: string | null
+          course?: string | null
+          created_at?: string
+          department?: string | null
+          document_type?: string | null
+          id?: string
+          notes?: string | null
+          query: string
+          semester?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          correlation_id?: string | null
+          course?: string | null
+          created_at?: string
+          department?: string | null
+          document_type?: string | null
+          id?: string
+          notes?: string | null
+          query?: string
+          semester?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
