@@ -403,6 +403,10 @@ function curatedOfficialRows(query: string): SearchRow[] {
     );
   }
 
+  if (/\b(notice|notices|notification|circular|latest|what new|what s new)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/displayevents.aspx", "CUK Notices / Circulars", "Official CUK notices and circulars page for university notifications, notices, circulars and latest updates.", 4);
+  }
+
   if (/\b(admission|admissions|cuet|eligibility|prospectus|fee|fees)\b/.test(q)) {
     push(
       "https://www.cukashmir.ac.in/admissions.aspx",
