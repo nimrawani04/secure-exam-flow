@@ -657,7 +657,7 @@ type UpsertStats = {
 
 
 async function upsertBatch(
-  sb: ReturnType<typeof createClient>,
+  sb: any,
   rows: PageRow[],
 ): Promise<UpsertStats> {
   const stats: UpsertStats = {
