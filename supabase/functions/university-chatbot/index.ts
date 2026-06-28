@@ -817,7 +817,7 @@ serve(async (req) => {
         after_count: exactRows.length,
         latency_ms: elapsed(searchStartedAt),
       });
-      rows = exactRows.length ? exactRows : sourcesBeforeFilter.slice(0, 3);
+      rows = exactRows.length ? exactRows : sourcesBeforeFilter.filter((r) => categoryCompatible(searchQuery, r)).slice(0, 3);
 
     } else {
       log("info", "chatbot_search_skipped", {
