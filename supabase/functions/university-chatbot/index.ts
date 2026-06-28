@@ -941,8 +941,14 @@ serve(async (req) => {
           if (n >= 1 && n <= sources.length) cited.add(n);
         }
         const ordered = Array.from(cited).sort((a, b) => a - b);
-        if (ordered.length === 0) return [];
-        const { kept, dropped } = verifyCitedSources(assistantText, ordered, sources, snippetMap);
+        // Always surface the top retrieved sources to the user, even if the
+        // model under-cited. The model's [n] markers control inline references,
+        // but the Sources panel should reflect what the retriever found.
+        const minPanel = Math.min(sources.length, 6);
+        const fallbackIndices: number[] = [];
+        for (let i = 1; i <= minPanel; i++) fallbackIndices.push(i);
+        const baseIndices = ordered.length ? ordered : fallbackIndices;
+        const { kept, dropped } = verifyCitedSources(assistantText, baseIndices, sources, snippetMap);
         if (dropped.length) {
           log("info", "chatbot_citations_filtered", {
             request_id: rid,
@@ -952,7 +958,10 @@ serve(async (req) => {
             dropped,
           });
         }
-        return kept.map((n) => {
+        const finalIndices = kept.length ? kept : fallbackIndices;
+        // Union cited (verified) with fallback retriever set so panel is never empty/under-stuffed
+        const union = Array.from(new Set([...finalIndices, ...fallbackIndices])).sort((a, b) => a - b).slice(0, 8);
+        return union.map((n) => {
           const s = sources[n - 1];
           return { index: n, title: s.title, url: s.url, isPdf: !!s.isPdf };
         });
