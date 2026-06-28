@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
-type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[] };
+type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[]; correlationId?: string };
 
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/university-chatbot`;
