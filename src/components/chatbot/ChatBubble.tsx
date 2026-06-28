@@ -589,6 +589,10 @@ export function ChatBubble() {
                     })}
                   </div>
                 </div>
+                <DepartmentCourseActions
+                  sendMessage={sendMessage}
+                  disabled={isLoading}
+                />
               </div>
             ) : (
               <>
