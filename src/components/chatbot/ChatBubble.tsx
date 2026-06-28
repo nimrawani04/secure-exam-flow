@@ -832,3 +832,56 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
   );
 }
 
+function DepartmentCourseActions({
+  sendMessage,
+  disabled,
+  compact = false,
+}: {
+  sendMessage: (text: string) => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const [deptId, setDeptId] = useState<string>(DEPARTMENTS[0].id);
+  const dept = DEPARTMENTS.find((d) => d.id === deptId) || DEPARTMENTS[0];
+  const DeptIcon = dept.icon;
+  return (
+    <div className={cn('w-full', compact ? '' : 'max-w-[300px] pt-2')}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2 text-left">
+        Course resources by department
+      </p>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <DeptIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+        <select
+          value={deptId}
+          onChange={(e) => setDeptId(e.target.value)}
+          disabled={disabled}
+          aria-label="Select department"
+          className="flex-1 text-[11px] rounded-md border border-primary/20 bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+        >
+          {DEPARTMENTS.map((d) => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {COURSE_ACTIONS.map((a) => {
+          const Icon = a.icon;
+          return (
+            <button
+              key={a.id}
+              onClick={() => sendMessage(a.build(dept))}
+              disabled={disabled}
+              title={a.build(dept)}
+              className="flex flex-col items-center justify-center gap-0.5 text-[10px] px-1.5 py-1.5 rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              <Icon className="h-3 w-3 text-primary" />
+              <span className="truncate">{a.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
