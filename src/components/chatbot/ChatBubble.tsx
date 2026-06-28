@@ -5,9 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
+import { RequestPdfDialog } from './RequestPdfDialog';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
-type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[] };
+type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[]; correlationId?: string };
 
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/university-chatbot`;
@@ -337,6 +338,7 @@ export function ChatBubble() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
+  const [requestDialog, setRequestDialog] = useState<{ open: boolean; query: string; correlationId?: string }>({ open: false, query: '' });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -402,11 +404,11 @@ export function ChatBubble() {
         if (last?.role === 'assistant') {
           return prev.map((m, i) =>
             i === prev.length - 1
-              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources }
+              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources, correlationId: resolvedCid }
               : m,
           );
         }
-        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined }];
+        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined, correlationId: resolvedCid }];
       });
     };
 
@@ -668,6 +670,25 @@ export function ChatBubble() {
                         <SourcesPanel sources={m.sources} />
                       </div>
                     )}
+                    {m.role === 'assistant' && !m.error && (() => {
+                      const prevUser = [...messages.slice(0, i)].reverse().find((x) => x.role === 'user')?.content || '';
+                      const wantsDoc = /\b(syllabus|scheme|curriculum|notes|paper|previous\s*paper|question\s*paper|pdf|notification|circular|datesheet|date\s*sheet|brochure|form)\b/i.test(prevUser);
+                      const hasPdf = (m.sources || []).some((s) => s.isPdf);
+                      if (!wantsDoc || hasPdf) return null;
+                      return (
+                        <div className="pl-8">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRequestDialog({ open: true, query: prevUser, correlationId: m.correlationId })}
+                            className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                          >
+                            <FileText className="h-3 w-3" />
+                            Request this PDF
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
 
@@ -773,6 +794,12 @@ export function ChatBubble() {
         </div>
 
       )}
+      <RequestPdfDialog
+        open={requestDialog.open}
+        onOpenChange={(o) => setRequestDialog((r) => ({ ...r, open: o }))}
+        query={requestDialog.query}
+        correlationId={requestDialog.correlationId}
+      />
     </>
   );
 }
