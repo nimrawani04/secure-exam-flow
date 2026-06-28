@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap, Cpu, FlaskConical, Calculator, Languages, Scale, Briefcase, Landmark, Palette, Globe, Leaf, HeartPulse, Building2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap, Cpu, FlaskConical, Calculator, Languages, Scale, Briefcase, Landmark, Palette, Globe, Leaf, HeartPulse, Building2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -803,37 +803,86 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
         )}
       </div>
       <ol className="space-y-1.5">
-        {visible.map((s) => {
-          const Icon = s.isPdf ? FileText : LinkIcon;
-          return (
-            <li key={`${s.index}-${s.url}`}>
-              <a
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Open source ${s.index}: ${s.title || s.url}`}
-                className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
-                  {s.index}
-                </span>
-                <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                <span className="flex-1 min-w-0 text-[12px] leading-snug">
-                  <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
-                    {s.title || s.url}
-                    {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
-                  </span>
-                  <span className="block truncate text-[10.5px] text-muted-foreground">
-                    {hostnameOf(s.url)}
-                  </span>
-                </span>
-                <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-muted-foreground group-hover:text-primary" />
-              </a>
-            </li>
-          );
-        })}
+        {visible.map((s) => (
+          <SourceRow key={`${s.index}-${s.url}`} source={s} />
+        ))}
       </ol>
     </section>
+  );
+}
+
+function SourceRow({ source: s }: { source: CitedSource }) {
+  const [copied, setCopied] = useState(false);
+  const Icon = s.isPdf ? FileText : LinkIcon;
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(s.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  };
+  return (
+    <li>
+      <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
+        <a
+          href={s.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open source ${s.index}: ${s.title || s.url}`}
+          className="flex items-start gap-2 flex-1 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+        >
+          <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary">
+            {s.index}
+          </span>
+          <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          <span className="flex-1 min-w-0 text-[12px] leading-snug">
+            <span className="block truncate font-medium text-foreground group-hover:text-primary group-hover:underline">
+              {s.title || s.url}
+              {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
+            </span>
+            <span className="block truncate text-[10.5px] text-muted-foreground">
+              {hostnameOf(s.url)}
+            </span>
+          </span>
+        </a>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label={copied ? 'Link copied' : `Copy link to ${s.title || s.url}`}
+            title={copied ? 'Copied!' : 'Copy link'}
+            className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+          </button>
+          {s.isPdf && (
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              aria-label={`Download PDF: ${s.title || s.url}`}
+              title="Download PDF"
+              className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Download className="h-3 w-3" />
+            </a>
+          )}
+          <a
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${s.title || s.url} in new tab`}
+            title="Open in new tab"
+            className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </div>
+    </li>
   );
 }
 
