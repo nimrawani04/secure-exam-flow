@@ -783,24 +783,64 @@ function hostnameOf(url: string): string {
 
 function SourcesPanel({ sources }: { sources: CitedSource[] }) {
   const [expanded, setExpanded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const visible = expanded ? sources : sources.slice(0, 3);
+  const pdfSources = sources.filter((s) => s.isPdf);
+
+  const handleDownloadAll = async () => {
+    if (downloading || pdfSources.length === 0) return;
+    setDownloading(true);
+    try {
+      for (let i = 0; i < pdfSources.length; i++) {
+        const s = pdfSources[i];
+        const a = document.createElement('a');
+        a.href = s.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.download = (s.title || `source-${s.index}`).replace(/[\\/:*?"<>|]+/g, '_');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // stagger to avoid popup-blocker drops
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <section
       aria-label="Sources cited in this answer"
       className="rounded-lg border border-border/60 bg-card/50 px-3 py-2"
     >
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-1.5 gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Sources ({sources.length})
         </p>
-        {sources.length > 3 && (
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className="text-[11px] text-primary hover:underline"
-          >
-            {expanded ? 'Show less' : `Show all ${sources.length}`}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {pdfSources.length >= 2 && (
+            <button
+              type="button"
+              onClick={handleDownloadAll}
+              disabled={downloading}
+              className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-60 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Download all ${pdfSources.length} PDFs`}
+              title="Download every eligible PDF cited above"
+            >
+              <Download className="h-3 w-3" />
+              {downloading ? 'Downloading…' : `Download all PDFs (${pdfSources.length})`}
+            </button>
+          )}
+          {sources.length > 3 && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="text-[11px] text-primary hover:underline"
+            >
+              {expanded ? 'Show less' : `Show all ${sources.length}`}
+            </button>
+          )}
+        </div>
       </div>
       <ol className="space-y-1.5">
         {visible.map((s) => (
@@ -810,6 +850,7 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
     </section>
   );
 }
+
 
 function SourceRow({ source: s }: { source: CitedSource }) {
   const [copied, setCopied] = useState(false);
