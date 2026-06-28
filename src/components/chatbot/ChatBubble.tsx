@@ -338,6 +338,7 @@ export function ChatBubble() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
+  const [requestDialog, setRequestDialog] = useState<{ open: boolean; query: string; correlationId?: string }>({ open: false, query: '' });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
