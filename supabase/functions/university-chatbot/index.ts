@@ -753,7 +753,7 @@ serve(async (req) => {
       const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         { auth: { persistSession: false } });
 
-      const indexPromise = sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 })
+      const indexPromise = Promise.resolve(sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 }))
         .then(({ data, error }) => {
           if (error) {
             log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: error.message, hit_count: 0, latency_ms: elapsed(searchStartedAt) });
@@ -761,7 +761,7 @@ serve(async (req) => {
           }
           return (data || []) as SearchRow[];
         })
-        .catch((e) => {
+        .catch((e: unknown) => {
           log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: safeError(e), hit_count: 0, latency_ms: elapsed(searchStartedAt) });
           return [] as SearchRow[];
         });
@@ -779,7 +779,7 @@ serve(async (req) => {
         pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
         top_rank: rows[0]?.rank ?? null,
         live_hit_count: liveHits.length,
-        live_pdf_count: liveHits.filter((h) => h.isPdf).length,
+        live_pdf_count: liveHits.filter((h: LiveHit) => h.isPdf).length,
         latency_ms: elapsed(searchStartedAt),
       });
 
