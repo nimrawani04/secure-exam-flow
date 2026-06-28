@@ -387,6 +387,53 @@ function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
   }));
 }
 
+function curatedOfficialRows(query: string): SearchRow[] {
+  const q = normalizeForMatch(query);
+  const rows: SearchRow[] = [];
+  const push = (url: string, title: string, snippet: string, rank = 3) => {
+    rows.push({ id: `curated-${rows.length}`, url, title, snippet, is_pdf: isPdfUrl(url), rank });
+  };
+
+  if (/\b(contact|email|phone|registrar|controller|admission|address|campus|nowgam|tulmulla)\b/.test(q)) {
+    push(
+      "https://www.cukashmir.ac.in",
+      "Central University of Kashmir — Official Website",
+      "Official CUK contact reference. Main Office: 0194-2723001 / 2723002. Email: info@cukashmir.ac.in. Registrar: registrar@cukashmir.ac.in / 0194-2723003. Controller of Examinations: coe@cukashmir.ac.in / 0194-2723006. Admissions: admissions@cukashmir.ac.in / 0194-2723004. Main/Transit Campus: Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190015, J&K.",
+      5,
+    );
+  }
+
+  if (/\b(admission|admissions|cuet|eligibility|prospectus|fee|fees)\b/.test(q)) {
+    push(
+      "https://www.cukashmir.ac.in/admissions.aspx",
+      "CUK Admissions",
+      "Official CUK admissions page for admission notices, eligibility, CUET-related admission information and programme admission updates.",
+      4,
+    );
+    push(
+      "https://www.cukashmir.ac.in/prospectus.aspx",
+      "CUK Prospectus",
+      "Official CUK prospectus page for programme eligibility, intake and admission rules when published by the university.",
+      3.8,
+    );
+  }
+
+  if (/\b(result|results|revaluation|marks|grade)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/results.aspx", "CUK Results", "Official CUK results page for examination result notifications and result documents.", 4);
+  }
+
+  if (/\b(datesheet|date sheet|exam schedule|examination schedule)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/examination.aspx", "CUK Examinations", "Official CUK examination page for date sheets, exam notifications and examination updates.", 4);
+  }
+
+  if (/\b(department|school|faculty|computer science|cse|btech|b tech|technology|resources?|e content|econtent|downloads?)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/departments.aspx", "CUK Departments", "Official CUK departments page for school and department pages, including programme and departmental resources where available.", 3.5);
+    push("https://www.cukashmir.ac.in/downloads.aspx", "CUK Downloads / Forms", "Official CUK downloads page for student forms, documents and university downloads.", 3.2);
+  }
+
+  return rows;
+}
+
 function normalizeForMatch(s: string): string {
   return ` ${s.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()} `;
 }
@@ -423,7 +470,7 @@ function categoryCompatible(query: string, row: SearchRow): boolean {
     return /\b(syllabus|curriculum|scheme|course structure|course|courses)\b/.test(h);
   }
   if (/\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
-    return /\b(resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware)\b/.test(h);
+    return /\b(resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
   }
   if (/\b(result|results|marks|grade|revaluation)\b/.test(q)) {
     return /\b(result|results|marks|grade|revaluation|examination result)\b/.test(h);
