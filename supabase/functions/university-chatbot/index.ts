@@ -427,8 +427,8 @@ function curatedOfficialRows(query: string): SearchRow[] {
   }
 
   if (/\b(department|school|faculty|computer science|cse|btech|b tech|technology|resources?|e content|econtent|downloads?)\b/.test(q)) {
-    push("https://www.cukashmir.ac.in/departments.aspx", "CUK Departments", "Official CUK departments page for school and department pages, including programme and departmental resources where available.", 3.5);
-    push("https://www.cukashmir.ac.in/downloads.aspx", "CUK Downloads / Forms", "Official CUK downloads page for student forms, documents and university downloads.", 3.2);
+    push("https://www.cukashmir.ac.in/departments.aspx", "CUK Departments", "Official CUK departments page for school and department pages, including School of Technology, Computer Science/CSE, B.Tech-related department information, programme pages and departmental resources where available.", 3.5);
+    push("https://www.cukashmir.ac.in/downloads.aspx", "CUK Downloads / Forms", "Official CUK downloads page for student forms, documents, syllabus/resource downloads and university downloads.", 3.2);
   }
 
   return rows;
@@ -467,12 +467,15 @@ function categoryCompatible(query: string, row: SearchRow): boolean {
 
   // Hard gates: if the user asks for one of these, don't answer from a different category.
   if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q) && /\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(h)) return false;
     return /\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
   }
   if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(syllabus|curriculum|scheme|course structure)\b/.test(h)) return false;
     return /\b(syllabus|curriculum|scheme|course structure|course|courses)\b/.test(h);
   }
   if (/\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(h)) return false;
     return /\b(resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
   }
   if (/\b(result|results|marks|grade|revaluation)\b/.test(q)) {
