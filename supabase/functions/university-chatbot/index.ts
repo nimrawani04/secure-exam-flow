@@ -782,6 +782,15 @@ serve(async (req) => {
         rows = rows.slice(0, 10);
       }
 
+      const curatedRows = curatedOfficialRows(searchQuery);
+      if (curatedRows.length) {
+        const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+        for (const r of curatedRows) {
+          const k = r.url.split("#")[0];
+          if (!seen.has(k)) { rows.push(r); seen.add(k); }
+        }
+      }
+
       const exactRows = filterRowsForExactQuery(searchQuery, rows);
       if (exactRows.length || rows.length) {
         log("info", "chatbot_exact_source_filter", {
