@@ -638,7 +638,27 @@ export function ChatBubble() {
           </div>
 
           {/* Input */}
-          <div className="border-t px-3 py-2.5">
+          <div className="border-t">
+            {messages.length > 0 && (
+              <div className="px-2 pt-2 pb-1 flex gap-1 overflow-x-auto scrollbar-none">
+                {QUICK_ACTIONS.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => sendMessage(a.prompt)}
+                      disabled={isLoading}
+                      className="flex items-center gap-1 shrink-0 text-[10.5px] px-2 py-1 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      title={a.prompt}
+                    >
+                      <Icon className="h-3 w-3 text-primary" />
+                      <span>{a.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="px-3 py-2.5">
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
