@@ -801,7 +801,12 @@ serve(async (req) => {
         }
       }
 
-      const sourcesBeforeFilter = rows;
+      const sourcesBeforeFilter = [...rows].sort((a, b) => {
+        const aCompat = Number(categoryCompatible(searchQuery, a));
+        const bCompat = Number(categoryCompatible(searchQuery, b));
+        if (bCompat !== aCompat) return bCompat - aCompat;
+        return (b.rank || 0) - (a.rank || 0);
+      });
       const exactRows = filterRowsForExactQuery(searchQuery, rows);
       log("info", "chatbot_exact_source_filter", {
         request_id: rid,
