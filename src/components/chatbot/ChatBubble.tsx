@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
+import { RequestPdfDialog } from './RequestPdfDialog';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
 type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[]; correlationId?: string };
