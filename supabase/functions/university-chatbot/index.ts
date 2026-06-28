@@ -829,6 +829,10 @@ serve(async (req) => {
       exactRows.forEach(pushRow);
       compatPool.filter((r) => r.is_pdf || isPdfUrl(r.url)).slice(0, 6).forEach(pushRow);
       compatPool.slice(0, 6).forEach(pushRow);
+      // Last-resort fill: top-ranked search hits even if not category-strict,
+      // so the Sources panel never collapses to a single landing page.
+      sourcesBeforeFilter.filter((r) => r.is_pdf || isPdfUrl(r.url)).slice(0, 6).forEach(pushRow);
+      sourcesBeforeFilter.slice(0, 8).forEach(pushRow);
       log("info", "chatbot_exact_source_filter", {
         request_id: rid,
         user_id: userId,
