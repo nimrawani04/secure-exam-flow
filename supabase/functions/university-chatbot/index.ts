@@ -8,10 +8,10 @@
  * Pipeline per request:
  *   1. Authenticate the caller (reject anon — paid Lovable AI calls).
  *   2. Rewrite follow-up queries using conversation history (pronouns etc.).
- *   3. Run `search_cuk_pages` RPC (top 8 matches, tsvector ranked).
- *   4. Build a context block + numbered VERIFIED SOURCE CATALOG.
+ *   3. Run `search_cuk_pages` RPC + a scoped live deep-link search.
+ *   4. Filter unrelated categories and build numbered VERIFIED SOURCE CATALOG.
  *   5. Stream the answer from google/gemini-2.5-flash via Lovable AI Gateway.
- *   6. After [DONE], append the formatted sources + follow-up suggestions.
+ *   6. After [DONE], append verified sources + follow-up suggestions.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
