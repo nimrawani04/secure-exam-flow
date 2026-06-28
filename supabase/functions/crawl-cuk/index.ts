@@ -946,6 +946,9 @@ serve(async (req) => {
   const { rows: studentZoneRows, stats: studentZoneStats } = await crawlStudentZoneTree();
   totalRows = totalRows.concat(studentZoneRows);
 
+  const seedRows = staticSeedRows();
+  totalRows = totalRows.concat(seedRows);
+
   const upsertStats = await upsertBatch(sb, totalRows);
 
   // ── Deletion detection ──────────────────────────────────────────────────
