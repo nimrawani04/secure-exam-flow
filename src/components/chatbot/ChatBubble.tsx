@@ -794,6 +794,12 @@ export function ChatBubble() {
         </div>
 
       )}
+      <RequestPdfDialog
+        open={requestDialog.open}
+        onOpenChange={(o) => setRequestDialog((r) => ({ ...r, open: o }))}
+        query={requestDialog.query}
+        correlationId={requestDialog.correlationId}
+      />
     </>
   );
 }
