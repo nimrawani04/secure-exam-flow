@@ -271,6 +271,58 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: 'schools', label: 'All schools & depts', icon: Building2, prompt: 'List every School and Department at Central University of Kashmir with their official department page link. Group by school.' },
 ];
 
+type DeptCourse = { id: string; label: string; icon: typeof GraduationCap; full: string };
+
+const DEPARTMENTS: DeptCourse[] = [
+  { id: 'cse', label: 'Computer Science', icon: Cpu, full: 'Department of Computer Science' },
+  { id: 'it', label: 'Information Technology', icon: Cpu, full: 'Department of Information Technology' },
+  { id: 'ece', label: 'Electronics & Comm', icon: Cpu, full: 'Department of Electronics and Communication Engineering' },
+  { id: 'math', label: 'Mathematics', icon: Calculator, full: 'Department of Mathematics' },
+  { id: 'phy', label: 'Physics', icon: FlaskConical, full: 'Department of Physics' },
+  { id: 'chem', label: 'Chemistry', icon: FlaskConical, full: 'Department of Chemistry' },
+  { id: 'bio', label: 'Biotechnology', icon: Leaf, full: 'Department of Biotechnology' },
+  { id: 'env', label: 'Environmental Science', icon: Leaf, full: 'Department of Environmental Science' },
+  { id: 'mba', label: 'Management (MBA)', icon: Briefcase, full: 'Department of Management Studies (MBA)' },
+  { id: 'econ', label: 'Economics', icon: Landmark, full: 'Department of Economics' },
+  { id: 'law', label: 'Law', icon: Scale, full: 'Department of Law (School of Legal Studies)' },
+  { id: 'edu', label: 'Education', icon: BookOpen, full: 'Department of Education (B.Ed / M.Ed)' },
+  { id: 'eng', label: 'English', icon: Languages, full: 'Department of English' },
+  { id: 'urdu', label: 'Urdu', icon: Languages, full: 'Department of Urdu' },
+  { id: 'hindi', label: 'Hindi', icon: Languages, full: 'Department of Hindi' },
+  { id: 'kash', label: 'Kashmiri', icon: Languages, full: 'Department of Kashmiri' },
+  { id: 'arab', label: 'Arabic', icon: Languages, full: 'Department of Arabic' },
+  { id: 'hist', label: 'History', icon: Landmark, full: 'Department of History' },
+  { id: 'pol', label: 'Politics & Governance', icon: Landmark, full: 'Department of Politics and Governance' },
+  { id: 'tour', label: 'Tourism Studies', icon: Globe, full: 'Department of Tourism Studies' },
+  { id: 'media', label: 'Convergent Journalism', icon: Palette, full: 'Department of Convergent Journalism / Media Studies' },
+  { id: 'music', label: 'Music & Fine Arts', icon: Palette, full: 'Department of Music and Fine Arts' },
+  { id: 'sw', label: 'Social Work', icon: HeartPulse, full: 'Department of Social Work (MSW)' },
+  { id: 'isl', label: 'Islamic Studies', icon: BookOpen, full: 'Department of Islamic Studies' },
+];
+
+type CourseAction = { id: 'syllabus' | 'notifications' | 'papers'; label: string; icon: typeof BookOpen; build: (d: DeptCourse) => string };
+
+const COURSE_ACTIONS: CourseAction[] = [
+  {
+    id: 'syllabus',
+    label: 'Syllabus',
+    icon: BookOpen,
+    build: (d) => `Give me the latest official syllabus / curriculum PDFs for the Central University of Kashmir ${d.full}. List each programme (UG/PG/Ph.D) with a direct link to the exact PDF on cukashmir.ac.in.`,
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    icon: Bell,
+    build: (d) => `List the latest official notifications, notices and circulars from the Central University of Kashmir ${d.full}. Include title, date and a direct link to each PDF / page.`,
+  },
+  {
+    id: 'papers',
+    label: 'Previous papers',
+    icon: FileText,
+    build: (d) => `Find official previous year question papers / past exam papers published by the Central University of Kashmir ${d.full}. Give direct PDF links for each semester / paper you can locate.`,
+  },
+];
+
 export function ChatBubble() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>(() => {
