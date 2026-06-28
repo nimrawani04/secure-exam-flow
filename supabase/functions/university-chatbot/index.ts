@@ -510,7 +510,9 @@ function filterRowsForExactQuery(query: string, rows: SearchRow[]): SearchRow[] 
         if (titleUrl.includes(` ${t} `)) titleOverlap += 1;
       }
       const compatible = categoryCompatible(query, row);
-      const score = (row.rank || 0) + overlap * 0.5 + titleOverlap * 0.8 + (row.is_pdf || isPdfUrl(row.url) ? 0.25 : 0);
+      let score = (row.rank || 0) + overlap * 0.5 + titleOverlap * 0.8 + (row.is_pdf || isPdfUrl(row.url) ? 0.25 : 0);
+      if (/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(normalizeForMatch(query)) &&
+          /\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h)) score -= 5;
       return { row, overlap, titleOverlap, compatible, score };
     })
     .filter((s) => s.compatible && (s.overlap >= Math.min(2, terms.length) || s.titleOverlap >= 1));
