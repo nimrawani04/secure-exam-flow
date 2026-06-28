@@ -192,7 +192,7 @@ Rules:
   • HTML pages: append "#slug-of-heading" matching the on-page heading id (kebab-case of the heading text) so the browser scrolls to it.
   Only add the fragment when you are confident it is correct — never guess random page numbers. If unknown, omit the fragment rather than fabricate one.
 - Prefer the most specific PDF in the catalog over a generic landing page. If both exist, link the PDF first and the landing page second.
-- If the catalog has NO entry matching the request, say honestly: "I couldn't locate the exact document in our index" then list the closest 1-2 official pages from the catalog (if any) as direct links using the same inline preview format. Do NOT fabricate URLs.
+- If the catalog has only broad/related official pages and no exact document matching the request, say honestly: "I couldn't locate the exact CUK source for that in the current index." Then list ONLY the closest official pages from the catalog as related links using the same inline preview format. Do NOT include unrelated admission/result/recruitment/tender PDFs as related links for syllabus/resources queries. Do NOT fabricate URLs.
 - Do NOT output your own "Sources" section — the system appends it from the VERIFIED SOURCE CATALOG.
 
 
