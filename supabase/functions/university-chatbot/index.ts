@@ -517,6 +517,10 @@ function filterRowsForExactQuery(query: string, rows: SearchRow[]): SearchRow[] 
 
   return scored
     .sort((a, b) => {
+      const titleDelta = b.titleOverlap - a.titleOverlap;
+      if (titleDelta !== 0) return titleDelta;
+      const overlapDelta = b.overlap - a.overlap;
+      if (overlapDelta !== 0) return overlapDelta;
       const pdfDelta = Number(b.row.is_pdf || isPdfUrl(b.row.url)) - Number(a.row.is_pdf || isPdfUrl(a.row.url));
       if (pdfDelta !== 0) return pdfDelta;
       return b.score - a.score;
