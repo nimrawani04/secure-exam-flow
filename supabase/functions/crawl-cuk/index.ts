@@ -812,6 +812,91 @@ async function mapLimit<T, R>(
   return results;
 }
 
+// ── Curated static seeds (authoritative CUK + allied pages) ──────────────────
+// Hand-picked URLs across CUK subdomains, allied portals, and statutory bodies
+// so the chatbot has citable sources even when the SPA API doesn't surface them.
+const STATIC_SEEDS: Array<{ url: string; title: string; category: string; description?: string; is_pdf?: boolean }> = [
+  // Core institutional
+  { url: `${SPA_BASE}/`, title: "Central University of Kashmir — Home", category: "Institutional" },
+  { url: `${SPA_BASE}/aboutus`, title: "About Central University of Kashmir", category: "Institutional" },
+  { url: `${SPA_BASE}/contactus`, title: "Contact CUK — Address, Phone, Email", category: "Contact" },
+  { url: `${SPA_BASE}/vicechancellor`, title: "Vice Chancellor — CUK", category: "Administration" },
+  { url: `${SPA_BASE}/registrar`, title: "Registrar — CUK", category: "Administration" },
+  { url: `${SPA_BASE}/financeofficer`, title: "Finance Officer — CUK", category: "Administration" },
+  { url: `${SPA_BASE}/controllerofexaminations`, title: "Controller of Examinations — CUK", category: "Examination" },
+  { url: `${SPA_BASE}/deanacademicaffairs`, title: "Dean Academic Affairs — CUK", category: "Academics" },
+  { url: `${SPA_BASE}/deanstudentwelfare`, title: "Dean Students' Welfare — CUK", category: "Student Welfare" },
+  { url: `${SPA_BASE}/deanresearch`, title: "Dean Research — CUK", category: "Research" },
+  { url: `${SPA_BASE}/proctor`, title: "Proctor — CUK", category: "Administration" },
+
+  // Admissions / Examinations
+  { url: `${SPA_BASE}/admission`, title: "Admissions — Central University of Kashmir", category: "Admission" },
+  { url: `${SPA_BASE}/admissionnotification`, title: "Admission Notifications — CUK", category: "Admission" },
+  { url: `${SPA_BASE}/examnotification`, title: "Examination Notifications — CUK", category: "Examination" },
+  { url: `${SPA_BASE}/examdatesheet`, title: "Examination Date Sheets — CUK", category: "Examination" },
+  { url: `${SPA_BASE}/examinationresult`, title: "Examination Results — CUK", category: "Examination" },
+  { url: `${SPA_BASE}/scholarresults`, title: "Scholar / PhD Results — CUK", category: "Examination" },
+
+  // Notice / What's New / Tenders / Employment / RTI
+  { url: `${SPA_BASE}/noticeboard`, title: "Notice Board — CUK", category: "Notice" },
+  { url: `${SPA_BASE}/tender`, title: "Tenders — CUK", category: "Tender" },
+  { url: `${SPA_BASE}/employment`, title: "Employment / Recruitment — CUK", category: "Recruitment" },
+  { url: `${SPA_BASE}/pressrelease`, title: "Press Releases — CUK", category: "Press" },
+  { url: `${SPA_BASE}/rti`, title: "RTI — Right to Information at CUK", category: "RTI" },
+  { url: `${SPA_BASE}/iqac`, title: "Internal Quality Assurance Cell (IQAC) — CUK", category: "IQAC" },
+  { url: `${SPA_BASE}/nirf`, title: "NIRF Ranking — CUK", category: "Ranking" },
+  { url: `${SPA_BASE}/naac`, title: "NAAC Accreditation — CUK", category: "Accreditation" },
+
+  // Student services
+  { url: `${SPA_BASE}/studentzone`, title: "Student Zone — CUK", category: "Student" },
+  { url: `${SPA_BASE}/library`, title: "Central Library — CUK", category: "Library" },
+  { url: `${SPA_BASE}/hostel`, title: "Hostel Facilities — CUK", category: "Hostel" },
+  { url: `${SPA_BASE}/scholarship`, title: "Scholarships — CUK", category: "Scholarship" },
+  { url: `${SPA_BASE}/grievance`, title: "Grievance Redressal — CUK", category: "Grievance" },
+  { url: `${SPA_BASE}/antiragging`, title: "Anti-Ragging Cell — CUK", category: "Anti-Ragging" },
+  { url: `${SPA_BASE}/equalopportunitycell`, title: "Equal Opportunity Cell — CUK", category: "Student Welfare" },
+  { url: `${SPA_BASE}/icc`, title: "Internal Complaints Committee — CUK", category: "ICC" },
+  { url: `${SPA_BASE}/placement`, title: "Training & Placement Cell — CUK", category: "Placement" },
+  { url: `${SPA_BASE}/sportscell`, title: "Sports Cell — CUK", category: "Sports" },
+  { url: `${SPA_BASE}/ncc`, title: "NCC at CUK", category: "NCC" },
+  { url: `${SPA_BASE}/nss`, title: "NSS at CUK", category: "NSS" },
+
+  // Allied subdomains / portals
+  { url: "https://exam.cukashmir.ac.in/", title: "CUK Examination Portal", category: "Examination Portal" },
+  { url: "https://results.cukashmir.ac.in/", title: "CUK Results Portal", category: "Results Portal" },
+  { url: "https://admission.cukashmir.ac.in/", title: "CUK Admission Portal", category: "Admission Portal" },
+  { url: "https://library.cukashmir.ac.in/", title: "CUK Library Portal", category: "Library Portal" },
+  { url: "https://recruitment.cukashmir.ac.in/", title: "CUK Recruitment Portal", category: "Recruitment Portal" },
+  { url: "https://samarth.cukashmir.ac.in/", title: "CUK SAMARTH Portal (Student Lifecycle)", category: "SAMARTH" },
+
+  // Statutory / external authoritative
+  { url: "https://www.ugc.gov.in/", title: "University Grants Commission (UGC) — India", category: "UGC" },
+  { url: "https://www.aicte-india.org/", title: "AICTE — All India Council for Technical Education", category: "AICTE" },
+  { url: "https://www.naac.gov.in/", title: "NAAC — National Assessment and Accreditation Council", category: "NAAC" },
+  { url: "https://www.nirfindia.org/", title: "NIRF — National Institutional Ranking Framework", category: "NIRF" },
+  { url: "https://www.education.gov.in/", title: "Ministry of Education, Government of India", category: "MoE" },
+  { url: "https://nta.ac.in/", title: "National Testing Agency (NTA) — CUET", category: "NTA" },
+  { url: "https://cuet.samarth.ac.in/", title: "CUET (PG/UG) — SAMARTH Portal", category: "CUET" },
+  { url: "https://swayam.gov.in/", title: "SWAYAM — Free Online Courses (MoE)", category: "SWAYAM" },
+  { url: "https://ndl.iitkgp.ac.in/", title: "National Digital Library of India", category: "NDLI" },
+  { url: "https://shodhganga.inflibnet.ac.in/", title: "Shodhganga — Reservoir of Indian Theses", category: "Shodhganga" },
+  { url: "https://ess.inflibnet.ac.in/", title: "INFLIBNET e-ShodhSindhu — E-Resources Consortium", category: "INFLIBNET" },
+];
+
+function staticSeedRows(): PageRow[] {
+  return STATIC_SEEDS.map((s) => ({
+    url: s.url,
+    title: s.title,
+    is_pdf: !!s.is_pdf || isPdf(s.url),
+    content: [
+      `Category: ${s.category}`,
+      `Title: ${s.title}`,
+      `URL: ${s.url}`,
+      s.description ? `Description: ${s.description}` : "Curated authoritative source for Central University of Kashmir queries.",
+    ].filter(Boolean).join("\n"),
+  }));
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -860,6 +945,9 @@ serve(async (req) => {
 
   const { rows: studentZoneRows, stats: studentZoneStats } = await crawlStudentZoneTree();
   totalRows = totalRows.concat(studentZoneRows);
+
+  const seedRows = staticSeedRows();
+  totalRows = totalRows.concat(seedRows);
 
   const upsertStats = await upsertBatch(sb, totalRows);
 
@@ -971,6 +1059,7 @@ serve(async (req) => {
         rowsCollected: totalRows.length,
         departmentCrawl: departmentStats,
         studentZoneCrawl: studentZoneStats,
+        staticSeeds: seedRows.length,
         incremental: upsertStats,
         removal: removalStats,
         perEndpoint: stats,
