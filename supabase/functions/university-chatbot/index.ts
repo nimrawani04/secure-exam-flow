@@ -1,9 +1,9 @@
 /**
- * university-chatbot — index-backed edition (no live Firecrawl)
+ * university-chatbot — index-backed edition with live deep-link fallback
  *
- * Replaces the slow live deep-crawl with a Postgres full-text search against
- * `public.cuk_pages`, which is populated by the `crawl-cuk` background
- * function. Responses are 1-2 s instead of 8-25 s and time-outs disappear.
+ * Uses Postgres full-text search against `public.cuk_pages`, populated by the
+ * `crawl-cuk` background function, and supplements it with a fast Firecrawl
+ * deep-link fallback for missing PDFs/pages.
  *
  * Pipeline per request:
  *   1. Authenticate the caller (reject anon — paid Lovable AI calls).
