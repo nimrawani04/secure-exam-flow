@@ -499,6 +499,7 @@ function categoryCompatible(query: string, row: SearchRow): boolean {
 function filterRowsForExactQuery(query: string, rows: SearchRow[]): SearchRow[] {
   const terms = queryTerms(query);
   if (!terms.length) return rows;
+  const qNorm = normalizeForMatch(query);
   const scored = rows
     .map((row) => {
       const h = rowHaystack(row);
@@ -511,7 +512,7 @@ function filterRowsForExactQuery(query: string, rows: SearchRow[]): SearchRow[] 
       }
       const compatible = categoryCompatible(query, row);
       let score = (row.rank || 0) + overlap * 0.5 + titleOverlap * 0.8 + (row.is_pdf || isPdfUrl(row.url) ? 0.25 : 0);
-      if (/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(normalizeForMatch(query)) &&
+      if (/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(qNorm) &&
           /\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h)) score -= 5;
       return { row, overlap, titleOverlap, compatible, score };
     })
