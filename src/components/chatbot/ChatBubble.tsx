@@ -199,6 +199,52 @@ const SUGGESTIONS = [
   'Latest notices from Central University of Kashmir',
 ];
 
+type QuickAction = {
+  id: string;
+  label: string;
+  icon: typeof GraduationCap;
+  prompt: string;
+};
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    id: 'btech',
+    label: 'B.Tech resources',
+    icon: GraduationCap,
+    prompt: 'List the official B.Tech (Computer Science) resources at Central University of Kashmir — syllabus PDFs, scheme of studies, study material and department page. Give exact direct links (PDFs preferred) for each semester you can find.',
+  },
+  {
+    id: 'syllabi',
+    label: 'Syllabi & curricula',
+    icon: BookOpen,
+    prompt: 'Show me the latest official CUK syllabus / curriculum PDFs for all departments. Return direct links to the exact PDF documents, grouped by school/department.',
+  },
+  {
+    id: 'notices',
+    label: 'Exam notifications',
+    icon: Bell,
+    prompt: 'List the latest CUK exam notifications, date sheets and examination notices from the official Central University of Kashmir website. Include the notice title, date and a direct link to each PDF.',
+  },
+  {
+    id: 'downloads',
+    label: 'Downloads & forms',
+    icon: Download,
+    prompt: 'List the official CUK downloads — application forms, admission forms, examination forms, fee forms and student forms. Give the exact direct PDF link for each form.',
+  },
+  {
+    id: 'admissions',
+    label: 'Admissions',
+    icon: Zap,
+    prompt: 'Give me the current CUK admission notification, eligibility criteria, important dates and the official admission portal / prospectus PDF link.',
+  },
+  {
+    id: 'results',
+    label: 'Results',
+    icon: FileText,
+    prompt: 'Show the latest official CUK examination results notices with direct links to the result PDFs / result portal.',
+  },
+];
+
 export function ChatBubble() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>(() => {
