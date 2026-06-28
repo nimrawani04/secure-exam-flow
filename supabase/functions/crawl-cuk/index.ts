@@ -270,10 +270,27 @@ function extractPdfLinks(html: string): Array<{ url: string; title: string }> {
   return Array.from(found, ([url, title]) => ({ url, title }));
 }
 
+function extractAnchorLinks(html: string): Array<{ url: string; title: string; isPdf: boolean }> {
+  const found = new Map<string, { title: string; isPdf: boolean }>();
+  const anchorRe = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRe.exec(html))) {
+    const url = absoluteUrl(m[1]);
+    if (!url || /^(mailto|tel|javascript):/i.test(url)) continue;
+    const title = stripHtml(m[2]) || cleanFileTitle(url);
+    found.set(url, { title, isPdf: isPdf(url) });
+  }
+  return Array.from(found, ([url, value]) => ({ url, ...value }));
+}
+
 function makeDepartmentRoute(masterId: string, kind: "school" | "department" = "department"): string {
   return kind === "school"
     ? `${SPA_BASE}/departmentList;sid=${encodeURIComponent(masterId)}`
     : `${SPA_BASE}/departmentList;id=${encodeURIComponent(masterId)}`;
+}
+
+function makeStudentZoneRoute(masterId: string): string {
+  return `${SPA_BASE}/studentzone;id=${encodeURIComponent(masterId)}`;
 }
 
 function normalise(spec: EndpointSpec, raw: Record<string, unknown>): PageRow | null {
@@ -370,6 +387,14 @@ type DepartmentStats = {
   schools: number;
   departmentApiCalls: number;
   departmentPages: number;
+  pdfs: number;
+  rows: number;
+};
+
+type StudentZoneStats = {
+  apiCalls: number;
+  pages: number;
+  links: number;
   pdfs: number;
   rows: number;
 };
@@ -511,6 +536,102 @@ async function crawlDepartmentTree(): Promise<{ rows: PageRow[]; stats: Departme
   return { rows, stats };
 }
 
+// ── Student-zone/download/e-resource crawl ───────────────────────────────────
+
+function normaliseStudentZonePage(
+  raw: Record<string, unknown>,
+  path: string[],
+): { page: PageRow | null; links: PageRow[]; childMasterId: string } {
+  const name = pick(raw, "StudentZoneName", "StudentZoneTitle", "Name") || "Student Zone";
+  const masterId = pick(raw, "StudentZoneMasterId", "MasterId");
+  const parentId = pick(raw, "ParentStudentZoneMasterId", "ParentMasterId");
+  const descriptionHtml = pick(raw, "StudentZoneDescription", "Description", "Content");
+  const description = stripHtml(descriptionHtml);
+  const breadcrumb = [...path, name].filter(Boolean).join(" > ");
+  const url = masterId ? makeStudentZoneRoute(masterId) : `${SPA_BASE}/studentzone`;
+
+  const content = [
+    "Category: Student Zone / Resources",
+    `Title: ${name}`,
+    breadcrumb ? `Path: ${breadcrumb}` : "",
+    parentId ? `ParentStudentZoneMasterId: ${parentId}` : "",
+    masterId ? `StudentZoneMasterId: ${masterId}` : "",
+    description,
+  ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS);
+
+  const page = masterId || description
+    ? { url, title: breadcrumb || name, content, is_pdf: false }
+    : null;
+
+  const links = extractAnchorLinks(descriptionHtml).map((link) => ({
+    url: link.url,
+    title: link.title || cleanFileTitle(link.url),
+    content: [
+      link.isPdf ? "Category: Student Resource PDF" : "Category: Student Resource Link",
+      `Title: ${link.title || cleanFileTitle(link.url)}`,
+      breadcrumb ? `Student-zone path: ${breadcrumb}` : "",
+      description ? `Page context: ${description.slice(0, 4000)}` : "",
+    ].filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS),
+    is_pdf: link.isPdf,
+  }));
+
+  return { page, links, childMasterId: masterId };
+}
+
+async function crawlStudentZoneTree(): Promise<{ rows: PageRow[]; stats: StudentZoneStats }> {
+  const rows: PageRow[] = [];
+  const stats: StudentZoneStats = { apiCalls: 0, pages: 0, links: 0, pdfs: 0, rows: 0 };
+  const visited = new Set<string>();
+  const queue: Array<{ id: string | null; path: string[]; depth: number }> = [{ id: null, path: [], depth: 0 }];
+  const MAX_STUDENT_ZONE_API_CALLS = 160;
+
+  while (queue.length && stats.apiCalls < MAX_STUDENT_ZONE_API_CALLS) {
+    const batch = queue.splice(0, PER_REQUEST_CONCURRENCY * 2);
+    const discovered = await mapLimit(batch, PER_REQUEST_CONCURRENCY, async (node) => {
+      const childNodes: Array<{ id: string; path: string[]; depth: number }> = [];
+      const key = node.id ?? "__root__";
+      if (visited.has(key) || node.depth > 8) return childNodes;
+      visited.add(key);
+      stats.apiCalls += 1;
+
+      let list: unknown[] = [];
+      try {
+        const payload = node.id ? { Id: node.id } : { langType: 1 };
+        list = await apiPost("studentzone/studentzoneListById", payload);
+      } catch (err) {
+        console.warn(`[crawl] studentzone/studentzoneListById(${node.id ?? "root"}) -> ${(err as Error).message}`);
+        return childNodes;
+      }
+
+      for (const item of list as Record<string, unknown>[]) {
+        const { page, links, childMasterId } = normaliseStudentZonePage(item, node.path);
+        if (page) {
+          rows.push(page);
+          stats.pages += 1;
+        }
+        if (links.length) {
+          rows.push(...links);
+          stats.links += links.length;
+          stats.pdfs += links.filter((l) => l.is_pdf).length;
+        }
+        if (childMasterId && !visited.has(childMasterId)) {
+          const childName = pick(item, "StudentZoneName", "StudentZoneTitle", "Name");
+          childNodes.push({
+            id: childMasterId,
+            path: [...node.path, childName].filter(Boolean),
+            depth: node.depth + 1,
+          });
+        }
+      }
+      return childNodes;
+    });
+    for (const children of discovered) queue.push(...(children || []));
+  }
+
+  stats.rows = rows.length;
+  return { rows, stats };
+}
+
 // ── Hash & incremental upsert ────────────────────────────────────────────────
 
 async function sha1Hex(s: string): Promise<string> {
@@ -536,7 +657,7 @@ type UpsertStats = {
 
 
 async function upsertBatch(
-  sb: ReturnType<typeof createClient>,
+  sb: any,
   rows: PageRow[],
 ): Promise<UpsertStats> {
   const stats: UpsertStats = {
@@ -737,6 +858,9 @@ serve(async (req) => {
   const { rows: departmentRows, stats: departmentStats } = await crawlDepartmentTree();
   totalRows = totalRows.concat(departmentRows);
 
+  const { rows: studentZoneRows, stats: studentZoneStats } = await crawlStudentZoneTree();
+  totalRows = totalRows.concat(studentZoneRows);
+
   const upsertStats = await upsertBatch(sb, totalRows);
 
   // ── Deletion detection ──────────────────────────────────────────────────
@@ -846,6 +970,7 @@ serve(async (req) => {
         endpoints: stats.length,
         rowsCollected: totalRows.length,
         departmentCrawl: departmentStats,
+        studentZoneCrawl: studentZoneStats,
         incremental: upsertStats,
         removal: removalStats,
         perEndpoint: stats,

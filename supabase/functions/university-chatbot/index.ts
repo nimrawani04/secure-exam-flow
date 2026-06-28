@@ -1,17 +1,17 @@
 /**
- * university-chatbot — index-backed edition (no live Firecrawl)
+ * university-chatbot — index-backed edition with live deep-link fallback
  *
- * Replaces the slow live deep-crawl with a Postgres full-text search against
- * `public.cuk_pages`, which is populated by the `crawl-cuk` background
- * function. Responses are 1-2 s instead of 8-25 s and time-outs disappear.
+ * Uses Postgres full-text search against `public.cuk_pages`, populated by the
+ * `crawl-cuk` background function, and supplements it with a fast Firecrawl
+ * deep-link fallback for missing PDFs/pages.
  *
  * Pipeline per request:
  *   1. Authenticate the caller (reject anon — paid Lovable AI calls).
  *   2. Rewrite follow-up queries using conversation history (pronouns etc.).
- *   3. Run `search_cuk_pages` RPC (top 8 matches, tsvector ranked).
- *   4. Build a context block + numbered VERIFIED SOURCE CATALOG.
+ *   3. Run `search_cuk_pages` RPC + a scoped live deep-link search.
+ *   4. Filter unrelated categories and build numbered VERIFIED SOURCE CATALOG.
  *   5. Stream the answer from google/gemini-2.5-flash via Lovable AI Gateway.
- *   6. After [DONE], append the formatted sources + follow-up suggestions.
+ *   6. After [DONE], append verified sources + follow-up suggestions.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -82,6 +82,29 @@ function sanitizeMessages(messages: ChatMessage[]): ChatMessage[] {
   });
 }
 
+function sseOnce(
+  content: string,
+  followUps: string[],
+  sources: Array<Source & { index?: number }>,
+  correlationId: string,
+) {
+  const enc = new TextEncoder();
+  const sourcePayload = sources.map((s, i) => ({
+    index: s.index ?? i + 1,
+    title: s.title,
+    url: s.url,
+    isPdf: s.isPdf,
+  }));
+  const body = [
+    `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content }, finish_reason: null }], correlation_id: correlationId })}\n\n`,
+    `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], follow_up_suggestions: followUps, sources: sourcePayload, correlation_id: correlationId })}\n\n`,
+    "data: [DONE]\n\n",
+  ].join("");
+  return new Response(enc.encode(body), {
+    headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "x-correlation-id": correlationId },
+  });
+}
+
 // ─── Static CUK knowledge (always available, never needs scraping) ─────────────
 const CUK_STATIC_KNOWLEDGE = `
 === CENTRAL UNIVERSITY OF KASHMIR — STATIC KNOWLEDGE BASE ===
@@ -148,7 +171,8 @@ Professional (MBA / MCA / M.Tech. / B.Ed. / LL.B.): higher — see prospectus.
 const SYSTEM_PROMPT = `You are the official AI assistant for the Central University of Kashmir (CUK), embedded in a Confidential Exam Paper Management System.
 
 Rules:
-- Answer from the static knowledge base AND the LIVE CUK PAGE INDEX excerpts provided below.
+- Answer ONLY from the static knowledge base AND the LIVE CUK PAGE INDEX excerpts provided below. If the user asks anything unrelated to CUK/CUKashmir, official CUK sources, admissions, exams, syllabi/resources, notices, departments, or this exam-paper app, politely refuse and offer to help with CUK instead.
+- SOURCE-BOUND ANSWERING: If an answer needs a current official page/PDF and the VERIFIED SOURCE CATALOG has no exact supporting source, say "I couldn't locate the exact CUK source for that in the current index" and ask for a more specific programme, semester, session, notice number, or department. Do not answer from general knowledge.
 - MANDATORY PER-SENTENCE CITATIONS: EVERY sentence that states a fact, figure, date, eligibility rule, fee, deadline, contact, link, or any verifiable claim MUST end with one or more numeric markers like [1] or [1][3] placed BEFORE the period (e.g. "The fee is ₹500 [2]."). Do not group citations only at the end of a paragraph — attach them to each individual sentence they support.
 - One marker per supporting source. If two sources jointly support a sentence, write [1][2] (no spaces, no commas). Never invent a number that isn't in the VERIFIED SOURCE CATALOG.
 - ONLY cite [n] when that catalog entry's title/snippet directly supports the claim and the link points to the EXACT PDF/page that verifies it. If no catalog entry verifies a sentence, either omit that sentence or write it WITHOUT any [n] marker — never cite an unrelated source as filler.
@@ -160,6 +184,7 @@ Rules:
 - Be concise — short sentences, then bullets for lists/steps. Each factual bullet also ends with [n].
 
 - GIVE THE ACTUAL DIRECT LINK from the VERIFIED SOURCE CATALOG — never tell the user to "visit the website and navigate to…", "go to the departments section", or any similar navigation instruction. That phrasing is FORBIDDEN. Always paste the exact deep URL of the PDF or sub-page.
+- Never recommend a generic CUK homepage or landing page when a deeper PDF/page is available. Never use admission/result/recruitment/tender sources to answer syllabus/resources questions unless the user asked about admission/result/recruitment/tender.
 - ENUMERATE every relevant catalog entry, not just one. If the user asks for "B.Tech resources" or any broad topic, list 3-6 specific deep links (syllabus PDFs, scheme PDFs, notices, department pages) from the catalog — each on its own line with the inline preview format.
 - INLINE PREVIEW FORMAT: For every document you reference, render it on its own line as: **Section / topic name** — [Open document title (PDF)](URL) [n]. Use the real section/topic the user asked about (e.g. "B.Tech CSE 6th Semester Syllabus", "M.A. English Admission Notice 2025", "Non-Teaching Recruitment Notification"). If the catalog entry is a PDF, append " (PDF)" inside the link text so the UI can preview it directly.
 - DEEP ANCHOR LINKS: Whenever you know (or can confidently infer) the exact location of the section inside the document, append a URL fragment that jumps the reader directly to it:
@@ -167,7 +192,7 @@ Rules:
   • HTML pages: append "#slug-of-heading" matching the on-page heading id (kebab-case of the heading text) so the browser scrolls to it.
   Only add the fragment when you are confident it is correct — never guess random page numbers. If unknown, omit the fragment rather than fabricate one.
 - Prefer the most specific PDF in the catalog over a generic landing page. If both exist, link the PDF first and the landing page second.
-- If the catalog has NO entry matching the request, say honestly: "I couldn't locate the exact document in our index" then list the closest 1-2 official pages from the catalog (if any) as direct links using the same inline preview format. Do NOT fabricate URLs.
+- If the catalog has only broad/related official pages and no exact document matching the request, say honestly: "I couldn't locate the exact CUK source for that in the current index." Then list ONLY the closest official pages from the catalog as related links using the same inline preview format. Do NOT include unrelated admission/result/recruitment/tender PDFs as related links for syllabus/resources queries. Do NOT fabricate URLs.
 - Do NOT output your own "Sources" section — the system appends it from the VERIFIED SOURCE CATALOG.
 
 
@@ -223,6 +248,25 @@ const APP_ONLY = /\b(upload|submission|review|calendar|datesheet management|appr
 function isAppNavOnly(text: string): boolean {
   return APP_ONLY.test(text) && !/cuk|university|kashmir|admission|result|notice/i.test(text);
 }
+
+const CUK_TOPIC = /\b(cuk|cukashmir|central university of kashmir|samarth|admission|admissions|cuet|prospectus|eligibility|fee|fees|b\.?\s*tech|btech|m\.?\s*tech|mtech|mca|mba|llb|llm|ph\.?d|programme|program|semester|syllabus|curriculum|scheme|course structure|resource|resources|e-?content|study material|department|school|faculty|professor|vice chancellor|\bvc\b|chancellor|registrar|controller|notice|notification|circular|datesheet|date sheet|result|revaluation|examination|exam|tender|recruitment|vacancy|employment|hostel|scholarship|placement|library|downloads?|forms?|contact|phone|email|address|nowgam|tulmulla)\b/i;
+
+function isCukScopedQuery(text: string): boolean {
+  if (isAppNavOnly(text)) return true;
+  return CUK_TOPIC.test(text);
+}
+
+const REFUSAL_FOLLOW_UPS = [
+  "Show latest CUK notices.",
+  "Find a CUK syllabus or resource PDF.",
+  "Show CUK admission eligibility.",
+];
+
+const EXACT_SOURCE_FOLLOW_UPS = [
+  "Search by programme and semester.",
+  "Show related official CUK pages.",
+  "Find CUK PDFs for this topic.",
+];
 
 // ─── Follow-up query rewriting (pronoun / contextual references) ─────────────
 
@@ -341,6 +385,155 @@ function liveHitsToRows(hits: LiveHit[]): SearchRow[] {
     is_pdf: h.isPdf,
     rank: 2 + (h.isPdf ? 1 : 0) - i * 0.01,
   }));
+}
+
+function curatedOfficialRows(query: string): SearchRow[] {
+  const q = normalizeForMatch(query);
+  const rows: SearchRow[] = [];
+  const push = (url: string, title: string, snippet: string, rank = 3) => {
+    rows.push({ id: `curated-${rows.length}`, url, title, snippet, is_pdf: isPdfUrl(url), rank });
+  };
+
+  if (/\b(contact|email|phone|registrar|controller|admission|address|campus|nowgam|tulmulla)\b/.test(q)) {
+    push(
+      "https://www.cukashmir.ac.in#contact",
+      "Central University of Kashmir — Official Contact Details",
+      "Official CUK contact reference. Main Office: 0194-2723001 / 2723002. Email: info@cukashmir.ac.in. Registrar: registrar@cukashmir.ac.in / 0194-2723003. Controller of Examinations: coe@cukashmir.ac.in / 0194-2723006. Admissions: admissions@cukashmir.ac.in / 0194-2723004. Main/Transit Campus: Nowgam Bye-pass, Near Puhroo Crossing, Nowgam, Srinagar — 190015, J&K.",
+      5,
+    );
+  }
+
+  if (/\b(notice|notices|notification|circular|latest|what new|what s new)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/displayevents.aspx", "CUK Notices / Circulars", "Official CUK notices and circulars page for university notifications, notices, circulars and latest updates.", 4);
+  }
+
+  if (/\b(admission|admissions|cuet|eligibility|prospectus|fee|fees)\b/.test(q)) {
+    push(
+      "https://www.cukashmir.ac.in/admissions.aspx",
+      "CUK Admissions",
+      "Official CUK admissions page for admission notices, eligibility, CUET-related admission information and programme admission updates.",
+      4,
+    );
+    push(
+      "https://www.cukashmir.ac.in/prospectus.aspx",
+      "CUK Prospectus",
+      "Official CUK prospectus page for programme eligibility, intake and admission rules when published by the university.",
+      3.8,
+    );
+  }
+
+  if (/\b(result|results|revaluation|marks|grade)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/results.aspx", "CUK Results", "Official CUK results page for examination result notifications and result documents.", 4);
+  }
+
+  if (/\b(datesheet|date sheet|exam schedule|examination schedule)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/examination.aspx", "CUK Examinations", "Official CUK examination page for date sheets, exam notifications and examination updates.", 4);
+  }
+
+  if (/\b(department|school|faculty|computer science|cse|btech|b tech|technology|resources?|e content|econtent|downloads?)\b/.test(q)) {
+    push("https://www.cukashmir.ac.in/departments.aspx", "CUK Departments", "Official CUK departments page for school and department pages, including School of Technology, Computer Science/CSE, B.Tech-related department information, programme pages and departmental resources where available.", 3.5);
+    push("https://www.cukashmir.ac.in/downloads.aspx", "CUK Downloads / Forms", "Official CUK downloads page for student forms, documents, syllabus/resource downloads and university downloads.", 3.2);
+  }
+
+  return rows;
+}
+
+function normalizeForMatch(s: string): string {
+  return ` ${s.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()} `;
+}
+
+function queryTerms(q: string): string[] {
+  const aliases = q
+    .replace(/b\.?\s*tech/ig, "btech bachelor technology")
+    .replace(/m\.?\s*tech/ig, "mtech master technology")
+    .replace(/cs\s*&\s*e|cs\s*and\s*e|cse/ig, "cse computer science engineering")
+    .replace(/sixth|6th|vi\b/ig, "sixth 6 vi")
+    .replace(/fifth|5th|v\b/ig, "fifth 5 v")
+    .replace(/fourth|4th|iv\b/ig, "fourth 4 iv")
+    .replace(/third|3rd|iii\b/ig, "third 3 iii")
+    .replace(/second|2nd|ii\b/ig, "second 2 ii")
+    .replace(/first|1st|i\b/ig, "first 1 i");
+  const noise = new Set([
+    "what", "which", "where", "show", "find", "give", "tell", "about", "from", "official",
+    "cuk", "cukashmir", "central", "university", "kashmir", "page", "pages", "link", "links",
+    "pdf", "document", "documents", "site", "website", "actual", "exact", "open", "please",
+  ]);
+  return Array.from(new Set(normalizeForMatch(aliases).trim().split(/\s+/).filter((t) => t.length >= 2 && !noise.has(t))));
+}
+
+function rowHaystack(row: SearchRow): string {
+  return normalizeForMatch(`${row.title || ""} ${row.snippet || ""} ${row.url || ""}`);
+}
+
+function categoryCompatible(query: string, row: SearchRow): boolean {
+  const q = normalizeForMatch(query);
+  const h = rowHaystack(row);
+
+  // Hard gates: if the user asks for one of these, don't answer from a different category.
+  if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q) && /\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(h)) return false;
+    return /\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
+  }
+  if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(syllabus|curriculum|scheme|course structure)\b/.test(h)) return false;
+    return /\b(syllabus|curriculum|scheme|course structure|course|courses)\b/.test(h);
+  }
+  if (/\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
+    if (/\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h) && !/\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(h)) return false;
+    return /\b(resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
+  }
+  if (/\b(result|results|marks|grade|revaluation)\b/.test(q)) {
+    return /\b(result|results|marks|grade|revaluation|examination result)\b/.test(h);
+  }
+  if (/\b(admission|admissions|cuet|eligibility|prospectus|selection list|merit list)\b/.test(q)) {
+    return /\b(admission|admissions|cuet|eligibility|prospectus|selection list|merit list|waiting list)\b/.test(h);
+  }
+  if (/\b(tender|bid|quotation|eoi)\b/.test(q)) {
+    return /\b(tender|bid|quotation|eoi)\b/.test(h);
+  }
+  if (/\b(recruitment|vacancy|employment|job)\b/.test(q)) {
+    return /\b(recruitment|vacancy|employment|job)\b/.test(h);
+  }
+  if (/\b(datesheet|date sheet|exam schedule|examination schedule)\b/.test(q)) {
+    return /\b(datesheet|date sheet|exam date|examination|schedule)\b/.test(h);
+  }
+  return true;
+}
+
+function filterRowsForExactQuery(query: string, rows: SearchRow[]): SearchRow[] {
+  const terms = queryTerms(query);
+  if (!terms.length) return rows;
+  const qNorm = normalizeForMatch(query);
+  const scored = rows
+    .map((row) => {
+      const h = rowHaystack(row);
+      const titleUrl = normalizeForMatch(`${row.title || ""} ${row.url || ""}`);
+      let overlap = 0;
+      let titleOverlap = 0;
+      for (const t of terms) {
+        if (h.includes(` ${t} `)) overlap += 1;
+        if (titleUrl.includes(` ${t} `)) titleOverlap += 1;
+      }
+      const compatible = categoryCompatible(query, row);
+      let score = (row.rank || 0) + overlap * 0.5 + titleOverlap * 0.8 + (row.is_pdf || isPdfUrl(row.url) ? 0.25 : 0);
+      if (/\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?)\b/.test(qNorm) &&
+          /\b(admission|admissions|result|results|revaluation|recruitment|vacancy|employment|tender|quotation|bid|eoi)\b/.test(h)) score -= 5;
+      return { row, overlap, titleOverlap, compatible, score };
+    })
+    .filter((s) => s.compatible && (s.overlap >= Math.min(2, terms.length) || s.titleOverlap >= 1));
+
+  return scored
+    .sort((a, b) => {
+      const titleDelta = b.titleOverlap - a.titleOverlap;
+      if (titleDelta !== 0) return titleDelta;
+      const overlapDelta = b.overlap - a.overlap;
+      if (overlapDelta !== 0) return overlapDelta;
+      const pdfDelta = Number(b.row.is_pdf || isPdfUrl(b.row.url)) - Number(a.row.is_pdf || isPdfUrl(a.row.url));
+      if (pdfDelta !== 0) return pdfDelta;
+      return b.score - a.score;
+    })
+    .map((s) => s.row)
+    .slice(0, 10);
 }
 
 
@@ -524,15 +717,31 @@ serve(async (req) => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     const rawQuery = lastUser?.content || "";
     const searchQuery = rewriteQuery(rawQuery, messages.slice(0, -1));
+    const cukScoped = isCukScopedQuery(rawQuery);
     log("info", "chatbot_request_parsed", {
       request_id: rid,
       user_id: userId,
       message_count: messages.length,
       query_length: rawQuery.length,
       rewritten: searchQuery !== rawQuery,
+      cuk_scoped: cukScoped,
       app_nav_only: isAppNavOnly(rawQuery),
       latency_ms: elapsed(startedAt),
     });
+
+    if (!cukScoped) {
+      log("info", "chatbot_refused_unrelated_query", {
+        request_id: rid,
+        user_id: userId,
+        latency_ms: elapsed(startedAt),
+      });
+      return sseOnce(
+        "I can only answer questions about Central University of Kashmir (CUK), official CUK pages/PDFs, admissions, exams, syllabi/resources, notices, departments, or this exam-paper system. Ask me a CUK-related question and I’ll use exact official sources.",
+        REFUSAL_FOLLOW_UPS,
+        [],
+        correlationId,
+      );
+    }
 
     // ── Run pre-indexed FTS + live Firecrawl deep hunt IN PARALLEL ──
     // Why: the index only knows pages our crawler has visited. Department
@@ -544,7 +753,7 @@ serve(async (req) => {
       const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         { auth: { persistSession: false } });
 
-      const indexPromise = sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 })
+      const indexPromise = Promise.resolve(sb.rpc("search_cuk_pages", { _query: searchQuery, _limit: 8 }))
         .then(({ data, error }) => {
           if (error) {
             log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: error.message, hit_count: 0, latency_ms: elapsed(searchStartedAt) });
@@ -552,7 +761,7 @@ serve(async (req) => {
           }
           return (data || []) as SearchRow[];
         })
-        .catch((e) => {
+        .catch((e: unknown) => {
           log("error", "chatbot_search_complete", { request_id: rid, user_id: userId, ok: false, error: safeError(e), hit_count: 0, latency_ms: elapsed(searchStartedAt) });
           return [] as SearchRow[];
         });
@@ -570,7 +779,7 @@ serve(async (req) => {
         pdf_hit_count: rows.filter((r) => r.is_pdf || isPdfUrl(r.url)).length,
         top_rank: rows[0]?.rank ?? null,
         live_hit_count: liveHits.length,
-        live_pdf_count: liveHits.filter((h) => h.isPdf).length,
+        live_pdf_count: liveHits.filter((h: LiveHit) => h.isPdf).length,
         latency_ms: elapsed(searchStartedAt),
       });
 
@@ -590,6 +799,31 @@ serve(async (req) => {
         rows = rows.slice(0, 10);
       }
 
+      const curatedRows = curatedOfficialRows(searchQuery);
+      if (curatedRows.length) {
+        const seen = new Set(rows.map((r) => r.url.split("#")[0]));
+        for (const r of curatedRows) {
+          const k = r.url.split("#")[0];
+          if (!seen.has(k)) { rows.push(r); seen.add(k); }
+        }
+      }
+
+      const sourcesBeforeFilter = [...rows].sort((a, b) => {
+        const aCompat = Number(categoryCompatible(searchQuery, a));
+        const bCompat = Number(categoryCompatible(searchQuery, b));
+        if (bCompat !== aCompat) return bCompat - aCompat;
+        return (b.rank || 0) - (a.rank || 0);
+      });
+      const exactRows = filterRowsForExactQuery(searchQuery, rows);
+      log("info", "chatbot_exact_source_filter", {
+        request_id: rid,
+        user_id: userId,
+        before_count: rows.length,
+        after_count: exactRows.length,
+        latency_ms: elapsed(searchStartedAt),
+      });
+      rows = exactRows.length ? exactRows : sourcesBeforeFilter.filter((r) => categoryCompatible(searchQuery, r)).slice(0, 3);
+
     } else {
       log("info", "chatbot_search_skipped", {
         request_id: rid,
@@ -602,6 +836,21 @@ serve(async (req) => {
     const sources = rowsToSources(rows);
     const context = buildContext(rows);
     const followUps = getFollowUps(rawQuery);
+
+    if (!isAppNavOnly(rawQuery) && sources.length === 0) {
+      log("info", "chatbot_no_exact_sources", {
+        request_id: rid,
+        user_id: userId,
+        query: searchQuery.slice(0, 200),
+        latency_ms: elapsed(startedAt),
+      });
+      return sseOnce(
+        "I couldn't locate the exact CUK source for that in the current index. Please ask with the programme, semester, session/year, department, or notice/document name so I can return the exact CUK page or PDF.",
+        EXACT_SOURCE_FOLLOW_UPS,
+        [],
+        correlationId,
+      );
+    }
 
     const catalogBlock = sources.length > 0
       ? "\n\n--- VERIFIED SOURCE CATALOG (cite as [n]) ---\n" +
