@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -197,6 +197,52 @@ const SUGGESTIONS = [
   'CUK admission process & eligibility',
   'Contact details of CUK departments',
   'Latest notices from Central University of Kashmir',
+];
+
+type QuickAction = {
+  id: string;
+  label: string;
+  icon: typeof GraduationCap;
+  prompt: string;
+};
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    id: 'btech',
+    label: 'B.Tech resources',
+    icon: GraduationCap,
+    prompt: 'List the official B.Tech (Computer Science) resources at Central University of Kashmir — syllabus PDFs, scheme of studies, study material and department page. Give exact direct links (PDFs preferred) for each semester you can find.',
+  },
+  {
+    id: 'syllabi',
+    label: 'Syllabi & curricula',
+    icon: BookOpen,
+    prompt: 'Show me the latest official CUK syllabus / curriculum PDFs for all departments. Return direct links to the exact PDF documents, grouped by school/department.',
+  },
+  {
+    id: 'notices',
+    label: 'Exam notifications',
+    icon: Bell,
+    prompt: 'List the latest CUK exam notifications, date sheets and examination notices from the official Central University of Kashmir website. Include the notice title, date and a direct link to each PDF.',
+  },
+  {
+    id: 'downloads',
+    label: 'Downloads & forms',
+    icon: Download,
+    prompt: 'List the official CUK downloads — application forms, admission forms, examination forms, fee forms and student forms. Give the exact direct PDF link for each form.',
+  },
+  {
+    id: 'admissions',
+    label: 'Admissions',
+    icon: Zap,
+    prompt: 'Give me the current CUK admission notification, eligibility criteria, important dates and the official admission portal / prospectus PDF link.',
+  },
+  {
+    id: 'results',
+    label: 'Results',
+    icon: FileText,
+    prompt: 'Show the latest official CUK examination results notices with direct links to the result PDFs / result portal.',
+  },
 ];
 
 export function ChatBubble() {
@@ -444,6 +490,27 @@ export function ChatBubble() {
                     </button>
                   ))}
                 </div>
+                <div className="w-full max-w-[300px] pt-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2 text-left">
+                    Quick actions
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {QUICK_ACTIONS.map((a) => {
+                      const Icon = a.icon;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => sendMessage(a.prompt)}
+                          className="flex items-center gap-1.5 text-left text-[11px] px-2 py-1.5 rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+                          title={a.prompt}
+                        >
+                          <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">{a.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             ) : (
               <>
@@ -571,7 +638,27 @@ export function ChatBubble() {
           </div>
 
           {/* Input */}
-          <div className="border-t px-3 py-2.5">
+          <div className="border-t">
+            {messages.length > 0 && (
+              <div className="px-2 pt-2 pb-1 flex gap-1 overflow-x-auto scrollbar-none">
+                {QUICK_ACTIONS.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => sendMessage(a.prompt)}
+                      disabled={isLoading}
+                      className="flex items-center gap-1 shrink-0 text-[10.5px] px-2 py-1 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      title={a.prompt}
+                    >
+                      <Icon className="h-3 w-3 text-primary" />
+                      <span>{a.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="px-3 py-2.5">
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -594,8 +681,10 @@ export function ChatBubble() {
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
+            </div>
           </div>
         </div>
+
       )}
     </>
   );
