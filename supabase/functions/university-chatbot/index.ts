@@ -815,14 +815,29 @@ serve(async (req) => {
         return (b.rank || 0) - (a.rank || 0);
       });
       const exactRows = filterRowsForExactQuery(searchQuery, rows);
+      // Merge strict-filter results with top compatible rows so the model always
+      // has enough citations (the strict overlap filter was starving sources).
+      const compatPool = sourcesBeforeFilter.filter((r) => categoryCompatible(searchQuery, r));
+      const merged: SearchRow[] = [];
+      const seen = new Set<string>();
+      const pushRow = (r: SearchRow) => {
+        const key = (r.url || "").toLowerCase();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        merged.push(r);
+      };
+      exactRows.forEach(pushRow);
+      compatPool.filter((r) => r.is_pdf || isPdfUrl(r.url)).slice(0, 6).forEach(pushRow);
+      compatPool.slice(0, 6).forEach(pushRow);
       log("info", "chatbot_exact_source_filter", {
         request_id: rid,
         user_id: userId,
         before_count: rows.length,
-        after_count: exactRows.length,
+        exact_count: exactRows.length,
+        after_count: merged.length,
         latency_ms: elapsed(searchStartedAt),
       });
-      rows = exactRows.length ? exactRows : sourcesBeforeFilter.filter((r) => categoryCompatible(searchQuery, r)).slice(0, 3);
+      rows = merged.length ? merged.slice(0, 10) : sourcesBeforeFilter.slice(0, 5);
 
     } else {
       log("info", "chatbot_search_skipped", {
