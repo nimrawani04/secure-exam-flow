@@ -681,8 +681,10 @@ export function ChatBubble() {
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
+            </div>
           </div>
         </div>
+
       )}
     </>
   );
