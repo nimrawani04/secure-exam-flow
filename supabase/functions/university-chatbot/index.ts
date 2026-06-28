@@ -797,17 +797,16 @@ serve(async (req) => {
         }
       }
 
+      const sourcesBeforeFilter = rows;
       const exactRows = filterRowsForExactQuery(searchQuery, rows);
-      if (exactRows.length || rows.length) {
-        log("info", "chatbot_exact_source_filter", {
-          request_id: rid,
-          user_id: userId,
-          before_count: rows.length,
-          after_count: exactRows.length,
-          latency_ms: elapsed(searchStartedAt),
-        });
-        rows = exactRows;
-      }
+      log("info", "chatbot_exact_source_filter", {
+        request_id: rid,
+        user_id: userId,
+        before_count: rows.length,
+        after_count: exactRows.length,
+        latency_ms: elapsed(searchStartedAt),
+      });
+      rows = exactRows.length ? exactRows : sourcesBeforeFilter.slice(0, 3);
 
     } else {
       log("info", "chatbot_search_skipped", {
