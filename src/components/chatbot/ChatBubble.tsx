@@ -402,11 +402,11 @@ export function ChatBubble() {
         if (last?.role === 'assistant') {
           return prev.map((m, i) =>
             i === prev.length - 1
-              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources }
+              ? { ...m, content: assistantSoFar, error: opts?.error ?? m.error, sources: latestSources.length > 0 ? latestSources : m.sources, correlationId: resolvedCid }
               : m,
           );
         }
-        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined }];
+        return [...prev, { role: 'assistant', content: assistantSoFar, error: opts?.error, sources: latestSources.length > 0 ? latestSources : undefined, correlationId: resolvedCid }];
       });
     };
 
