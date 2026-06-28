@@ -490,6 +490,27 @@ export function ChatBubble() {
                     </button>
                   ))}
                 </div>
+                <div className="w-full max-w-[300px] pt-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2 text-left">
+                    Quick actions
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {QUICK_ACTIONS.map((a) => {
+                      const Icon = a.icon;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => sendMessage(a.prompt)}
+                          className="flex items-center gap-1.5 text-left text-[11px] px-2 py-1.5 rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+                          title={a.prompt}
+                        >
+                          <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">{a.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             ) : (
               <>
