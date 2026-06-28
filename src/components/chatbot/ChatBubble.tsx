@@ -670,6 +670,25 @@ export function ChatBubble() {
                         <SourcesPanel sources={m.sources} />
                       </div>
                     )}
+                    {m.role === 'assistant' && !m.error && (() => {
+                      const prevUser = [...messages.slice(0, i)].reverse().find((x) => x.role === 'user')?.content || '';
+                      const wantsDoc = /\b(syllabus|scheme|curriculum|notes|paper|previous\s*paper|question\s*paper|pdf|notification|circular|datesheet|date\s*sheet|brochure|form)\b/i.test(prevUser);
+                      const hasPdf = (m.sources || []).some((s) => s.isPdf);
+                      if (!wantsDoc || hasPdf) return null;
+                      return (
+                        <div className="pl-8">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRequestDialog({ open: true, query: prevUser, correlationId: m.correlationId })}
+                            className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                          >
+                            <FileText className="h-3 w-3" />
+                            Request this PDF
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
 
