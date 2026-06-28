@@ -466,6 +466,9 @@ function categoryCompatible(query: string, row: SearchRow): boolean {
   const h = rowHaystack(row);
 
   // Hard gates: if the user asks for one of these, don't answer from a different category.
+  if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q) && /\b(resource|resources|e content|econtent|study material|downloads?)\b/.test(q)) {
+    return /\b(syllabus|curriculum|scheme|course structure|resource|resources|e content|econtent|study material|downloads?|studentzone|students downloads|course|courses|library|ebooks?|open courseware|department|departments|computer science|technology|btech|cse)\b/.test(h);
+  }
   if (/\b(syllabus|curriculum|scheme|course structure)\b/.test(q)) {
     return /\b(syllabus|curriculum|scheme|course structure|course|courses)\b/.test(h);
   }
