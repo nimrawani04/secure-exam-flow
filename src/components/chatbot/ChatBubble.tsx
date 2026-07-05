@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap, Cpu, FlaskConical, Calculator, Languages, Scale, Briefcase, Landmark, Palette, Globe, Leaf, HeartPulse, Building2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -53,6 +54,51 @@ function normalizeUrl(u?: string | null): string {
   if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(s)) return `https://${s}`;
   return s;
 }
+
+/** Best-effort reachability probe. Resolves true if the URL likely resolves
+ *  (any response, even opaque, counts as "reachable"). Rejects only on DNS /
+ *  network failures where `fetch` itself throws. */
+async function probeUrl(url: string, timeoutMs = 4000): Promise<boolean> {
+  if (!url || url === '#') return false;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: ctl.signal, redirect: 'follow' });
+    clearTimeout(t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Open `primary` in a new tab; if unreachable, try `fallback`; if both fail,
+ *  show an error toast. Returns whichever URL was ultimately opened (or null). */
+async function openWithFallback(primary: string, fallback?: string | null): Promise<string | null> {
+  const candidates = [primary, fallback && fallback !== primary ? fallback : null].filter(
+    (u): u is string => !!u && u !== '#',
+  );
+  if (candidates.length === 0) {
+    toast.error("This link doesn't have a valid URL.");
+    return null;
+  }
+  // Reserve the tab synchronously so popup blockers don't kill it later.
+  const win = window.open('about:blank', '_blank', 'noopener,noreferrer');
+  for (const url of candidates) {
+    // eslint-disable-next-line no-await-in-loop
+    const ok = await probeUrl(url);
+    if (ok) {
+      if (win) win.location.href = url;
+      else window.open(url, '_blank', 'noopener,noreferrer');
+      return url;
+    }
+  }
+  if (win) win.close();
+  toast.error("Couldn't open link — the source appears to be unreachable.", {
+    description: candidates[0],
+  });
+  return null;
+}
+
 
 
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -647,6 +693,11 @@ export function ChatBubble() {
                                   return (
                                     <a
                                       href={safeHref}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        void openWithFallback(safeHref, href && href !== safeHref ? href : null);
+                                      }}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : safeHref}
@@ -897,6 +948,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
   const [copied, setCopied] = useState(false);
   const Icon = s.isPdf ? FileText : LinkIcon;
   const safeUrl = normalizeUrl(s.url);
+  const originalUrl = s.url && s.url !== safeUrl ? s.url : null;
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -906,12 +958,18 @@ function SourceRow({ source: s }: { source: CitedSource }) {
       setTimeout(() => setCopied(false), 1500);
     } catch { /* ignore */ }
   };
+  const handleOpen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void openWithFallback(safeUrl, originalUrl);
+  };
 
   return (
     <li>
       <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
         <a
           href={safeUrl}
+          onClick={handleOpen}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Open source ${s.index}: ${s.title || s.url}`}
@@ -944,6 +1002,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           {s.isPdf && (
             <a
               href={safeUrl}
+              onClick={handleOpen}
               target="_blank"
               rel="noopener noreferrer"
               download
@@ -956,6 +1015,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           )}
           <a
             href={safeUrl}
+            onClick={handleOpen}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Open ${s.title || s.url} in new tab`}
@@ -965,6 +1025,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
+
       </div>
     </li>
   );
