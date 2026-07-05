@@ -896,15 +896,17 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
 function SourceRow({ source: s }: { source: CitedSource }) {
   const [copied, setCopied] = useState(false);
   const Icon = s.isPdf ? FileText : LinkIcon;
+  const safeUrl = normalizeUrl(s.url);
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(s.url);
+      await navigator.clipboard.writeText(safeUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch { /* ignore */ }
   };
+
   return (
     <li>
       <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
