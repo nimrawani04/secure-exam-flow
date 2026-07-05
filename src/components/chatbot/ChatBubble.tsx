@@ -42,6 +42,19 @@ function newCorrelationId(): string {
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function normalizeUrl(u?: string | null): string {
+  if (!u) return '#';
+  const s = String(u).trim();
+  if (!s || s === '#') return '#';
+  if (/^(mailto:|tel:|javascript:)/i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `https://www.cukashmir.ac.in${s}`;
+  if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(s)) return `https://${s}`;
+  return s;
+}
+
+
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
 
@@ -630,12 +643,13 @@ export function ChatBubble() {
                                     : hashMatch && !pageMatch && !/^page=/i.test(hashMatch[1])
                                     ? `§ ${decodeURIComponent(hashMatch[1]).replace(/[-_]/g, ' ').slice(0, 32)}`
                                     : null;
+                                  const safeHref = normalizeUrl(href);
                                   return (
                                     <a
-                                      href={href}
+                                      href={safeHref}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : href}
+                                      title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : safeHref}
                                       className="inline-flex items-center gap-1"
                                     >
                                       {children}
@@ -821,7 +835,7 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
       for (let i = 0; i < pdfSources.length; i++) {
         const s = pdfSources[i];
         const a = document.createElement('a');
-        a.href = s.url;
+        a.href = normalizeUrl(s.url);
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.download = (s.title || `source-${s.index}`).replace(/[\\/:*?"<>|]+/g, '_');
@@ -882,20 +896,22 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
 function SourceRow({ source: s }: { source: CitedSource }) {
   const [copied, setCopied] = useState(false);
   const Icon = s.isPdf ? FileText : LinkIcon;
+  const safeUrl = normalizeUrl(s.url);
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(s.url);
+      await navigator.clipboard.writeText(safeUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch { /* ignore */ }
   };
+
   return (
     <li>
       <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
         <a
-          href={s.url}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Open source ${s.index}: ${s.title || s.url}`}
@@ -911,7 +927,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
               {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
             </span>
             <span className="block truncate text-[10.5px] text-muted-foreground">
-              {hostnameOf(s.url)}
+              {hostnameOf(safeUrl)}
             </span>
           </span>
         </a>
@@ -927,7 +943,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           </button>
           {s.isPdf && (
             <a
-              href={s.url}
+              href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               download
@@ -939,7 +955,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
             </a>
           )}
           <a
-            href={s.url}
+            href={safeUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Open ${s.title || s.url} in new tab`}
