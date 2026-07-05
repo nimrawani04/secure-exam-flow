@@ -911,7 +911,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
     <li>
       <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
         <a
-          href={s.url}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Open source ${s.index}: ${s.title || s.url}`}
@@ -927,7 +927,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
               {s.isPdf && <span className="ml-1 text-[10px] text-muted-foreground">(PDF)</span>}
             </span>
             <span className="block truncate text-[10.5px] text-muted-foreground">
-              {hostnameOf(s.url)}
+              {hostnameOf(safeUrl)}
             </span>
           </span>
         </a>
@@ -943,7 +943,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           </button>
           {s.isPdf && (
             <a
-              href={s.url}
+              href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               download
@@ -955,7 +955,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
             </a>
           )}
           <a
-            href={s.url}
+            href={safeUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Open ${s.title || s.url} in new tab`}
