@@ -42,6 +42,19 @@ function newCorrelationId(): string {
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function normalizeUrl(u?: string | null): string {
+  if (!u) return '#';
+  const s = String(u).trim();
+  if (!s || s === '#') return '#';
+  if (/^(mailto:|tel:|javascript:)/i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `https://www.cukashmir.ac.in${s}`;
+  if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(s)) return `https://${s}`;
+  return s;
+}
+
+
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
 
