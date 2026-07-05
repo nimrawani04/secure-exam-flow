@@ -643,12 +643,13 @@ export function ChatBubble() {
                                     : hashMatch && !pageMatch && !/^page=/i.test(hashMatch[1])
                                     ? `§ ${decodeURIComponent(hashMatch[1]).replace(/[-_]/g, ' ').slice(0, 32)}`
                                     : null;
+                                  const safeHref = normalizeUrl(href);
                                   return (
                                     <a
-                                      href={href}
+                                      href={safeHref}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : href}
+                                      title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : safeHref}
                                       className="inline-flex items-center gap-1"
                                     >
                                       {children}
