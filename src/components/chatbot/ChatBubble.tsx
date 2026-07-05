@@ -835,7 +835,7 @@ function SourcesPanel({ sources }: { sources: CitedSource[] }) {
       for (let i = 0; i < pdfSources.length; i++) {
         const s = pdfSources[i];
         const a = document.createElement('a');
-        a.href = s.url;
+        a.href = normalizeUrl(s.url);
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.download = (s.title || `source-${s.index}`).replace(/[\\/:*?"<>|]+/g, '_');
