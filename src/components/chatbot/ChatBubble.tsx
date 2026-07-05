@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { MessageCircle, X, Send, Bot, User, Trash2, RotateCw, FileText, ExternalLink, Link as LinkIcon, GraduationCap, BookOpen, Bell, Download, Zap, Cpu, FlaskConical, Calculator, Languages, Scale, Briefcase, Landmark, Palette, Globe, Leaf, HeartPulse, Building2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
