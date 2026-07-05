@@ -55,6 +55,51 @@ function normalizeUrl(u?: string | null): string {
   return s;
 }
 
+/** Best-effort reachability probe. Resolves true if the URL likely resolves
+ *  (any response, even opaque, counts as "reachable"). Rejects only on DNS /
+ *  network failures where `fetch` itself throws. */
+async function probeUrl(url: string, timeoutMs = 4000): Promise<boolean> {
+  if (!url || url === '#') return false;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: ctl.signal, redirect: 'follow' });
+    clearTimeout(t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Open `primary` in a new tab; if unreachable, try `fallback`; if both fail,
+ *  show an error toast. Returns whichever URL was ultimately opened (or null). */
+async function openWithFallback(primary: string, fallback?: string | null): Promise<string | null> {
+  const candidates = [primary, fallback && fallback !== primary ? fallback : null].filter(
+    (u): u is string => !!u && u !== '#',
+  );
+  if (candidates.length === 0) {
+    toast.error("This link doesn't have a valid URL.");
+    return null;
+  }
+  // Reserve the tab synchronously so popup blockers don't kill it later.
+  const win = window.open('about:blank', '_blank', 'noopener,noreferrer');
+  for (const url of candidates) {
+    // eslint-disable-next-line no-await-in-loop
+    const ok = await probeUrl(url);
+    if (ok) {
+      if (win) win.location.href = url;
+      else window.open(url, '_blank', 'noopener,noreferrer');
+      return url;
+    }
+  }
+  if (win) win.close();
+  toast.error("Couldn't open link — the source appears to be unreachable.", {
+    description: candidates[0],
+  });
+  return null;
+}
+
+
 
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
