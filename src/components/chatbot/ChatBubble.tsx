@@ -943,6 +943,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
   const [copied, setCopied] = useState(false);
   const Icon = s.isPdf ? FileText : LinkIcon;
   const safeUrl = normalizeUrl(s.url);
+  const originalUrl = s.url && s.url !== safeUrl ? s.url : null;
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -952,12 +953,18 @@ function SourceRow({ source: s }: { source: CitedSource }) {
       setTimeout(() => setCopied(false), 1500);
     } catch { /* ignore */ }
   };
+  const handleOpen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void openWithFallback(safeUrl, originalUrl);
+  };
 
   return (
     <li>
       <div className="group flex items-start gap-2 rounded-md p-1 -ml-1 transition-colors hover:bg-accent/40">
         <a
           href={safeUrl}
+          onClick={handleOpen}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Open source ${s.index}: ${s.title || s.url}`}
@@ -990,6 +997,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           {s.isPdf && (
             <a
               href={safeUrl}
+              onClick={handleOpen}
               target="_blank"
               rel="noopener noreferrer"
               download
@@ -1002,6 +1010,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
           )}
           <a
             href={safeUrl}
+            onClick={handleOpen}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Open ${s.title || s.url} in new tab`}
@@ -1011,6 +1020,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
+
       </div>
     </li>
   );
