@@ -693,6 +693,11 @@ export function ChatBubble() {
                                   return (
                                     <a
                                       href={safeHref}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        void openWithFallback(safeHref, href && href !== safeHref ? href : null);
+                                      }}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       title={isPdf ? `Open PDF${pageMatch ? ` at page ${pageMatch[1]}` : ''} in new tab` : safeHref}
