@@ -55,25 +55,12 @@ function normalizeUrl(u?: string | null): string {
   return s;
 }
 
-/** Best-effort reachability probe. Resolves true if the URL likely resolves
- *  (any response, even opaque, counts as "reachable"). Rejects only on DNS /
- *  network failures where `fetch` itself throws. */
-async function probeUrl(url: string, timeoutMs = 4000): Promise<boolean> {
-  if (!url || url === '#') return false;
-  try {
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), timeoutMs);
-    await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: ctl.signal, redirect: 'follow' });
-    clearTimeout(t);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Open `primary` in a new tab; if unreachable, try `fallback`; if both fail,
- *  show an error toast. Returns whichever URL was ultimately opened (or null). */
-async function openWithFallback(primary: string, fallback?: string | null): Promise<string | null> {
+/** Open a source URL directly in a new tab. We skip client-side probing
+ *  because cross-origin HEAD requests to cukashmir.ac.in (and most gov.in
+ *  sites) fail CORS and would force us onto a blank/fallback tab even when
+ *  the real page loads fine. Letting the browser navigate directly means
+ *  PDFs open inline, redirects follow, and 404s surface natively. */
+function openWithFallback(primary: string, fallback?: string | null): string | null {
   const candidates = [primary, fallback && fallback !== primary ? fallback : null].filter(
     (u): u is string => !!u && u !== '#',
   );
@@ -81,22 +68,13 @@ async function openWithFallback(primary: string, fallback?: string | null): Prom
     toast.error("This link doesn't have a valid URL.");
     return null;
   }
-  // Reserve the tab synchronously so popup blockers don't kill it later.
-  const win = window.open('about:blank', '_blank', 'noopener,noreferrer');
-  for (const url of candidates) {
-    // eslint-disable-next-line no-await-in-loop
-    const ok = await probeUrl(url);
-    if (ok) {
-      if (win) win.location.href = url;
-      else window.open(url, '_blank', 'noopener,noreferrer');
-      return url;
-    }
+  const url = candidates[0];
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    toast.error("Popup blocked — allow popups to open sources.", { description: url });
+    return null;
   }
-  if (win) win.close();
-  toast.error("Couldn't open link — the source appears to be unreachable.", {
-    description: candidates[0],
-  });
-  return null;
+  return url;
 }
 
 
