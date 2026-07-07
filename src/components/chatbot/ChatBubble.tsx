@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { RequestPdfDialog } from './RequestPdfDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
 type Message = { role: 'user' | 'assistant'; content: string; error?: boolean; sources?: CitedSource[]; correlationId?: string };
@@ -55,12 +56,30 @@ function normalizeUrl(u?: string | null): string {
   return s;
 }
 
-/** Open a source URL directly in a new tab. We skip client-side probing
- *  because cross-origin HEAD requests to cukashmir.ac.in (and most gov.in
- *  sites) fail CORS and would force us onto a blank/fallback tab even when
- *  the real page loads fine. Letting the browser navigate directly means
- *  PDFs open inline, redirects follow, and 404s surface natively. */
-function openWithFallback(primary: string, fallback?: string | null): string | null {
+export type PreviewKind = 'pdf' | 'image' | 'office' | 'html' | 'other';
+
+/** Guess the response content type from the URL extension. Cross-origin HEAD
+ *  requests to cukashmir.ac.in / gov.in sites fail CORS, so we can't read the
+ *  Content-Type header at runtime — extension is the reliable signal. */
+export function detectContentKind(url: string): PreviewKind {
+  if (!url || url === '#') return 'other';
+  let pathname = url;
+  try { pathname = new URL(url, 'https://x').pathname; } catch { /* ignore */ }
+  const ext = pathname.split('.').pop()?.toLowerCase().split(/[?#]/)[0] ?? '';
+  if (ext === 'pdf') return 'pdf';
+  if (['png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext)) return 'image';
+  if (['doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp'].includes(ext)) return 'office';
+  if (['htm','html',''].includes(ext)) return 'html';
+  return 'other';
+}
+
+const PREVIEW_EVENT = 'chat-preview:open';
+
+/** Route a link to the best UX based on detected type:
+ *  - PDF & image → inline viewer dialog (dispatches a custom event).
+ *  - Office docs → Office Web Viewer in a new tab (inline in-browser render).
+ *  - HTML / other → open in new tab (browser handles redirects, 404s natively). */
+function openSmart(primary: string, fallback?: string | null, title?: string): string | null {
   const candidates = [primary, fallback && fallback !== primary ? fallback : null].filter(
     (u): u is string => !!u && u !== '#',
   );
@@ -69,13 +88,27 @@ function openWithFallback(primary: string, fallback?: string | null): string | n
     return null;
   }
   const url = candidates[0];
-  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  const kind = detectContentKind(url);
+
+  if (kind === 'pdf' || kind === 'image') {
+    window.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { url, kind, title, fallback: candidates[1] ?? null } }));
+    return url;
+  }
+
+  let openUrl = url;
+  if (kind === 'office') {
+    openUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  const opened = window.open(openUrl, '_blank', 'noopener,noreferrer');
   if (!opened) {
-    toast.error("Popup blocked — allow popups to open sources.", { description: url });
+    toast.error("Popup blocked — allow popups to open sources.", { description: openUrl });
     return null;
   }
-  return url;
+  return openUrl;
 }
+
+// Back-compat alias for existing call sites.
+const openWithFallback = openSmart;
 
 
 
@@ -674,7 +707,8 @@ export function ChatBubble() {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        void openWithFallback(safeHref, href && href !== safeHref ? href : null);
+                                        const label = typeof children === 'string' ? children : safeHref;
+                                        void openSmart(safeHref, href && href !== safeHref ? href : null, label);
                                       }}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -843,7 +877,89 @@ export function ChatBubble() {
         query={requestDialog.query}
         correlationId={requestDialog.correlationId}
       />
+      <InlinePreviewDialog />
     </>
+  );
+}
+
+function InlinePreviewDialog() {
+  const [state, setState] = useState<{ url: string; kind: PreviewKind; title?: string; fallback?: string | null } | null>(null);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { url: string; kind: PreviewKind; title?: string; fallback?: string | null };
+      if (!detail?.url) return;
+      setErrored(false);
+      setState(detail);
+    };
+    window.addEventListener(PREVIEW_EVENT, handler);
+    return () => window.removeEventListener(PREVIEW_EVENT, handler);
+  }, []);
+
+  const open = state !== null;
+  const close = () => setState(null);
+  const activeUrl = errored && state?.fallback ? state.fallback : state?.url;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-4 py-3 border-b">
+          <DialogTitle className="text-sm flex items-center justify-between gap-3 pr-6">
+            <span className="truncate">{state?.title || activeUrl}</span>
+            {activeUrl && (
+              <a
+                href={activeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline shrink-0"
+              >
+                <ExternalLink className="h-3 w-3" /> Open in new tab
+              </a>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 bg-muted/30 overflow-auto">
+          {state && activeUrl && !errored && state.kind === 'pdf' && (
+            <object data={activeUrl} type="application/pdf" className="w-full h-full">
+              <iframe
+                src={activeUrl}
+                title={state.title || 'PDF preview'}
+                className="w-full h-full border-0"
+                onError={() => setErrored(true)}
+              />
+            </object>
+          )}
+          {state && activeUrl && !errored && state.kind === 'image' && (
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <img
+                src={activeUrl}
+                alt={state.title || 'Preview'}
+                className="max-w-full max-h-full object-contain"
+                onError={() => setErrored(true)}
+              />
+            </div>
+          )}
+          {errored && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                We couldn't render this file inline.
+              </p>
+              {activeUrl && (
+                <a
+                  href={activeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  <ExternalLink className="h-4 w-4" /> Open in a new tab instead
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -939,7 +1055,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
   const handleOpen = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    void openWithFallback(safeUrl, originalUrl);
+    void openSmart(safeUrl, originalUrl, s.title || s.url);
   };
 
   return (
