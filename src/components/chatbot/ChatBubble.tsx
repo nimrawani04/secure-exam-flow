@@ -877,7 +877,89 @@ export function ChatBubble() {
         query={requestDialog.query}
         correlationId={requestDialog.correlationId}
       />
+      <InlinePreviewDialog />
     </>
+  );
+}
+
+function InlinePreviewDialog() {
+  const [state, setState] = useState<{ url: string; kind: PreviewKind; title?: string; fallback?: string | null } | null>(null);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { url: string; kind: PreviewKind; title?: string; fallback?: string | null };
+      if (!detail?.url) return;
+      setErrored(false);
+      setState(detail);
+    };
+    window.addEventListener(PREVIEW_EVENT, handler);
+    return () => window.removeEventListener(PREVIEW_EVENT, handler);
+  }, []);
+
+  const open = state !== null;
+  const close = () => setState(null);
+  const activeUrl = errored && state?.fallback ? state.fallback : state?.url;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-4 py-3 border-b">
+          <DialogTitle className="text-sm flex items-center justify-between gap-3 pr-6">
+            <span className="truncate">{state?.title || activeUrl}</span>
+            {activeUrl && (
+              <a
+                href={activeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline shrink-0"
+              >
+                <ExternalLink className="h-3 w-3" /> Open in new tab
+              </a>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 bg-muted/30 overflow-auto">
+          {state && activeUrl && !errored && state.kind === 'pdf' && (
+            <object data={activeUrl} type="application/pdf" className="w-full h-full">
+              <iframe
+                src={activeUrl}
+                title={state.title || 'PDF preview'}
+                className="w-full h-full border-0"
+                onError={() => setErrored(true)}
+              />
+            </object>
+          )}
+          {state && activeUrl && !errored && state.kind === 'image' && (
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <img
+                src={activeUrl}
+                alt={state.title || 'Preview'}
+                className="max-w-full max-h-full object-contain"
+                onError={() => setErrored(true)}
+              />
+            </div>
+          )}
+          {errored && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                We couldn't render this file inline.
+              </p>
+              {activeUrl && (
+                <a
+                  href={activeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  <ExternalLink className="h-4 w-4" /> Open in a new tab instead
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
