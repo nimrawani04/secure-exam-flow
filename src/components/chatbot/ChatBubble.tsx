@@ -707,7 +707,8 @@ export function ChatBubble() {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        void openWithFallback(safeHref, href && href !== safeHref ? href : null);
+                                        const label = typeof children === 'string' ? children : safeHref;
+                                        void openSmart(safeHref, href && href !== safeHref ? href : null, label);
                                       }}
                                       target="_blank"
                                       rel="noopener noreferrer"
