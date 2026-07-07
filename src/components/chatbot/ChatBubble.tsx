@@ -972,7 +972,7 @@ function SourceRow({ source: s }: { source: CitedSource }) {
   const handleOpen = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    void openWithFallback(safeUrl, originalUrl);
+    void openSmart(safeUrl, originalUrl, s.title || s.url);
   };
 
   return (
