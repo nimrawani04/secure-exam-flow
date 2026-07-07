@@ -55,12 +55,30 @@ function normalizeUrl(u?: string | null): string {
   return s;
 }
 
-/** Open a source URL directly in a new tab. We skip client-side probing
- *  because cross-origin HEAD requests to cukashmir.ac.in (and most gov.in
- *  sites) fail CORS and would force us onto a blank/fallback tab even when
- *  the real page loads fine. Letting the browser navigate directly means
- *  PDFs open inline, redirects follow, and 404s surface natively. */
-function openWithFallback(primary: string, fallback?: string | null): string | null {
+export type PreviewKind = 'pdf' | 'image' | 'office' | 'html' | 'other';
+
+/** Guess the response content type from the URL extension. Cross-origin HEAD
+ *  requests to cukashmir.ac.in / gov.in sites fail CORS, so we can't read the
+ *  Content-Type header at runtime — extension is the reliable signal. */
+export function detectContentKind(url: string): PreviewKind {
+  if (!url || url === '#') return 'other';
+  let pathname = url;
+  try { pathname = new URL(url, 'https://x').pathname; } catch { /* ignore */ }
+  const ext = pathname.split('.').pop()?.toLowerCase().split(/[?#]/)[0] ?? '';
+  if (ext === 'pdf') return 'pdf';
+  if (['png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext)) return 'image';
+  if (['doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp'].includes(ext)) return 'office';
+  if (['htm','html',''].includes(ext)) return 'html';
+  return 'other';
+}
+
+const PREVIEW_EVENT = 'chat-preview:open';
+
+/** Route a link to the best UX based on detected type:
+ *  - PDF & image → inline viewer dialog (dispatches a custom event).
+ *  - Office docs → Office Web Viewer in a new tab (inline in-browser render).
+ *  - HTML / other → open in new tab (browser handles redirects, 404s natively). */
+function openSmart(primary: string, fallback?: string | null, title?: string): string | null {
   const candidates = [primary, fallback && fallback !== primary ? fallback : null].filter(
     (u): u is string => !!u && u !== '#',
   );
@@ -69,13 +87,27 @@ function openWithFallback(primary: string, fallback?: string | null): string | n
     return null;
   }
   const url = candidates[0];
-  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  const kind = detectContentKind(url);
+
+  if (kind === 'pdf' || kind === 'image') {
+    window.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { url, kind, title, fallback: candidates[1] ?? null } }));
+    return url;
+  }
+
+  let openUrl = url;
+  if (kind === 'office') {
+    openUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  const opened = window.open(openUrl, '_blank', 'noopener,noreferrer');
   if (!opened) {
-    toast.error("Popup blocked — allow popups to open sources.", { description: url });
+    toast.error("Popup blocked — allow popups to open sources.", { description: openUrl });
     return null;
   }
-  return url;
+  return openUrl;
 }
+
+// Back-compat alias for existing call sites.
+const openWithFallback = openSmart;
 
 
 
