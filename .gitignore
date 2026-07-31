@@ -50,3 +50,5 @@ packages/react-devtools-timeline/dist
 *.sln
 *.sw?
 .env
+.env.local
+.env*.local
