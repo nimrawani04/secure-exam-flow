@@ -2,3 +2,6 @@ project_id = "pxzkthustpeqknugeprz"
 
 [functions.admin-users]
 verify_jwt = false
+
+[functions.cuk-doc]
+verify_jwt = false
