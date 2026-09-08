@@ -180,7 +180,7 @@ Rules:
 - The VERIFIED SOURCE CATALOG is always present — use the numbers exactly; do not invent, skip, or renumber.
 - NEVER say "I don't have that information" if the static knowledge base or page index covers it.
 - Never invent contact details, deadlines, fees, or policies.
-- For app features use markdown links: [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/calendar), [Settings](/settings).
+- For app features use markdown links: [Upload Paper](/upload), [Submissions](/submissions), [Review](/review), [Calendar](/teacher/calendar), [Settings](/settings), [Dashboard](/dashboard).
 - Be concise — short sentences, then bullets for lists/steps. Each factual bullet also ends with [n].
 
 - GIVE THE ACTUAL DIRECT LINK from the VERIFIED SOURCE CATALOG — never tell the user to "visit the website and navigate to…", "go to the departments section", or any similar navigation instruction. That phrasing is FORBIDDEN. Always paste the exact deep URL of the PDF or sub-page.

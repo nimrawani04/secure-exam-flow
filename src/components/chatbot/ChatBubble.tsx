@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RequestPdfDialog } from './RequestPdfDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -42,6 +43,28 @@ function newCorrelationId(): string {
     }
   } catch { /* ignore */ }
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Routes that exist inside this app — links to these must navigate in-app,
+ *  never get rewritten to the university website. */
+const APP_ROUTES = [
+  '/dashboard', '/upload', '/submissions', '/review', '/subjects', '/department',
+  '/approved', '/profile', '/settings', '/inbox', '/archive',
+  '/teacher/calendar', '/hod/calendar', '/hod/alerts', '/hod/sessions',
+  '/exam-cell/datesheets', '/exam-cell/sessions', '/exam-cell/alerts',
+  '/admin/users', '/admin/departments', '/admin/audit', '/admin/broadcasts', '/admin/security',
+];
+
+/** Returns the in-app path if the href points at one of our own screens. */
+export function toAppRoute(href?: string | null): string | null {
+  if (!href) return null;
+  const s = String(href).trim();
+  if (!s.startsWith('/') || s.startsWith('//')) return null;
+  const path = s.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  if (APP_ROUTES.includes(path)) return s;
+  // Common alias the assistant may emit.
+  if (path === '/calendar') return '/teacher/calendar';
+  return null;
 }
 
 function normalizeUrl(u?: string | null): string {
@@ -396,6 +419,7 @@ const COURSE_ACTIONS: CourseAction[] = [
 
 export function ChatBubble() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -692,6 +716,24 @@ export function ChatBubble() {
                             <ReactMarkdown
                               components={{
                                 a: ({ href, children }) => {
+                                  const appRoute = toAppRoute(href);
+                                  if (appRoute) {
+                                    return (
+                                      <a
+                                        href={appRoute}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setOpen(false);
+                                          navigate(appRoute);
+                                        }}
+                                        title={`Go to ${appRoute} in this app`}
+                                        className="inline-flex items-center gap-1"
+                                      >
+                                        {children}
+                                      </a>
+                                    );
+                                  }
                                   const isPdf = !!href && /\.pdf(\?|#|$)/i.test(href);
                                   const pageMatch = href?.match(/[#&]page=(\d+)/i);
                                   const hashMatch = href?.match(/#([^&]+)$/);
