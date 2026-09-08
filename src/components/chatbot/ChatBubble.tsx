@@ -44,6 +44,28 @@ function newCorrelationId(): string {
   return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Routes that exist inside this app — links to these must navigate in-app,
+ *  never get rewritten to the university website. */
+const APP_ROUTES = [
+  '/dashboard', '/upload', '/submissions', '/review', '/subjects', '/department',
+  '/approved', '/profile', '/settings', '/inbox', '/archive',
+  '/teacher/calendar', '/hod/calendar', '/hod/alerts', '/hod/sessions',
+  '/exam-cell/datesheets', '/exam-cell/sessions', '/exam-cell/alerts',
+  '/admin/users', '/admin/departments', '/admin/audit', '/admin/broadcasts', '/admin/security',
+];
+
+/** Returns the in-app path if the href points at one of our own screens. */
+export function toAppRoute(href?: string | null): string | null {
+  if (!href) return null;
+  const s = String(href).trim();
+  if (!s.startsWith('/') || s.startsWith('//')) return null;
+  const path = s.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  if (APP_ROUTES.includes(path)) return s;
+  // Common alias the assistant may emit.
+  if (path === '/calendar') return '/teacher/calendar';
+  return null;
+}
+
 function normalizeUrl(u?: string | null): string {
   if (!u) return '#';
   const s = String(u).trim();
