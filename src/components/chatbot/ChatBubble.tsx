@@ -716,6 +716,24 @@ export function ChatBubble() {
                             <ReactMarkdown
                               components={{
                                 a: ({ href, children }) => {
+                                  const appRoute = toAppRoute(href);
+                                  if (appRoute) {
+                                    return (
+                                      <a
+                                        href={appRoute}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setOpen(false);
+                                          navigate(appRoute);
+                                        }}
+                                        title={`Go to ${appRoute} in this app`}
+                                        className="inline-flex items-center gap-1"
+                                      >
+                                        {children}
+                                      </a>
+                                    );
+                                  }
                                   const isPdf = !!href && /\.pdf(\?|#|$)/i.test(href);
                                   const pageMatch = href?.match(/[#&]page=(\d+)/i);
                                   const hashMatch = href?.match(/#([^&]+)$/);
