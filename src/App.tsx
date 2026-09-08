@@ -13,6 +13,7 @@ import Submissions from "./pages/Submissions";
 import Review from "./pages/Review";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Department from "./pages/Department";
 import Subjects from "./pages/Subjects";
 import ApprovedPapers from "./pages/ApprovedPapers";
@@ -54,6 +55,7 @@ const App = () => {
               <Route path="/hod/calendar" element={<HODCalendar />} />
               <Route path="/approved" element={<ApprovedPapers />} />
               <Route path="/teacher/calendar" element={<TeacherCalendar />} />
+              <Route path="/calendar" element={<TeacherCalendar />} />
               
               <Route path="/exam-cell/datesheets" element={<DatesheetManagement />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
@@ -66,7 +68,7 @@ const App = () => {
               <Route path="/admin/broadcasts" element={<Dashboard />} />
               <Route path="/admin/security" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
