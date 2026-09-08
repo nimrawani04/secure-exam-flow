@@ -419,6 +419,7 @@ const COURSE_ACTIONS: CourseAction[] = [
 
 export function ChatBubble() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
