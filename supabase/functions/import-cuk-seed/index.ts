@@ -20,6 +20,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CRAWL_SECRET = Deno.env.get("CRAWL_SECRET") ?? "";
+const IMPORT_SEED_SECRET = Deno.env.get("IMPORT_SEED_SECRET") ?? "";
 
 type SeedRow = {
   url: string;
