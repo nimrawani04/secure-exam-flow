@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
     let body: Record<string, unknown> = {};
     try { body = await req.json(); } catch { /* no body */ }
     const secret = req.headers.get("x-crawl-secret") ?? String(body.secret ?? "");
-    if (!CRAWL_SECRET || secret !== CRAWL_SECRET) {
+    const accepted = [CRAWL_SECRET, IMPORT_SEED_SECRET].filter((s) => s.length > 0);
+    if (accepted.length === 0 || !accepted.includes(secret)) {
       return json({ error: "Unauthorized" }, 401);
     }
 
