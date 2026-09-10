@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RequestPdfDialog } from './RequestPdfDialog';
+import { OfficialPages } from './OfficialPages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
@@ -689,6 +690,7 @@ export function ChatBubble() {
                   sendMessage={sendMessage}
                   disabled={isLoading}
                 />
+                <OfficialPages />
               </div>
             ) : (
               <>
