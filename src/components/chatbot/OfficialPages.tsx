@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  BookOpen, Bell, FileText, GraduationCap, Award, Loader2, ExternalLink, Copy, Check, Download, Search,
+  BookOpen, Bell, FileText, GraduationCap, Award, Loader2, ExternalLink, Copy, Check, Download, Search, RefreshCw,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { normalizeUrl, openSmart, hostnameOf, detectContentKind } from './linkUtils';
