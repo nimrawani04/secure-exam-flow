@@ -468,6 +468,11 @@ export function ChatBubble() {
   const loadingLabel = lastUserMessage && isUniversityQuery(lastUserMessage.content)
     ? 'Searching CUK website...'
     : 'Thinking...';
+  const officialCategory = useMemo(
+    () => (lastUserMessage ? detectCategory(lastUserMessage.content) : null),
+    [lastUserMessage],
+  );
+
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
