@@ -60,16 +60,53 @@ type DocRow = { id: string; url: string; title: string | null; is_pdf: boolean }
 
 const PAGE_SIZE = 60;
 
-function scoreRow(r: DocRow): number {
-  let score = 0;
-  if (r.url.includes('/functions/v1/cuk-doc')) score += 4; // our own imported documents
-  if (r.is_pdf) score += 2;
-  if (r.title && r.title.length > 12) score += 1;
-  return score;
+/**
+ * Maps a free-text question ("B.Tech CSE syllabus") onto one of the official
+ * page tabs so the chat can open the right section instead of a generic list.
+ */
+export function detectCategory(query: string): CategoryId | null {
+  const q = (query || '').toLowerCase();
+  if (!q.trim()) return null;
+  const hit = (words: string[]) => words.some((w) => q.includes(w));
+  if (hit(['previous year', 'previous paper', 'question paper', 'past paper', 'model paper', 'sample paper', 'old paper'])) return 'papers';
+  if (hit(['syllabus', 'syllabi', 'curriculum', 'course structure', 'scheme of'])) return 'syllabus';
+  if (hit(['result', 'gazette', 'marks sheet', 'marksheet'])) return 'results';
+  if (hit(['admission', 'prospectus', 'cuet', 'eligibility', 'entrance', 'apply'])) return 'admission';
+  if (hit(['notification', 'notice', 'circular', 'date sheet', 'datesheet', 'time table', 'timetable'])) return 'notifications';
+  return null;
 }
 
-export function OfficialPages({ compact = false }: { compact?: boolean }) {
-  const [active, setActive] = useState<CategoryId>('syllabus');
+const STOP_WORDS = new Set([
+  'the', 'for', 'and', 'what', 'whats', 'where', 'how', 'give', 'show', 'me', 'my', 'is', 'are', 'of', 'in',
+  'to', 'can', 'you', 'please', 'find', 'get', 'link', 'links', 'document', 'documents', 'pdf', 'pdfs',
+  'cuk', 'cukashmir', 'university', 'kashmir', 'central', 'sem', 'semester', 'syllabus', 'syllabi',
+  'notification', 'notifications', 'notice', 'result', 'results', 'admission', 'paper', 'papers',
+  'previous', 'year', 'question', 'download', 'downloads', 'official', 'page', 'pages', 'exam',
+]);
+
+/** Picks the most distinctive words from a question to pre-filter the list. */
+function filterTermsFromQuery(query: string): string[] {
+  return (query || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9.\s]/g, ' ')
+    .split(/\s+/)
+    .map((w) => w.replace(/^\.+|\.+$/g, ''))
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w))
+    .slice(0, 4);
+}
+
+export function OfficialPages({
+  compact = false,
+  initialCategory,
+  query,
+}: {
+  compact?: boolean;
+  /** Tab to open — used when the chat detects the question's intent. */
+  initialCategory?: CategoryId;
+  /** The question that triggered this panel; narrows the list when it matches. */
+  query?: string;
+}) {
+  const [active, setActive] = useState<CategoryId>(initialCategory ?? 'syllabus');
   const [rows, setRows] = useState<DocRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +114,13 @@ export function OfficialPages({ compact = false }: { compact?: boolean }) {
   const [showAll, setShowAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Follow the chat: a new question with a detected intent re-opens that tab.
+  useEffect(() => {
+    if (initialCategory) setActive(initialCategory);
+  }, [initialCategory]);
+
   const category = CATEGORIES.find((c) => c.id === active) ?? CATEGORIES[0];
+
 
   const load = useCallback(async () => {
     setLoading(true);
