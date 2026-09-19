@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RequestPdfDialog } from './RequestPdfDialog';
-import { OfficialPages } from './OfficialPages';
+import { OfficialPages, detectCategory } from './OfficialPages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export type CitedSource = { index: number; title: string; url: string; isPdf?: boolean };
@@ -468,6 +468,11 @@ export function ChatBubble() {
   const loadingLabel = lastUserMessage && isUniversityQuery(lastUserMessage.content)
     ? 'Searching CUK website...'
     : 'Thinking...';
+  const officialCategory = useMemo(
+    () => (lastUserMessage ? detectCategory(lastUserMessage.content) : null),
+    [lastUserMessage],
+  );
+
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -843,6 +848,18 @@ export function ChatBubble() {
                     ))}
                   </div>
                 )}
+
+                {/* Official pages, opened on the tab that matches the question */}
+                {!isLoading && officialCategory && (
+                  <div className="pl-8">
+                    <OfficialPages
+                      compact
+                      initialCategory={officialCategory}
+                      query={lastUserMessage?.content}
+                    />
+                  </div>
+                )}
+
               </>
             )}
             {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
