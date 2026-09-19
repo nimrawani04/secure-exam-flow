@@ -151,9 +151,22 @@ export function OfficialPages({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className={cn('w-full text-left', compact ? '' : 'max-w-[300px] pt-2')}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Official pages &amp; documents
-      </p>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Official pages &amp; documents
+        </p>
+        <button
+          type="button"
+          onClick={refreshIndex}
+          disabled={refreshing}
+          title="Refresh official pages"
+          aria-label="Refresh official pages"
+          className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-1 text-[10px] font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+        >
+          <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
 
       <div className="grid grid-cols-3 gap-1.5 mb-2">
         {CATEGORIES.map((c) => {
