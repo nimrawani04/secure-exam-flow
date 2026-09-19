@@ -843,6 +843,18 @@ export function ChatBubble() {
                     ))}
                   </div>
                 )}
+
+                {/* Official pages, opened on the tab that matches the question */}
+                {!isLoading && officialCategory && (
+                  <div className="pl-8">
+                    <OfficialPages
+                      compact
+                      initialCategory={officialCategory}
+                      query={lastUserMessage?.content}
+                    />
+                  </div>
+                )}
+
               </>
             )}
             {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
