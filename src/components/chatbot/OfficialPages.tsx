@@ -60,6 +60,16 @@ type DocRow = { id: string; url: string; title: string | null; is_pdf: boolean }
 
 const PAGE_SIZE = 60;
 
+function scoreRow(r: DocRow): number {
+  let score = 0;
+  if (r.url.includes('/functions/v1/cuk-doc')) score += 4; // our own imported documents
+  if (r.is_pdf) score += 2;
+  if (r.title && r.title.length > 12) score += 1;
+  return score;
+}
+
+
+
 /**
  * Maps a free-text question ("B.Tech CSE syllabus") onto one of the official
  * page tabs so the chat can open the right section instead of a generic list.
