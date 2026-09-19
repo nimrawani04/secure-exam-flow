@@ -75,48 +75,71 @@ export function OfficialPages({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const category = CATEGORIES.find((c) => c.id === active) ?? CATEGORIES[0];
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setShowAll(false);
 
     const orExpr = category.terms
       .flatMap((t) => [`title.ilike.%${t}%`, `url.ilike.%${t}%`])
       .join(',');
 
-    supabase
+    const { data, error: err } = await supabase
       .from('cuk_pages')
       .select('id, url, title, is_pdf')
       .is('removed_at', null)
       .or(orExpr)
       .order('is_pdf', { ascending: false })
       .order('last_crawled_at', { ascending: false })
-      .limit(PAGE_SIZE)
-      .then(({ data, error: err }) => {
-        if (cancelled) return;
-        if (err) {
-          setError('Could not load official documents right now.');
-          setRows([]);
-        } else {
-          const seen = new Set<string>();
-          const unique = (data ?? []).filter((r) => {
-            const key = (r.url || '').replace(/[?#].*$/, '').toLowerCase();
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          }) as DocRow[];
-          unique.sort((a, b) => scoreRow(b) - scoreRow(a));
-          setRows(unique);
-        }
-        setLoading(false);
-      });
+      .limit(PAGE_SIZE);
 
-    return () => { cancelled = true; };
+    if (err) {
+      setError('Could not load official documents right now.');
+      setRows([]);
+    } else {
+      const seen = new Set<string>();
+      const unique = (data ?? []).filter((r) => {
+        const key = (r.url || '').replace(/[?#].*$/, '').toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }) as DocRow[];
+      unique.sort((a, b) => scoreRow(b) - scoreRow(a));
+      setRows(unique);
+    }
+    setLoading(false);
   }, [category]);
+
+  useEffect(() => {
+    setShowAll(false);
+    void load();
+  }, [load]);
+
+  const refreshIndex = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const toastId = toast.loading('Refreshing official pages… this can take a minute.');
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('refresh-official-pages', {
+        body: {},
+      });
+      if (fnError) throw fnError;
+      const message = (data as { error?: string } | null)?.error;
+      if (message) throw new Error(message);
+      await load();
+      toast.success('Official pages updated.', { id: toastId });
+    } catch (e) {
+      toast.error(
+        e instanceof Error && e.message ? e.message : 'Could not refresh official pages.',
+        { id: toastId },
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, load]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
