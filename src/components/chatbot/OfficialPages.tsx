@@ -171,6 +171,18 @@ export function OfficialPages({
     void load();
   }, [load]);
 
+  // When the chat passes the question along, narrow the list to the words that
+  // actually match something (e.g. "cse", "b.tech") and otherwise show all.
+  useEffect(() => {
+    if (!query) return;
+    const terms = filterTermsFromQuery(query);
+    const match = terms.find((t) =>
+      rows.some((r) => `${r.title ?? ''} ${r.url}`.toLowerCase().includes(t)),
+    );
+    setFilter(match ?? '');
+  }, [query, rows]);
+
+
   const refreshIndex = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
