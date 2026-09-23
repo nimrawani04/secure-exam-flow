@@ -21,6 +21,7 @@ import HODExamSessions from "./pages/HODExamSessions";
 import HODCalendar from "./pages/HODCalendar";
 import TeacherCalendar from "./pages/TeacherCalendar";
 import DatesheetManagement from "./pages/DatesheetManagement";
+import ExaminerPanels from "./pages/ExaminerPanels";
 import { applyStoredAccent } from "./lib/theme";
 import { DeepLinkHandler } from "./components/DeepLinkHandler";
 
@@ -57,6 +58,8 @@ const App = () => {
               <Route path="/teacher/calendar" element={<TeacherCalendar />} />
               <Route path="/calendar" element={<TeacherCalendar />} />
               
+              <Route path="/hod/panels" element={<ExaminerPanels />} />
+              <Route path="/exam-cell/panels" element={<ExaminerPanels />} />
               <Route path="/exam-cell/datesheets" element={<DatesheetManagement />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
               <Route path="/exam-cell/alerts" element={<Dashboard />} />

@@ -20,6 +20,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -40,9 +41,11 @@ const roleNavItems = {
     { icon: Users, label: 'Department', path: '/department' },
     { icon: Bell, label: 'Teacher Alerts', path: '/hod/alerts' },
     { icon: Archive, label: 'Approved Papers', path: '/approved' },
+    { icon: UserCheck, label: 'Choose Panel', path: '/hod/panels' },
   ],
   exam_cell: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: UserCheck, label: 'Examiner Panels', path: '/exam-cell/panels' },
     { icon: FileCheck, label: 'Datesheets', path: '/exam-cell/datesheets' },
     { icon: Bell, label: 'HOD Alerts', path: '/exam-cell/alerts' },
     { icon: FileText, label: 'Papers Inbox', path: '/inbox' },
