@@ -411,6 +411,131 @@ export type Database = {
         }
         Relationships: []
       }
+      examiner_panel_members: {
+        Row: {
+          contact_details: string | null
+          created_at: string
+          designation: string | null
+          id: string
+          name: string
+          panel_id: string
+          position: number
+          postal_address: string | null
+          specialization: string | null
+          status: string | null
+        }
+        Insert: {
+          contact_details?: string | null
+          created_at?: string
+          designation?: string | null
+          id?: string
+          name: string
+          panel_id: string
+          position?: number
+          postal_address?: string | null
+          specialization?: string | null
+          status?: string | null
+        }
+        Update: {
+          contact_details?: string | null
+          created_at?: string
+          designation?: string | null
+          id?: string
+          name?: string
+          panel_id?: string
+          position?: number
+          postal_address?: string | null
+          specialization?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "examiner_panel_members_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "examiner_panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      examiner_panels: {
+        Row: {
+          course_code: string | null
+          course_title: string | null
+          created_at: string
+          created_by: string
+          dean_name: string | null
+          department_id: string
+          department_label: string | null
+          head_name: string | null
+          id: string
+          notes: string | null
+          programme: string | null
+          school: string | null
+          semester: string | null
+          sent_at: string | null
+          session_label: string | null
+          status: string
+          subject_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          course_code?: string | null
+          course_title?: string | null
+          created_at?: string
+          created_by: string
+          dean_name?: string | null
+          department_id: string
+          department_label?: string | null
+          head_name?: string | null
+          id?: string
+          notes?: string | null
+          programme?: string | null
+          school?: string | null
+          semester?: string | null
+          sent_at?: string | null
+          session_label?: string | null
+          status?: string
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          course_code?: string | null
+          course_title?: string | null
+          created_at?: string
+          created_by?: string
+          dean_name?: string | null
+          department_id?: string
+          department_label?: string | null
+          head_name?: string | null
+          id?: string
+          notes?: string | null
+          programme?: string | null
+          school?: string | null
+          semester?: string | null
+          sent_at?: string | null
+          session_label?: string | null
+          status?: string
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "examiner_panels_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "examiner_panels_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exams: {
         Row: {
           created_at: string
