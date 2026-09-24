@@ -176,7 +176,7 @@ export function OfficialPages({
   // Only auto-filter on the tab the chat intent detected — switching tabs or
   // refreshing must not overwrite the user's own search text.
   useEffect(() => {
-    if (!query || active !== (initialCategory ?? active)) return;
+    if (!query || !initialCategory || active !== initialCategory) return;
     const terms = filterTermsFromQuery(query);
     const match = terms.find((t) =>
       rows.some((r) => `${r.title ?? ''} ${r.url}`.toLowerCase().includes(t)),
