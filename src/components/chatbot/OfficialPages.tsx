@@ -173,14 +173,16 @@ export function OfficialPages({
 
   // When the chat passes the question along, narrow the list to the words that
   // actually match something (e.g. "cse", "b.tech") and otherwise show all.
+  // Only auto-filter on the tab the chat intent detected — switching tabs or
+  // refreshing must not overwrite the user's own search text.
   useEffect(() => {
-    if (!query) return;
+    if (!query || active !== (initialCategory ?? active)) return;
     const terms = filterTermsFromQuery(query);
     const match = terms.find((t) =>
       rows.some((r) => `${r.title ?? ''} ${r.url}`.toLowerCase().includes(t)),
     );
     setFilter(match ?? '');
-  }, [query, rows]);
+  }, [query, rows, active, initialCategory]);
 
 
   const refreshIndex = useCallback(async () => {
@@ -241,7 +243,7 @@ export function OfficialPages({
             <button
               key={c.id}
               type="button"
-              onClick={() => setActive(c.id)}
+              onClick={() => { setActive(c.id); setFilter(''); }}
               aria-pressed={isActive}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 text-[10px] px-1.5 py-1.5 rounded-md border transition-colors',
