@@ -93,10 +93,7 @@ export default function Auth() {
 
   useEffect(() => {
     const fetchDepartments = async () => {
-      const { data, error } = await supabase
-        .from('departments')
-        .select('*')
-        .order('name');
+      const { data, error } = await (supabase.rpc as any)('list_public_departments');
       
       if (!error && data) {
         setDepartments(data);
