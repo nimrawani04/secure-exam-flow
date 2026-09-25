@@ -44,5 +44,152 @@ export const IT_PROGRAMMES: CatalogProgramme[] = [
   { name: 'PhD', semesters: [], manual: true },
 ];
 
+export const ROMAN_NUMERALS: Record<string, number> = {
+  I: 1,
+  II: 2,
+  III: 3,
+  IV: 4,
+  V: 5,
+  VI: 6,
+  VII: 7,
+  VIII: 8,
+  IX: 9,
+  X: 10,
+};
+
+export const getSemesterNumber = (label: string): number => {
+  const clean = label.trim().toUpperCase();
+  if (ROMAN_NUMERALS[clean]) return ROMAN_NUMERALS[clean];
+  const parsed = parseInt(clean, 10);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+export const isSemesterMatchingSession = (semesterLabel: string, sessionLabel: string): boolean => {
+  if (!sessionLabel) return true;
+  const s = sessionLabel.toLowerCase();
+  const num = getSemesterNumber(semesterLabel);
+  if (num === 0) return true;
+  if (s.includes('jan')) {
+    return num % 2 === 0; // Even semesters for January session
+  }
+  if (s.includes('dec')) {
+    return num % 2 !== 0; // Odd semesters for December session
+  }
+  return true;
+};
+
+export interface TeacherPoolItem {
+  id?: string;
+  email?: string;
+  name: string;
+  designation: string;
+  specialization: string;
+  postal_address: string;
+  contact_details: string;
+  status?: string;
+}
+
+export const DEFAULT_TEACHER_POOL: TeacherPoolItem[] = [
+  {
+    email: 'nazimayousuf60@gmail.com',
+    name: 'Nazima Yousuf',
+    designation: 'Teaching Assistant',
+    specialization: 'Computer Science and Engineering',
+    postal_address: 'Central University of kashmir Tulmulla',
+    contact_details: '9149945991 / nazimayousuf60@gmail.com',
+    status: '',
+  },
+  {
+    email: 'shahid.sultan@cukashmir.ac.in',
+    name: 'Dr. Shahid Sultan',
+    designation: 'Assistant Professor',
+    specialization: 'Resource optimization',
+    postal_address: 'Department of Information Technology, Central University of Kashmir, Tulmulla Ganderbal 191131',
+    contact_details: '7006687396 / shahid.sultan@cukashmir.ac.in',
+    status: '',
+  },
+  {
+    email: 'peermuniba70@gmail.com',
+    name: 'Dr. Muneeba Afzal Mukhdoomi',
+    designation: 'Guest Faculty',
+    specialization: 'Artificial Intelligence, Machine Learning',
+    postal_address: 'Sikh bagh, Lal bazaar srinagar',
+    contact_details: '9103737100 / peermuniba70@gmail.com',
+    status: '',
+  },
+  {
+    email: 'yashpaulcuk@gmail.com',
+    name: 'Yash Paul',
+    designation: 'Assistant professor',
+    specialization: 'AI/ML',
+    postal_address: 'V.P.O, BADHOLE, TEH. RAMNAGAR, DISTT. UDHAMPUR, JAMMU AND KASHMIR',
+    contact_details: '7006 934 028 / yashpaulcuk@gmail.com',
+    status: '',
+  },
+  {
+    email: 'azmijaan@gmail.com',
+    name: 'Azrah Rubanee',
+    designation: 'Guest faculty',
+    specialization: 'MTech in ECE',
+    postal_address: 'Rangpora Saloora ganderbal',
+    contact_details: '7889450832 / azmijaan@gmail.com',
+    status: '',
+  },
+  {
+    email: 'ajaz.maths@gmail.com',
+    name: 'AJAZ HUSSAIN RATHER',
+    designation: 'Guest faculty',
+    specialization: 'Mathematics',
+    postal_address: 'Manigam Ganderbal',
+    contact_details: '7006710109 / ajaz.maths@gmail.com',
+    status: '',
+  },
+  {
+    email: 'afaqalamkhan@cukashmir.ac.in',
+    name: 'Afaq Alam Khan',
+    designation: 'Assistant Professor',
+    specialization: 'Data Science',
+    postal_address: 'Department of Information Technology, Central University of Kashmir, Tulmulla, Ganderbal, J&k',
+    contact_details: '9469054115 / afaqalamkhan@cukashmir.ac.in',
+    status: '',
+  },
+  {
+    email: 'zahoornejar@cukashmir.ac.in',
+    name: 'Dr. Zahoor Ahmad Najar',
+    designation: 'Sr. Assistant Professor',
+    specialization: 'computer networks, Network security',
+    postal_address: 'Department of Information Technology Central University of Kashmir Tulla Mulla Ganderbal 191131',
+    contact_details: '94195 05159 / zahoornejar@cukashmir.ac.in',
+    status: '',
+  },
+  {
+    email: 'khanishrat173@gmail.com',
+    name: 'Ishrat Khan',
+    designation: 'Assistant professor (Guest Faculty)',
+    specialization: 'Artificial Intelligence',
+    postal_address: 'Benhama Ganderbal, J&K',
+    contact_details: '9149999428 / khanishrat173@gmail.com',
+    status: '',
+  },
+  {
+    email: 'shah.faixu123@gmail.com',
+    name: 'Shah Faisal',
+    designation: 'Guest Faculty',
+    specialization: 'Computer Science and Engineering',
+    postal_address: 'Department of Information Technology, CUK, Tulmullah',
+    contact_details: '9682345443 / shah.faixu123@gmail.com',
+    status: '',
+  },
+  {
+    email: 'amjed.husain@gmail.com',
+    name: 'Amjad Husain',
+    designation: 'Assistant Professor',
+    specialization: 'Algorithms and Data structures, Programming, Network Security, Machine Learning.',
+    postal_address: 'Department of IT, Tullmulla , Central University of Kashmir',
+    contact_details: '9149725792 / amjed.husain@gmail.com',
+    status: '',
+  },
+];
+
 export const courseKey = (code: string | null | undefined, title: string | null | undefined) =>
   `${(code || '').trim()}::${(title || '').trim()}`.toLowerCase();

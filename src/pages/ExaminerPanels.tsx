@@ -10,7 +10,15 @@ import {
   type ExaminerPanel,
 } from '@/hooks/useExaminerPanels';
 import { downloadPanelTemplate, parsePanelWorkbook, exportPanelPdf, exportPanelsPdf } from '@/lib/panelExport';
-import { IT_DEPARTMENT, IT_PROGRAMMES, IT_SCHOOL, SESSION_OPTIONS, courseKey } from '@/lib/itCatalog';
+import {
+  IT_DEPARTMENT,
+  IT_PROGRAMMES,
+  IT_SCHOOL,
+  SESSION_OPTIONS,
+  DEFAULT_TEACHER_POOL,
+  isSemesterMatchingSession,
+  courseKey,
+} from '@/lib/itCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,14 +67,61 @@ export default function ExaminerPanels() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadPool = async () => {
-    const { data } = await supabase.from('panel_examiner_pool').select('*').order('created_at');
-    setPool((data as PoolTeacher[]) || []);
+    try {
+      const { data } = await supabase.from('panel_examiner_pool').select('*').order('created_at');
+      const dbPool = (data as PoolTeacher[]) || [];
+      const dbNames = new Set(dbPool.map((t) => t.name.trim().toLowerCase()));
+
+      const defaultsToAdd: PoolTeacher[] = DEFAULT_TEACHER_POOL.filter(
+        (dt) => !dbNames.has(dt.name.trim().toLowerCase())
+      ).map((dt, idx) => ({
+        id: `default-${idx}`,
+        name: dt.name,
+        designation: dt.designation,
+        specialization: dt.specialization,
+        postal_address: dt.postal_address,
+        contact_details: dt.contact_details,
+        status: dt.status || null,
+      }));
+
+      setPool([...dbPool, ...defaultsToAdd]);
+    } catch (e) {
+      console.warn('Using default teacher list:', e);
+      setPool(
+        DEFAULT_TEACHER_POOL.map((dt, idx) => ({
+          id: `default-${idx}`,
+          name: dt.name,
+          designation: dt.designation,
+          specialization: dt.specialization,
+          postal_address: dt.postal_address,
+          contact_details: dt.contact_details,
+          status: dt.status || null,
+        }))
+      );
+    }
   };
+
   useEffect(() => {
     if (isHod) loadPool();
   }, [isHod]);
 
   const programme = IT_PROGRAMMES.find((p) => p.name === header.programme);
+
+  const availableSemesters = useMemo(() => {
+    if (!programme || programme.manual) return [];
+    return programme.semesters.filter((s) =>
+      isSemesterMatchingSession(s.label, header.session_label)
+    );
+  }, [programme, header.session_label]);
+
+  useEffect(() => {
+    if (header.semester && !programme?.manual && availableSemesters.length > 0) {
+      const exists = availableSemesters.some((s) => s.label === header.semester);
+      if (!exists) {
+        setHeader((h) => ({ ...h, semester: '', course_code: '', course_title: '' }));
+      }
+    }
+  }, [availableSemesters, header.semester, programme?.manual]);
 
   const doneKeys = useMemo(() => {
     const set = new Set<string>();
@@ -80,20 +135,49 @@ export default function ExaminerPanels() {
 
   const semesterInfo = useMemo(() => {
     if (!programme) return [];
-    let prevComplete = true;
-    return programme.semesters.map((s) => {
-      const complete = s.courses.every((x) => doneKeys.has(`${s.label}|${courseKey(x.code, x.title)}`));
-      const unlocked = prevComplete;
-      prevComplete = prevComplete && complete;
-      return { label: s.label, complete, unlocked };
+
+    const stats = availableSemesters.map((s) => {
+      const totalCourses = s.courses.length;
+      const doneCourses = s.courses.filter((x) =>
+        doneKeys.has(`${s.label}|${courseKey(x.code, x.title)}`)
+      ).length;
+      const complete = totalCourses > 0 && doneCourses === totalCourses;
+      const inProgress = doneCourses > 0 && !complete;
+      return { label: s.label, totalCourses, doneCourses, complete, inProgress };
     });
-  }, [programme, doneKeys]);
+
+    const inProgressSem = stats.find((st) => st.inProgress);
+
+    return stats.map((st) => {
+      let unlocked = false;
+      if (inProgressSem) {
+        // Until the chosen semester is completed, others cannot be chosen
+        unlocked = st.label === inProgressSem.label;
+      } else {
+        // Unstarted semesters can be chosen in any random order
+        unlocked = !st.complete;
+      }
+
+      if (editingId && header.semester === st.label) {
+        unlocked = true;
+      }
+
+      return {
+        label: st.label,
+        complete: st.complete,
+        inProgress: st.inProgress,
+        unlocked,
+      };
+    });
+  }, [programme, availableSemesters, doneKeys, editingId, header.semester]);
 
   const remainingCourses = useMemo(() => {
-    const sem = programme?.semesters.find((s) => s.label === header.semester);
+    const sem =
+      availableSemesters.find((s) => s.label === header.semester) ||
+      programme?.semesters.find((s) => s.label === header.semester);
     if (!sem) return [];
     return sem.courses.filter((x) => !doneKeys.has(`${sem.label}|${courseKey(x.code, x.title)}`));
-  }, [programme, header.semester, doneKeys]);
+  }, [availableSemesters, programme, header.semester, doneKeys]);
 
   const semesterGroups = useMemo(() => {
     const map = new Map<string, { key: string; label: string; panels: ExaminerPanel[] }>();
