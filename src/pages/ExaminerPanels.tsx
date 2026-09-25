@@ -178,6 +178,10 @@ export default function ExaminerPanels() {
   };
 
   const handleSave = async () => {
+    if (!header.session_label || !header.programme || !header.semester || !header.course_title) {
+      toast.error('Choose the session, programme, semester and course first');
+      return;
+    }
     setSaving(true);
     const id = await savePanel(header, members, editingId);
     setSaving(false);
