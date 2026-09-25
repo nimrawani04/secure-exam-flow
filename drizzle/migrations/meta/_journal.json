@@ -15,6 +15,13 @@
       "when": 1790227306065,
       "tag": "0001_tighten_reference_table_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790297162836,
+      "tag": "0002_create_panel_examiner_pool",
+      "breakpoints": true
     }
   ]
 }

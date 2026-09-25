@@ -51,6 +51,21 @@ export async function parsePanelWorkbook(file: File): Promise<PanelMember[]> {
 
 export function exportPanelPdf(panel: ExaminerPanel) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  drawPanel(doc, panel);
+  doc.save(`panel-of-examiners-${panel.course_code || 'course'}.pdf`);
+}
+
+export function exportPanelsPdf(panels: ExaminerPanel[], fileName: string) {
+  if (panels.length === 0) return;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  panels.forEach((p, i) => {
+    if (i > 0) doc.addPage();
+    drawPanel(doc, p);
+  });
+  doc.save(fileName);
+}
+
+function drawPanel(doc: jsPDF, panel: ExaminerPanel) {
   const width = doc.internal.pageSize.getWidth();
 
   doc.setFont('times', 'bold');
@@ -67,7 +82,7 @@ export function exportPanelPdf(panel: ExaminerPanel) {
   line(80, `School : ${panel.school || '-'}`, `Department : ${panel.department_label || '-'}`);
   line(98, `Semester : ${panel.semester || '-'}`, `Session : ${panel.session_label || '-'}`);
   line(116, `Programme : ${panel.programme || '-'}`, `Course Code : ${panel.course_code || '-'}`);
-  doc.text(`Course Title : ${panel.course_title || '-'}`, left, 134);
+  doc.text(doc.splitTextToSize(`Course Title : ${panel.course_title || '-'}`, width - 80), left, 134);
 
   autoTable(doc, {
     startY: 150,
@@ -87,7 +102,11 @@ export function exportPanelPdf(panel: ExaminerPanel) {
     margin: { left: 40, right: 40 },
   });
 
-  const endY = (doc as any).lastAutoTable?.finalY ?? 300;
+  let endY = (doc as any).lastAutoTable?.finalY ?? 300;
+  if (endY + 140 > doc.internal.pageSize.getHeight()) {
+    doc.addPage();
+    endY = 20;
+  }
   doc.setFontSize(11);
   doc.setFont('times', 'bold');
   doc.text(
@@ -103,6 +122,4 @@ export function exportPanelPdf(panel: ExaminerPanel) {
 
   doc.text(`(Signature of Head/Co-ordinator)  ${panel.head_name || ''}`, left + 40, endY + 120);
   doc.text(`(Signature of the Dean of School)  ${panel.dean_name || ''}`, right, endY + 120);
-
-  doc.save(`panel-of-examiners-${panel.course_code || 'course'}.pdf`);
 }
