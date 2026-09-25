@@ -661,6 +661,56 @@ export type Database = {
         }
         Relationships: []
       }
+      panel_examiner_pool: {
+        Row: {
+          contact_details: string | null
+          created_at: string
+          created_by: string | null
+          department_id: string
+          designation: string | null
+          email: string | null
+          id: string
+          name: string
+          postal_address: string | null
+          specialization: string | null
+          status: string | null
+        }
+        Insert: {
+          contact_details?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id: string
+          designation?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          postal_address?: string | null
+          specialization?: string | null
+          status?: string | null
+        }
+        Update: {
+          contact_details?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string
+          designation?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          postal_address?: string | null
+          specialization?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panel_examiner_pool_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paper_requests: {
         Row: {
           created_at: string
