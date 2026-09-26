@@ -6,6 +6,7 @@ import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { openCookiePreferences } from '@/components/CookieConsent';
 
 interface Department {
   id: string;
@@ -335,6 +336,20 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      
+      <footer className="w-full py-4 text-center text-xs text-muted-foreground bg-background/80 border-t backdrop-blur">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-2 px-4">
+          <p>© {new Date().getFullYear()} Central University of Kashmir. All rights reserved.</p>
+          <button
+            type="button"
+            onClick={openCookiePreferences}
+            className="hover:text-foreground underline underline-offset-4 transition-colors"
+          >
+            Cookie Preferences
+          </button>
+        </div>
+      </footer>
+
       <ForgotPasswordDialog open={showForgotPassword} onOpenChange={setShowForgotPassword} />
     </div>
   );

@@ -1,6 +1,9 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { openCookiePreferences } from '@/components/CookieConsent';
+import { Cookie } from 'lucide-react';
 
 export default function Settings() {
   const { profile } = useAuth();
@@ -11,7 +14,7 @@ export default function Settings() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your account preferences and appearance.
+            Manage your account preferences, appearance, and privacy.
           </p>
         </div>
 
@@ -50,6 +53,23 @@ export default function Settings() {
             </p>
           </div>
           <ThemeToggle />
+        </div>
+
+        <div className="rounded-2xl border bg-card p-6 shadow-card space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Privacy & Cookies</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage your cookie preferences and secure data consent.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={openCookiePreferences}
+            className="flex items-center gap-2"
+          >
+            <Cookie className="w-4 h-4 text-primary" />
+            Manage Cookie Preferences
+          </Button>
         </div>
       </div>
     </DashboardLayout>
