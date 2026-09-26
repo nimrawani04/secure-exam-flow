@@ -20,7 +20,6 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,11 +40,9 @@ const roleNavItems = {
     { icon: Users, label: 'Department', path: '/department' },
     { icon: Bell, label: 'Teacher Alerts', path: '/hod/alerts' },
     { icon: Archive, label: 'Approved Papers', path: '/approved' },
-    { icon: UserCheck, label: 'Choose Panel', path: '/hod/panels' },
   ],
   exam_cell: [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: UserCheck, label: 'Examiner Panels', path: '/exam-cell/panels' },
     { icon: FileCheck, label: 'Datesheets', path: '/exam-cell/datesheets' },
     { icon: Bell, label: 'HOD Alerts', path: '/exam-cell/alerts' },
     { icon: FileText, label: 'Papers Inbox', path: '/inbox' },
@@ -75,23 +72,14 @@ export function Sidebar({
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
 
+  // Fetch pending paper requests count for HOD
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  // Fetch pending calendar submissions count for teacher
   const [pendingCalendarCount, setPendingCalendarCount] = useState(0);
+  // Fetch review_requested papers count for exam_cell
   const [reviewRequestedCount, setReviewRequestedCount] = useState(0);
+  // Fetch unread notifications count for exam_cell (HOD Alerts)
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
-  const [departmentName, setDepartmentName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!profile?.department_id) {
-      setDepartmentName(null);
-      return;
-    }
-    const fetchDept = async () => {
-      const { data } = await supabase.from('departments').select('name').eq('id', profile.department_id!).single();
-      if (data) setDepartmentName(data.name);
-    };
-    fetchDept();
-  }, [profile?.department_id]);
 
   useEffect(() => {
     if (profile?.role !== 'hod' || !profile?.department_id) return;
@@ -117,6 +105,7 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role, profile?.department_id]);
 
+  // Teacher: count pending sessions (sessions where teacher hasn't submitted a paper)
   useEffect(() => {
     if (profile?.role !== 'teacher') return;
 
@@ -124,6 +113,7 @@ export function Sidebar({
       const { data: user } = await supabase.auth.getUser();
       if (!user?.user) return;
 
+      // Get teacher's subject IDs
       const { data: assignments } = await supabase
         .from('teacher_subjects')
         .select('subject_id')
@@ -132,6 +122,7 @@ export function Sidebar({
       const subjectIds = (assignments || []).map((a) => a.subject_id);
       if (subjectIds.length === 0) { setPendingCalendarCount(0); return; }
 
+      // Get active sessions for those subjects
       const { data: sessions } = await supabase
         .from('department_exam_sessions')
         .select('id, subject_id, exam_type, submission_deadline')
@@ -140,9 +131,11 @@ export function Sidebar({
 
       if (!sessions || sessions.length === 0) { setPendingCalendarCount(0); return; }
 
+      // Check which sessions have a paper uploaded by this teacher
       let pending = 0;
       const now = new Date();
       for (const s of sessions) {
+        // Only count sessions with deadline in the future or within 1 day past
         const deadline = new Date(s.submission_deadline);
         if (deadline.getTime() < now.getTime() - 86400000) continue;
 
@@ -175,6 +168,7 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
+  // Exam cell: count locked + review_requested papers (papers sent by HODs)
   useEffect(() => {
     if (profile?.role !== 'exam_cell') return;
 
@@ -198,6 +192,7 @@ export function Sidebar({
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role]);
 
+  // Exam cell: count unread notifications (HOD Alerts) using per-user notification_reads
   useEffect(() => {
     if (profile?.role !== 'exam_cell') return;
 
@@ -256,30 +251,35 @@ export function Sidebar({
   };
 
   const getInitials = () => {
-    const parts = (profile.full_name || 'U').trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return profile.full_name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
   };
 
   return (
     <aside
       className={cn(
-        'flex flex-col shrink-0 bg-white dark:bg-[#0d1420] text-[#18202e] dark:text-[#e2eaf4] border-r border-[#e8e2da] dark:border-[#1c2d3d]',
+        'bg-sidebar text-sidebar-foreground flex flex-col',
         isMobile
           ? 'w-full h-full'
-          : cn('fixed left-0 top-0 h-screen z-40 transition-all duration-200', collapsed ? 'w-20' : 'w-[232px]'),
+          : cn('fixed left-0 top-0 h-screen z-40 transition-all duration-200', collapsed ? 'w-20' : 'w-64'),
         className
       )}
     >
-      {/* Brand */}
-      <div className={cn('relative pt-[22px] pb-[18px]', collapsed && !isMobile ? 'px-3' : 'px-4')}>
+      {/* Logo */}
+      <div className="p-6 relative z-50">
         {!isMobile && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="absolute -right-3.5 top-6 z-50 h-8 w-8 rounded-full border-2 border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#0d1420] shadow-xl transition-all hover:scale-110 hover:border-[#0d7a6b] dark:hover:border-[#2dd4bf]"
+                className={cn(
+                  'absolute -right-3.5 top-6 z-50 h-8 w-8 rounded-full border-2 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl transition-all',
+                  'hover:bg-sidebar-accent hover:scale-110 hover:border-sidebar-primary'
+                )}
                 aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {collapsed ? <ChevronRight className="h-4 w-4 mx-auto" /> : <ChevronLeft className="h-4 w-4 mx-auto" />}
@@ -289,41 +289,37 @@ export function Sidebar({
           </Tooltip>
         )}
 
-        <div className={cn('flex items-center gap-2.5 mb-4', collapsed && !isMobile && 'justify-center mb-0')}>
-          <div className="w-9 h-9 rounded-[10px] shrink-0 overflow-hidden border border-[#e8e2da] dark:border-[#1c2d3d] bg-white flex items-center justify-center">
-            <img src="/cuk-favicon.png" alt="CUK Logo" className="w-8 h-8 object-contain" />
+        <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
+          <div className="flex items-center justify-center">
+            <img src="/cuk-favicon.png" alt="CUK Logo" className="w-10 h-10 object-contain" />
           </div>
-          {(!collapsed || isMobile) && (
-            <div className="min-w-0">
-              <p className="font-serif text-[16px] leading-[1.2] tracking-[-0.02em] truncate">ExamSecure</p>
-              <p className="text-[10.5px] text-[#a0aec0] dark:text-[#3d5166] tracking-[0.04em]">
-                {profile.role === 'hod' ? 'HOD Portal' : getRoleBadge()}
-              </p>
+          {!collapsed && (
+            <div>
+              <h1 className="font-bold text-lg">ExamSecure</h1>
+              <p className="text-xs text-sidebar-foreground/60">Paper Management</p>
             </div>
           )}
         </div>
-        {(!collapsed || isMobile) && (
-          <div className="px-3 py-[9px] rounded-[8px] bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border border-[rgba(13,122,107,0.15)]">
-            <p className="text-[9px] font-bold text-[#a0aec0] dark:text-[#3d5166] tracking-[0.1em] uppercase mb-[3px]">
-              {departmentName ? 'Department' : 'Role'}
-            </p>
-            <p className="text-[11.5px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] leading-[1.4] line-clamp-2">
-              {departmentName || getRoleBadge()}
-            </p>
-          </div>
-        )}
       </div>
 
-      <div className="h-px bg-[#e8e2da] dark:bg-[#1c2d3d] mx-3" />
+      {/* User Info */}
+      <div className="p-4">
+        <div className={cn('flex items-center gap-3', collapsed && !isMobile ? 'justify-center' : '')}>
+          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-semibold">
+            {getInitials()}
+          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{profile.full_name}</p>
+              <p className="text-xs text-sidebar-foreground/60">{getRoleBadge()}</p>
+            </div>
+          )}
+        </div>
+      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-[10px] py-3 overflow-y-auto">
-        {(!collapsed || isMobile) && (
-          <p className="text-[9.5px] font-bold tracking-[0.1em] text-[#a0aec0] dark:text-[#3d5166] uppercase px-[10px] pb-2">
-            Workspace
-          </p>
-        )}
-        {navItems.map((item) => {
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const showBadge = (profile?.role === 'hod' && (item.path === '/dashboard' || item.path === '/review') && pendingRequestsCount > 0) ||
             (profile?.role === 'teacher' && item.path === '/teacher/calendar' && pendingCalendarCount > 0) ||
@@ -338,32 +334,26 @@ export function Sidebar({
               key={item.path}
               to={item.path}
               className={cn(
-                'w-full flex items-center gap-[9px] px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-left relative transition-colors',
-                collapsed && !isMobile && 'justify-center px-0',
+                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative',
+                collapsed && !isMobile ? 'justify-center px-0' : '',
                 isActive
-                  ? 'text-[#0d7a6b] dark:text-[#2dd4bf]'
-                  : 'text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
-              style={isActive && !collapsed ? { background: 'transparent' } : undefined}
             >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-[18px] bg-[#0d7a6b] dark:bg-[#2dd4bf] rounded-r-[2px]" />
-              )}
-              <span className="relative leading-none">
-                <item.icon className="w-[14px] h-[14px]" />
+              <span className="relative">
+                <item.icon className="w-5 h-5" />
                 {showBadge && collapsed && !isMobile && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-[#f43f5e] text-white text-[10px] font-bold leading-none px-1">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </span>
                 )}
               </span>
-              {(!collapsed || isMobile) && (
-                <span className="flex-1 flex items-center justify-between min-w-0">
-                  <span className={cn('text-[13px] tracking-[-0.01em] truncate', isActive ? 'font-medium' : 'font-normal')}>
-                    {item.label}
-                  </span>
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  <span>{item.label}</span>
                   {showBadge && (
-                    <span className="font-mono text-[10px] font-medium px-[7px] py-[2px] rounded-full min-w-[22px] text-center bg-[rgba(13,122,107,0.10)] dark:bg-[rgba(45,212,191,0.14)] text-[#0d7a6b] dark:text-[#2dd4bf]">
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1">
                       {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                   )}
@@ -383,82 +373,62 @@ export function Sidebar({
 
           return link;
         })}
-
-        {(!collapsed || isMobile) && (
-          <>
-            <div className="h-px bg-[#e8e2da] dark:bg-[#1c2d3d] my-[10px] mx-[10px]" />
-            <p className="text-[9.5px] font-bold tracking-[0.1em] text-[#a0aec0] dark:text-[#3d5166] uppercase px-[10px] pb-2">
-              Account
-            </p>
-            <Link
-              to="/profile"
-              className={cn(
-                'w-full flex items-center gap-[9px] px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-[13px] transition-colors',
-                location.pathname === '/profile'
-                  ? 'font-medium text-[#0d7a6b] dark:text-[#2dd4bf]'
-                  : 'text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
-              )}
-            >
-              <User className="w-[14px] h-[14px]" />
-              <span className="tracking-[-0.01em]">Profile</span>
-            </Link>
-          </>
-        )}
       </nav>
 
-      {/* User footer */}
-      {collapsed && !isMobile ? (
-        <div className="p-3 space-y-2 border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019]">
+      {/* Footer */}
+      <div className="p-4 space-y-2">
+        {collapsed && !isMobile ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
                 to="/profile"
-                className="flex items-center justify-center py-2 rounded-[8px] text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] transition-colors"
+                className="flex items-center justify-center px-0 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
               >
-                <User className="w-[14px] h-[14px]" />
+                <User className="w-5 h-5" />
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right">Profile</TooltipContent>
           </Tooltip>
+        ) : (
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+          >
+            <User className="w-5 h-5" />
+            <span>Profile</span>
+          </Link>
+        )}
+
+        {collapsed && !isMobile ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-center px-0 py-2 h-auto text-[#a0aec0] dark:text-[#3d5166] hover:bg-transparent hover:text-[#9f1239] dark:hover:text-[#fb7185]"
+                className="w-full justify-center px-0 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
                 onClick={async () => {
                   await signOut();
                   navigate('/');
                 }}
               >
-                <LogOut className="w-[13px] h-[13px]" />
+                <LogOut className="w-5 h-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Logout</TooltipContent>
           </Tooltip>
-        </div>
-      ) : (
-        <div className="px-3 pt-3 pb-[14px] border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019]">
-          <div className="flex items-center gap-[9px]">
-            <div className="w-8 h-8 rounded-[8px] shrink-0 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border border-[rgba(13,122,107,0.18)] flex items-center justify-center font-mono text-[10px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] tracking-[0.05em]">
-              {getInitials()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12.5px] font-medium truncate">{profile.full_name}</p>
-              <p className="text-[10.5px] text-[#a0aec0] dark:text-[#3d5166] mt-[1px]">{getRoleBadge()}</p>
-            </div>
-            <button
-              className="bg-transparent border-none cursor-pointer text-[#a0aec0] dark:text-[#3d5166] p-[5px] rounded-[6px] leading-none hover:text-[#9f1239] dark:hover:text-[#fb7185] transition-colors"
-              title="Sign out"
-              onClick={async () => {
-                await signOut();
-                navigate('/');
-              }}
-            >
-              <LogOut className="w-[13px] h-[13px]" />
-            </button>
-          </div>
-        </div>
-      )}
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 px-4 py-3 text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive"
+            onClick={async () => {
+              await signOut();
+              navigate('/');
+            }}
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
+          </Button>
+        )}
+      </div>
     </aside>
   );
 }

@@ -22,7 +22,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
-  const resetRedirectUrl = `${window.location.origin}/auth?reset=true`;
+  const resetRedirectUrl = `${window.location.origin}/?reset=true`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

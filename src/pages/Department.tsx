@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { HodPageShell } from '@/components/layout/HodPageShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -406,103 +407,111 @@ export default function Department() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Department</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage teachers and assign subjects for {departmentName}.
-            </p>
-          </div>
+      <HodPageShell
+        eyebrow="HOD · Department"
+        title={<>Department <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">overview</em></>}
+        description={`Manage teachers and assign subjects for ${departmentName}.`}
+        actions={
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button>Add Teacher</Button>
+              <Button variant="outline" className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">Add Teacher</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px]">
               <DialogHeader>
-                <DialogTitle>Add Teacher</DialogTitle>
+                <DialogTitle className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Add Teacher</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="teacherEmail">Email</Label>
+                  <Label htmlFor="teacherEmail" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Email</Label>
                   <Input
                     id="teacherEmail"
                     type="email"
                     value={newTeacherEmail}
                     onChange={(e) => setNewTeacherEmail(e.target.value)}
                     placeholder="teacher@college.edu"
+                    className="h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="teacherName">Full name (for new accounts)</Label>
+                  <Label htmlFor="teacherName" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Full name (for new accounts)</Label>
                   <Input
                     id="teacherName"
                     value={newTeacherName}
                     onChange={(e) => setNewTeacherName(e.target.value)}
                     placeholder="Full name"
+                    className="h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="teacherPassword">Temporary password (leave empty to attach existing)</Label>
+                  <Label htmlFor="teacherPassword" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Temporary password (leave empty to attach existing)</Label>
                   <Input
                     id="teacherPassword"
                     type="password"
                     value={newTeacherPassword}
                     onChange={(e) => setNewTeacherPassword(e.target.value)}
                     placeholder="Create a temporary password"
+                    className="h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#a0aec0] dark:text-[#3d5166]">
                   If the teacher already has an account, leave the password empty to attach them to this department.
                 </p>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
                   Cancel
                 </Button>
-                <Button onClick={handleAddTeacher} disabled={addingTeacher}>
+                <Button onClick={handleAddTeacher} disabled={addingTeacher} className="rounded-[9px] text-white border-0" style={{ background: 'linear-gradient(135deg,#0fa88f,#0d7a6b)' }}>
                   {addingTeacher ? 'Adding...' : 'Add Teacher'}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+        }
+      >
+        <div className="space-y-8">
 
         {loading ? (
-          <div className="flex items-center gap-3 text-muted-foreground">
+          <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] px-5 py-8 flex items-center gap-3 text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading department data...
           </div>
         ) : (
           <div className="grid gap-6">
             {teachers.length === 0 ? (
-              <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-6 text-muted-foreground shadow-sm">
+              <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-6 text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
                 No teachers found in this department.
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 shadow-sm">
+                <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-4 sm:p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Faculty</p>
+                    <span className="px-2 py-[3px] rounded-full bg-[#ede9e2] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] font-mono text-[10px]">
+                      {filteredTeachers.length} of {teachers.length}
+                    </span>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end md:gap-6">
                     <div className="w-full md:max-w-xl">
-                    <Label htmlFor="teacher-search">Search teachers</Label>
+                    <Label htmlFor="teacher-search" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Search teachers</Label>
                     <Input
                       id="teacher-search"
                       value={teacherSearch}
                       onChange={(event) => setTeacherSearch(event.target.value)}
                       placeholder="Search by name or email"
-                      className="mt-1 h-11 rounded-xl border-border bg-background px-4 text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
+                      className="mt-1.5 h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] px-4 text-sm text-[#18202e] dark:text-[#e2eaf4] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus-visible:ring-1 focus-visible:ring-[#0d7a6b]/40"
                     />
                   </div>
                   <div className="w-full md:w-48 md:justify-self-end">
-                    <Label htmlFor="teacher-sort">Sort by</Label>
+                    <Label htmlFor="teacher-sort" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Sort by</Label>
                     <Select
                       value={teacherSort}
                       onValueChange={(value) => setTeacherSort(value as 'name' | 'subjects')}
                     >
-                      <SelectTrigger id="teacher-sort" className="mt-1">
+                      <SelectTrigger id="teacher-sort" className="mt-1.5 h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm text-[#18202e] dark:text-[#e2eaf4]">
                         <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[12px]">
                         <SelectItem value="name">Name</SelectItem>
                         <SelectItem value="subjects">Subject count</SelectItem>
                       </SelectContent>
@@ -512,6 +521,11 @@ export default function Department() {
                 </div>
 
                 <div className="space-y-2">
+                  {filteredTeachers.length === 0 ? (
+                    <div className="rounded-[12px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] px-4 py-6 text-center text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
+                      No teachers match your search.
+                    </div>
+                  ) : null}
                   {filteredTeachers.map((teacher) => {
                 const assigned = (teacherAssignments.get(teacher.id) || [])
                   .map((subjectId) => subjects.find((s) => s.id === subjectId))
@@ -519,11 +533,18 @@ export default function Department() {
                 const isExpanded = expandedTeachers.has(teacher.id);
                 const visibleSubjects = assigned.slice(0, 3);
                 const hiddenCount = Math.max(assigned.length - visibleSubjects.length, 0);
+                const initials = teacher.full_name
+                  .split(' ')
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((p) => p[0])
+                  .join('')
+                  .toUpperCase() || teacher.full_name.slice(0, 2).toUpperCase();
 
                 return (
-                  <div key={teacher.id} className="rounded-lg border bg-white/70 dark:bg-card/70 backdrop-blur-md shadow-sm">
+                  <div key={teacher.id} className={`relative overflow-hidden rounded-[12px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] ${isExpanded ? 'border-l-2 border-l-[#0d7a6b] dark:border-l-[#2dd4bf]' : ''}`}>
                     <div
-                      className="group flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                      className="group flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-[#ede9e2] dark:hover:bg-[#131c27] sm:flex-row sm:items-center sm:justify-between cursor-pointer"
                       onClick={() => toggleExpandedTeacher(teacher.id)}
                       role="button"
                       tabIndex={0}
@@ -534,19 +555,29 @@ export default function Department() {
                         }
                       }}
                     >
-                      <div className="min-w-0">
-                        <h3 className="text-base font-semibold">{teacher.full_name}</h3>
-                        <p className="text-sm text-muted-foreground">{teacher.email}</p>
-                        <button
-                          type="button"
-                          className="mt-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleExpandedTeacher(teacher.id);
-                          }}
-                        >
-                          {assigned.length} subjects • {isExpanded ? 'Hide details' : 'View details'}
-                        </button>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] font-mono text-[11px] font-semibold text-[#0d7a6b] dark:text-[#2dd4bf]">
+                          {initials}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="truncate text-[14px] font-medium text-[#18202e] dark:text-[#e2eaf4]">{teacher.full_name}</h3>
+                            <span className="px-2 py-[2px] rounded-full bg-[#ede9e2] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] font-mono text-[10px]">
+                              {assigned.length}
+                            </span>
+                          </div>
+                          <p className="truncate text-[12px] text-[#a0aec0] dark:text-[#3d5166]">{teacher.email}</p>
+                          <button
+                            type="button"
+                            className="mt-1 text-[12px] text-[#64748b] dark:text-[#6b8299] underline-offset-4 hover:underline hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf]"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleExpandedTeacher(teacher.id);
+                            }}
+                          >
+                            {assigned.length} subjects • {isExpanded ? 'Hide details' : 'View details'}
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Dialog open={activeTeacher?.id === teacher.id} onOpenChange={(open) => !open && setActiveTeacher(null)}>
@@ -556,51 +587,54 @@ export default function Department() {
                                 event.stopPropagation();
                                 openAssignDialog(teacher);
                               }}
-                              variant="default"
                               size="sm"
+                              className="rounded-[9px] text-white border-0 text-[12px] font-semibold"
+                              style={{ background: 'linear-gradient(135deg,#0fa88f,#0d7a6b)' }}
                             >
                               Assign
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="w-[95vw] max-w-2xl p-0">
+                          <DialogContent className="w-[95vw] max-w-2xl p-0 bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px]">
                             <div className="flex max-h-[85vh] flex-col">
                               <div className="px-6 pt-6">
                                 <DialogHeader>
-                                  <DialogTitle>Assign Subjects</DialogTitle>
+                                  <DialogTitle className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Assign Subjects</DialogTitle>
                                 </DialogHeader>
                               </div>
-                              <div className="px-6 pt-4 text-sm text-muted-foreground">
+                              <div className="px-6 pt-2 text-[12px] text-[#64748b] dark:text-[#6b8299]">
                                 Select the subjects this teacher should handle.
                               </div>
                               <div className="flex-1 overflow-y-auto px-6 pb-4 pt-3">
-                                <div className="space-y-3">
+                                <div className="space-y-2">
                                   {subjects.map((subject) => (
-                                    <label key={subject.id} className="flex items-start gap-3 text-sm leading-snug cursor-pointer">
+                                    <label key={subject.id} className="flex items-start gap-3 rounded-[9px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019] px-3 py-2.5 text-sm leading-snug cursor-pointer hover:bg-[#ede9e2] dark:hover:bg-[#131c27] transition-colors">
                                       <input
                                         type="checkbox"
                                         checked={selectedSubjects.has(subject.id)}
                                         onChange={() => toggleSubject(subject.id)}
-                                        className="mt-0.5 h-4 w-4"
+                                        className="mt-0.5 h-4 w-4 accent-[#0d7a6b]"
                                       />
-                                      <span className="min-w-0 break-words">
-                                        {subject.name} ({subject.code})
+                                      <span className="min-w-0 break-words text-[13px] text-[#18202e] dark:text-[#e2eaf4]">
+                                        {subject.name}{' '}
+                                        <span className="font-mono text-[11px] text-[#a0aec0] dark:text-[#3d5166]">({subject.code})</span>
                                       </span>
                                     </label>
                                   ))}
                                 </div>
                               </div>
-                              <DialogFooter className="border-t px-6 pb-6 pt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                              <DialogFooter className="border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019] px-6 pb-6 pt-4 flex flex-col gap-2 sm:flex-row sm:justify-end rounded-b-[14px]">
                                 <Button
                                   variant="outline"
                                   onClick={() => setActiveTeacher(null)}
-                                  className="w-full sm:w-auto"
+                                  className="w-full sm:w-auto rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]"
                                 >
                                   Cancel
                                 </Button>
                                 <Button
                                   onClick={handleSaveAssignments}
                                   disabled={saving}
-                                  className="w-full sm:w-auto"
+                                  className="w-full sm:w-auto rounded-[9px] text-white border-0"
+                                  style={{ background: 'linear-gradient(135deg,#0fa88f,#0d7a6b)' }}
                                 >
                                   {saving ? 'Saving...' : 'Save Assignments'}
                                 </Button>
@@ -609,13 +643,14 @@ export default function Department() {
                           </DialogContent>
                         </Dialog>
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           onClick={(event) => {
                             event.stopPropagation();
                             setTeacherToRemove(teacher);
                           }}
                           disabled={removingTeacherId === teacher.id}
                           size="sm"
+                          className="rounded-[9px] border-[#f43f5e]/30 dark:border-[#fb7185]/30 bg-[#fef2f5] dark:bg-[rgba(251,113,133,0.08)] text-[#9f1239] dark:text-[#fb7185] hover:bg-[#f43f5e]/10 text-[12px] font-medium"
                         >
                           {removingTeacherId === teacher.id ? 'Removing...' : 'Remove'}
                         </Button>
@@ -623,22 +658,22 @@ export default function Department() {
                     </div>
 
                     <div
-                      className={`overflow-hidden border-t px-4 transition-all duration-200 ease-out ${
-                        isExpanded ? 'max-h-24 py-3 opacity-100' : 'max-h-0 py-0 opacity-0'
+                      className={`overflow-hidden border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019] px-4 transition-all duration-200 ease-out ${
+                        isExpanded ? 'max-h-40 py-3 opacity-100' : 'max-h-0 py-0 opacity-0 border-t-0'
                       }`}
                     >
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {assigned.length === 0 ? (
-                          <span className="text-sm text-muted-foreground">No subjects assigned.</span>
+                          <span className="text-[12px] text-[#a0aec0] dark:text-[#3d5166]">No subjects assigned.</span>
                         ) : (
                           <>
                             {visibleSubjects.map((subject) => (
-                              <Badge key={subject.id} variant="secondary">
-                                {subject.name}
+                              <Badge key={subject.id} className="rounded-full border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] px-2.5 py-1 font-mono text-[10.5px] font-medium text-[#64748b] dark:text-[#6b8299] hover:bg-white">
+                                {subject.code}
                               </Badge>
                             ))}
                             {hiddenCount > 0 && (
-                              <span className="text-xs text-muted-foreground">+{hiddenCount} more</span>
+                              <span className="text-[11px] text-[#a0aec0] dark:text-[#3d5166]">+{hiddenCount} more</span>
                             )}
                           </>
                         )}
@@ -654,21 +689,22 @@ export default function Department() {
         )}
 
         <Dialog open={!!teacherToRemove} onOpenChange={(open) => !open && setTeacherToRemove(null)}>
-          <DialogContent>
+          <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px]">
             <DialogHeader>
-              <DialogTitle>Remove Teacher</DialogTitle>
+              <DialogTitle className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Remove Teacher</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[13px] text-[#64748b] dark:text-[#6b8299]">
               Remove {teacherToRemove?.full_name} from {departmentName}? This action cannot be undone.
             </p>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setTeacherToRemove(null)}>
+              <Button variant="outline" onClick={() => setTeacherToRemove(null)} className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
                 Cancel
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => teacherToRemove && handleRemoveTeacher(teacherToRemove)}
                 disabled={removingTeacherId === teacherToRemove?.id}
+                className="rounded-[9px]"
               >
                 {removingTeacherId === teacherToRemove?.id ? 'Removing...' : 'Remove'}
               </Button>
@@ -677,38 +713,44 @@ export default function Department() {
         </Dialog>
 
         <div className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Semester-wise Subjects</h2>
-            <p className="text-sm text-muted-foreground">
-              Assign teachers to subjects for paper creation by semester.
-            </p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Curriculum</p>
+              <h2 className="mt-1 text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Semester-wise Subjects</h2>
+              <p className="mt-0.5 text-[12px] text-[#64748b] dark:text-[#6b8299]">
+                Assign teachers to subjects for paper creation by semester.
+              </p>
+            </div>
+            <span className="px-2 py-[3px] rounded-full bg-[#ede9e2] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] font-mono text-[10px]">
+              {subjects.length}
+            </span>
           </div>
 
           {loading ? (
-            <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] px-5 py-8 flex items-center gap-3 text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
               <Loader2 className="h-5 w-5 animate-spin" />
               Loading subjects...
             </div>
           ) : subjects.length === 0 ? (
-            <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-6 text-muted-foreground shadow-sm">
+            <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-6 text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
               No subjects found for this department.
             </div>
           ) : (
             <>
-              <div className="rounded-xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-sm">
+              <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-4 sm:p-5">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="semester-filter">Semester</Label>
+                    <Label htmlFor="semester-filter" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Semester</Label>
                     <Select
                       value={semesterFilter === 'all' ? 'all' : String(semesterFilter)}
                       onValueChange={(value) =>
                         setSemesterFilter(value === 'all' ? 'all' : Number(value))
                       }
                     >
-                      <SelectTrigger id="semester-filter">
+                      <SelectTrigger id="semester-filter" className="h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm text-[#18202e] dark:text-[#e2eaf4]">
                         <SelectValue placeholder="All Semesters" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[12px]">
                         <SelectItem value="all">All Semesters</SelectItem>
                         {semesterOptions.map((semester) => (
                           <SelectItem key={semester} value={String(semester)}>
@@ -719,7 +761,7 @@ export default function Department() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="semester-sort">Sort</Label>
+                    <Label htmlFor="semester-sort" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Sort</Label>
                     <Select
                       value={semesterSort}
                       onValueChange={(value) =>
@@ -728,10 +770,10 @@ export default function Department() {
                         )
                       }
                     >
-                      <SelectTrigger id="semester-sort">
+                      <SelectTrigger id="semester-sort" className="h-11 rounded-xl border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-sm text-[#18202e] dark:text-[#e2eaf4]">
                         <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[12px]">
                         <SelectItem value="newest">Newest First</SelectItem>
                         <SelectItem value="oldest">Oldest First</SelectItem>
                         <SelectItem value="most-subjects">Most Subjects First</SelectItem>
@@ -743,11 +785,21 @@ export default function Department() {
 
               </div>
 
+              {visibleSemesterEntries.length === 0 ? (
+                <div className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-6 text-[13px] text-[#a0aec0] dark:text-[#3d5166]">
+                  No semesters match the current filter.
+                </div>
+              ) : null}
               {visibleSemesterEntries.map(([semester, semesterSubjects]) => (
-                <div key={semester} id={`semester-${semester}`} className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-6 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Semester {semester}</h3>
-                    <Badge variant="secondary">{semesterSubjects.length} subjects</Badge>
+                <div key={semester} id={`semester-${semester}`} className="rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="px-2.5 py-1 rounded-[8px] bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] text-[#0d7a6b] dark:text-[#2dd4bf] font-mono text-[11px] font-semibold">
+                        SEM {semester}
+                      </span>
+                      <h3 className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Semester {semester}</h3>
+                    </div>
+                    <Badge className="rounded-full bg-[#ede9e2] dark:bg-[#131c27] px-2.5 py-1 font-mono text-[10px] font-medium text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] border-0">{semesterSubjects.length} subjects</Badge>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -757,35 +809,36 @@ export default function Department() {
                         .filter(Boolean) as Teacher[];
 
                       return (
-                        <div key={subject.id} className="rounded-xl border bg-background p-4">
+                        <div key={subject.id} className="rounded-[12px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019] p-4 transition-colors hover:bg-[#ede9e2] dark:hover:bg-[#131c27]">
                           <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-semibold">{subject.name}</p>
-                              <p className="text-xs text-muted-foreground">{subject.code}</p>
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4]">{subject.name}</p>
+                              <p className="mt-0.5 font-mono text-[11px] text-[#a0aec0] dark:text-[#3d5166]">{subject.code}</p>
                             </div>
                             <Dialog open={activeSubject?.id === subject.id} onOpenChange={(open) => !open && setActiveSubject(null)}>
                               <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => openSubjectAssignDialog(subject)}>
+                                <Button variant="outline" size="sm" onClick={() => openSubjectAssignDialog(subject)} className="shrink-0 rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
                                   Assign
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px]">
                                 <DialogHeader>
-                                  <DialogTitle>Assign Teachers</DialogTitle>
+                                  <DialogTitle className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">Assign Teachers</DialogTitle>
                                 </DialogHeader>
-                                <div className="space-y-3">
+                                <p className="font-mono text-[11px] text-[#a0aec0] dark:text-[#3d5166]">{subject.code} · Semester {subject.semester}</p>
+                                <div className="space-y-2">
                                   {teachers.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No teachers available.</p>
+                                    <p className="text-[13px] text-[#a0aec0] dark:text-[#3d5166]">No teachers available.</p>
                                   ) : (
                                     teachers.map((teacher) => (
-                                      <label key={teacher.id} className="flex items-center gap-3 text-sm">
+                                      <label key={teacher.id} className="flex items-center gap-3 rounded-[9px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019] px-3 py-2.5 text-sm cursor-pointer hover:bg-[#ede9e2] dark:hover:bg-[#131c27] transition-colors">
                                         <input
                                           type="checkbox"
                                           checked={selectedTeachers.has(teacher.id)}
                                           onChange={() => toggleTeacher(teacher.id)}
-                                          className="h-4 w-4"
+                                          className="h-4 w-4 accent-[#0d7a6b]"
                                         />
-                                        <span>{teacher.full_name} ({teacher.email})</span>
+                                        <span className="text-[13px] text-[#18202e] dark:text-[#e2eaf4]">{teacher.full_name} <span className="text-[#a0aec0] dark:text-[#3d5166]">({teacher.email})</span></span>
                                       </label>
                                     ))
                                   )}
@@ -794,14 +847,15 @@ export default function Department() {
                                   <Button
                                     variant="outline"
                                     onClick={() => setActiveSubject(null)}
-                                    className="w-full sm:w-auto"
+                                    className="w-full sm:w-auto rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]"
                                   >
                                     Cancel
                                   </Button>
                                   <Button
                                     onClick={handleSaveSubjectAssignments}
                                     disabled={saving}
-                                    className="w-full sm:w-auto"
+                                    className="w-full sm:w-auto rounded-[9px] text-white border-0"
+                                    style={{ background: 'linear-gradient(135deg,#0fa88f,#0d7a6b)' }}
                                   >
                                     {saving ? 'Saving...' : 'Save Assignments'}
                                   </Button>
@@ -812,10 +866,10 @@ export default function Department() {
 
                           <div className="mt-3 flex flex-wrap gap-2">
                             {assignedTeachers.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">No teachers assigned.</span>
+                              <span className="text-[11px] text-[#a0aec0] dark:text-[#3d5166]">No teachers assigned.</span>
                             ) : (
                               assignedTeachers.map((teacher) => (
-                                <Badge key={teacher.id} variant="secondary">
+                                <Badge key={teacher.id} className="rounded-full border-0 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] px-2.5 py-1 font-mono text-[10.5px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] hover:bg-[#eaf6f4]">
                                   {teacher.full_name}
                                 </Badge>
                               ))
@@ -830,7 +884,8 @@ export default function Department() {
             </>
           )}
         </div>
-      </div>
+        </div>
+      </HodPageShell>
     </DashboardLayout>
   );
 }

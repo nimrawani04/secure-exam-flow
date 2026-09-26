@@ -292,12 +292,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return (
     <div className="min-h-screen bg-[hsl(var(--dashboard-bg))] dark:bg-[hsl(var(--dashboard-bg-dark))]">
-      <div className="lg:hidden sticky top-0 z-40 border-b border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef]/90 dark:bg-[#0c1118]/90 backdrop-blur-[16px]">
+      <div className="lg:hidden sticky top-0 z-40 border-b bg-background">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold truncate">
@@ -351,20 +351,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         collapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
       />
-      <main className={cn('min-h-screen relative overflow-x-hidden', isCollapsed ? 'lg:ml-20' : 'lg:ml-[232px]')}>
-        <div className="hidden lg:block sticky top-0 z-30 border-b border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef]/90 dark:bg-[#0c1118]/90 backdrop-blur-[16px]">
-          <div className="flex h-[52px] px-4 sm:px-6 lg:px-10 items-center justify-between gap-3">
-            <nav className="flex items-center gap-1.5 text-[12px]">
-              <span className="text-[#a0aec0] dark:text-[#3d5166]">{title.section}</span>
-              <span className="text-[#a0aec0] dark:text-[#3d5166]">/</span>
-              <span className="font-medium text-[#18202e] dark:text-[#e2eaf4]">{title.page}</span>
-            </nav>
+      <main className={cn('min-h-screen relative overflow-x-hidden', isCollapsed ? 'lg:ml-20' : 'lg:ml-64')}>
+        <div className="hidden lg:block sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{title.section}</span>
+                <ChevronRight className="h-4 w-4" />
+                <span className="text-foreground font-medium">{title.page}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Stay updated with important announcements</p>
+            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="hidden gap-2 md:inline-flex h-8 rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[12px]">
-                    <Command className="h-3.5 w-3.5" />
+                  <Button variant="outline" className="hidden gap-2 md:inline-flex">
+                    <Command className="h-4 w-4" />
                     Shortcuts
                   </Button>
                 </DialogTrigger>
@@ -387,10 +390,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Notifications" className="relative h-8 w-8 rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
-                    <Bell className="h-3.5 w-3.5" />
+                  <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
+                    <Bell className="h-4 w-4" />
                     {notificationCount > 0 && (
-                      <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#f43f5e] px-1 font-mono text-[10px] font-medium text-white">
+                      <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                         {notificationCount > 9 ? '9+' : notificationCount}
                       </span>
                     )}
@@ -399,15 +402,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 {renderNotificationsContent()}
               </DropdownMenu>
 
-              <ThemeToggle className="hidden h-8 w-8 rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] sm:inline-flex" compact />
-              <button
-                type="button"
-                onClick={() => navigate('/profile')}
-                className="inline-flex h-[30px] min-w-[30px] items-center justify-center rounded-[8px] bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border border-[rgba(13,122,107,0.2)] px-1 font-mono text-[10px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf]"
-                title={profile?.full_name || 'Profile'}
-              >
-                {profile?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
-              </button>
+              <ThemeToggle className="hidden h-9 sm:inline-flex" compact />
+              <Button variant="ghost" size="sm" className="gap-2 px-2 sm:px-3" onClick={() => navigate('/profile')}>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
+                  {profile?.full_name?.split(' ').map((n) => n[0]).join('') || 'U'}
+                </span>
+                <span className="hidden sm:inline">{profile?.full_name || 'Profile'}</span>
+              </Button>
             </div>
           </div>
         </div>

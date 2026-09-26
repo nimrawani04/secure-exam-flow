@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Bell, Loader2, Search, ArrowUpDown, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { HodPageShell } from '@/components/layout/HodPageShell';
 
 interface Subject {
   id: string;
@@ -29,12 +30,24 @@ const notificationTypeOptions = [
   { value: 'success', label: 'Success' },
 ];
 
-const notificationTypeVariant: Record<string, 'secondary' | 'warning' | 'destructive' | 'success'> = {
-  info: 'secondary',
-  warning: 'warning',
-  critical: 'destructive',
-  success: 'success',
+const alertPillStyles: Record<string, string> = {
+  info: 'bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] text-[#0d7a6b] dark:text-[#2dd4bf] border-[#0d7a6b]/25',
+  warning: 'bg-[#fef8ee] dark:bg-[rgba(251,191,36,0.08)] text-[#92400e] dark:text-[#fbbf24] border-[#f59e0b]/30',
+  critical: 'bg-[#fef2f5] dark:bg-[rgba(251,113,133,0.08)] text-[#9f1239] dark:text-[#fb7185] border-[#f43f5e]/30',
+  success: 'bg-[#ecfdf5] dark:bg-[rgba(52,211,153,0.08)] text-[#065f46] dark:text-[#34d399] border-[#10b981]/30',
 };
+
+const alertTileStyles: Record<string, string> = {
+  info: 'bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] text-[#0d7a6b] dark:text-[#2dd4bf] border-[#0d7a6b]/20',
+  warning: 'bg-[#fef8ee] dark:bg-[rgba(251,191,36,0.08)] text-[#92400e] dark:text-[#fbbf24] border-[#f59e0b]/25',
+  critical: 'bg-[#fef2f5] dark:bg-[rgba(251,113,133,0.08)] text-[#9f1239] dark:text-[#fb7185] border-[#f43f5e]/25',
+  success: 'bg-[#ecfdf5] dark:bg-[rgba(52,211,153,0.08)] text-[#065f46] dark:text-[#34d399] border-[#10b981]/25',
+};
+
+const inputWarm =
+  'h-10 rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[13px] text-[#18202e] dark:text-[#e2eaf4] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus-visible:ring-[#0d7a6b]/30 focus-visible:border-[#0d7a6b]/50';
+const eyebrowWarm =
+  'text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]';
 
 export function HODAlerts() {
   const { profile } = useAuth();
@@ -174,6 +187,7 @@ export function HODAlerts() {
       return;
     }
     refreshRecipientCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetMode, selectedSubjectIds, profile?.department_id]);
 
   const isFormValid =
@@ -218,8 +232,9 @@ export function HODAlerts() {
       toast({ title: 'Alert sent', description: `Notification sent to ${teacherIds.length} teachers.` });
       setTitle('');
       setMessage('');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error?.message || 'Failed to send alerts.', variant: 'destructive' });
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast({ title: 'Error', description: err?.message || 'Failed to send alerts.', variant: 'destructive' });
     }
   };
 
@@ -272,286 +287,332 @@ export function HODAlerts() {
         userId: notification.user_id,
       });
       toast({ title: 'Alert resent', description: 'Notification sent again to the selected recipient.' });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error?.message || 'Failed to resend alert.', variant: 'destructive' });
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast({ title: 'Error', description: err?.message || 'Failed to resend alert.', variant: 'destructive' });
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-bold">Teacher Alerts</h1>
-        <p className="text-muted-foreground text-sm">
-          Send department or subject-based notifications to teachers.
-        </p>
-      </div>
+    <HodPageShell
+      eyebrow="HOD · Alerts"
+      title={<>Teacher <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">Alerts</em></>}
+      description="Send department or subject-based notifications to teachers."
+    >
+      <div className="grid gap-5 lg:grid-cols-[2.2fr_1fr] items-start">
+        {/* ── Compose card ── */}
+        <div className="bg-white dark:bg-[#101820] border border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] overflow-hidden">
+          <div className="px-5 pt-5 pb-4 border-b border-[#e8e2da] dark:border-[#1c2d3d] flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className={eyebrowWarm}>Compose</p>
+              <h2 className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4] mt-1">Compose alert</h2>
+              <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166] mt-1 leading-relaxed">
+                Notify all teachers in your department or specific subject groups.
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2.5 py-1 border ${alertPillStyles[alertType]}`}
+            >
+              {alertType}
+            </Badge>
+          </div>
 
-      <div className="grid gap-6 lg:grid-cols-[2.2fr_1fr]">
-        <div className="space-y-4">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-5 space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">Compose Alert</h2>
-                <p className="text-sm text-muted-foreground">
-                  Notify all teachers in your department or specific subject groups.
-                </p>
-              </div>
-              <Badge variant={notificationTypeVariant[alertType]} className="text-xs uppercase">
-                {alertType}
-              </Badge>
+          <div className="p-5 space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="alert-title" className={eyebrowWarm}>Title</Label>
+              <Input
+                id="alert-title"
+                ref={titleRef}
+                placeholder="e.g. Final paper upload deadline"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className={inputWarm}
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-center">
-                <Label htmlFor="alert-title">Title</Label>
-                <Input
-                  id="alert-title"
-                  ref={titleRef}
-                  placeholder="e.g. Final paper upload deadline"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
+            <div className="space-y-2">
+              <Label htmlFor="alert-message" className={eyebrowWarm}>Message</Label>
+              <Textarea
+                id="alert-message"
+                placeholder="Share instructions, deadlines, or clarifications."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                maxLength={messageLimit}
+                onKeyDown={handleKeyDown}
+                className="min-h-[110px] rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[13px] leading-relaxed text-[#18202e] dark:text-[#e2eaf4] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus-visible:ring-[#0d7a6b]/30 focus-visible:border-[#0d7a6b]/50"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[#a0aec0] dark:text-[#3d5166]">Keep it clear and actionable.</span>
+                <span className="font-mono text-[11px] text-[#a0aec0] dark:text-[#3d5166]">
+                  {message.length}/{messageLimit}
+                </span>
               </div>
+            </div>
 
-              <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-start">
-                <Label htmlFor="alert-message">Message</Label>
-                <div className="space-y-2">
-                  <Textarea
-                    id="alert-message"
-                    placeholder="Share instructions, deadlines, or clarifications."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={5}
-                    maxLength={messageLimit}
-                    onKeyDown={handleKeyDown}
-                  />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Keep it clear and actionable.</span>
-                    <span>{message.length}/{messageLimit}</span>
-                  </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className={eyebrowWarm}>Alert type</Label>
+                <Select value={alertType} onValueChange={(value) => setAlertType(value as typeof alertType)}>
+                  <SelectTrigger className={inputWarm}>
+                    <SelectValue placeholder="Select alert type" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-[10px] border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
+                    {notificationTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className={eyebrowWarm}>Target mode</Label>
+                  <span className="font-mono text-[11px] px-2 py-[3px] rounded-full bg-[#ede9e2] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] whitespace-nowrap">
+                    {countLoading ? '…' : `${recipientCount ?? '—'} to receive`}
+                  </span>
                 </div>
+                <Select value={targetMode} onValueChange={(value) => setTargetMode(value as TargetMode)}>
+                  <SelectTrigger className={inputWarm}>
+                    <SelectValue placeholder="Select target mode" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-[10px] border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
+                    <SelectItem value="department">All Department Teachers</SelectItem>
+                    <SelectItem value="subjects">Teachers by Subject</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Alert Type</Label>
-                  <Select value={alertType} onValueChange={(value) => setAlertType(value as typeof alertType)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select alert type" />
+            {targetMode === 'subjects' && (
+              <div className="space-y-3 rounded-[12px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef]/50 dark:bg-[#0a1019]/40 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className={eyebrowWarm}>Target subjects</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px] text-[#64748b] dark:text-[#6b8299] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] rounded-lg"
+                    onClick={() => setSelectedSubjectIds([])}
+                    disabled={selectedSubjectIds.length === 0}
+                  >
+                    Clear
+                  </Button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a0aec0] dark:text-[#3d5166] pointer-events-none" />
+                    <Input
+                      placeholder="Search by name or code..."
+                      value={subjectSearch}
+                      onChange={(e) => setSubjectSearch(e.target.value)}
+                      className={`${inputWarm} pl-9`}
+                    />
+                  </div>
+                  <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+                    <SelectTrigger className={`${inputWarm} w-full sm:w-[150px]`}>
+                      <span className="flex items-center gap-1.5">
+                        <Filter className="h-3.5 w-3.5 text-[#a0aec0] dark:text-[#3d5166]" />
+                        <SelectValue placeholder="Semester" />
+                      </span>
                     </SelectTrigger>
-                    <SelectContent>
-                      {notificationTypeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                    <SelectContent className="rounded-[10px] border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
+                      <SelectItem value="all">All Semesters</SelectItem>
+                      {availableSemesters.map((sem) => (
+                        <SelectItem key={sem} value={String(sem)}>
+                          Semester {sem}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Target Mode</Label>
-                    <span className="text-xs text-muted-foreground">
-                      Recipients: {countLoading ? 'Calculating...' : recipientCount ?? 'N/A'}
-                    </span>
-                  </div>
-                  <Select value={targetMode} onValueChange={(value) => setTargetMode(value as TargetMode)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target mode" />
+                  <Select value={subjectSort} onValueChange={(v) => setSubjectSort(v as typeof subjectSort)}>
+                    <SelectTrigger className={`${inputWarm} w-full sm:w-[150px]`}>
+                      <span className="flex items-center gap-1.5">
+                        <ArrowUpDown className="h-3.5 w-3.5 text-[#a0aec0] dark:text-[#3d5166]" />
+                        <SelectValue placeholder="Sort" />
+                      </span>
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="department">All Department Teachers</SelectItem>
-                      <SelectItem value="subjects">Teachers by Subject</SelectItem>
+                    <SelectContent className="rounded-[10px] border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820]">
+                      <SelectItem value="name">Name A–Z</SelectItem>
+                      <SelectItem value="code">Course Code</SelectItem>
+                      <SelectItem value="semester">Semester</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              {targetMode === 'subjects' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Target Subjects</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setSelectedSubjectIds([])}
-                      disabled={selectedSubjectIds.length === 0}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-
-                  {/* Search, Sort, Filter controls */}
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by name or code..."
-                        value={subjectSearch}
-                        onChange={(e) => setSubjectSearch(e.target.value)}
-                        className="pl-8 h-9 text-sm"
-                      />
-                    </div>
-                    <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
-                        <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                        <SelectValue placeholder="Semester" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Semesters</SelectItem>
-                        {availableSemesters.map((sem) => (
-                          <SelectItem key={sem} value={String(sem)}>
-                            Semester {sem}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={subjectSort} onValueChange={(v) => setSubjectSort(v as typeof subjectSort)}>
-                      <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
-                        <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                        <SelectValue placeholder="Sort" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">Name A–Z</SelectItem>
-                        <SelectItem value="code">Course Code</SelectItem>
-                        <SelectItem value="semester">Semester</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {subjectsLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading subjects...</p>
-                  ) : filteredSubjects.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
-                      {filteredSubjects.map((subject) => (
-                        <label key={subject.id} className="flex items-start gap-3 rounded-lg border bg-secondary/20 p-3">
+                {subjectsLoading ? (
+                  <p className="text-[12px] text-[#a0aec0] dark:text-[#3d5166]">Loading subjects...</p>
+                ) : filteredSubjects.length > 0 ? (
+                  <div className="grid sm:grid-cols-2 gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+                    {filteredSubjects.map((subject) => {
+                      const checked = selectedSubjectIds.includes(subject.id);
+                      return (
+                        <label
+                          key={subject.id}
+                          className={`flex items-start gap-3 rounded-[10px] border p-3 cursor-pointer transition-colors ${
+                            checked
+                              ? 'bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border-[#0d7a6b]/40'
+                              : 'bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] hover:bg-[#ede9e2]/50 dark:hover:bg-[#131c27]/60'
+                          }`}
+                        >
                           <Checkbox
-                            checked={selectedSubjectIds.includes(subject.id)}
-                            onCheckedChange={(checked) => toggleSubject(subject.id, checked)}
+                            checked={checked}
+                            onCheckedChange={(c) => toggleSubject(subject.id, c)}
+                            className="mt-0.5 border-[#e8e2da] dark:border-[#1c2d3d] data-[state=checked]:bg-[#0d7a6b] data-[state=checked]:border-[#0d7a6b] dark:data-[state=checked]:bg-[#2dd4bf] dark:data-[state=checked]:border-[#2dd4bf]"
                           />
-                          <div>
-                            <p className="text-sm font-medium">{subject.name}</p>
-                            <p className="text-xs text-muted-foreground">{subject.code} · Sem {subject.semester}</p>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4] leading-snug">{subject.name}</p>
+                            <p className="font-mono text-[11px] text-[#a0aec0] dark:text-[#3d5166] mt-0.5">
+                              {subject.code} · Sem {subject.semester}
+                            </p>
                           </div>
                         </label>
-                      ))}
-                    </div>
-                  ) : subjects.length > 0 ? (
-                    <p className="text-sm text-muted-foreground">No subjects match your search or filter.</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No subjects assigned yet.</p>
-                  )}
-                </div>
-              )}
-            </div>
+                      );
+                    })}
+                  </div>
+                ) : subjects.length > 0 ? (
+                  <p className="text-[12px] text-[#a0aec0] dark:text-[#3d5166]">No subjects match your search or filter.</p>
+                ) : (
+                  <p className="text-[12px] text-[#a0aec0] dark:text-[#3d5166]">No subjects assigned yet.</p>
+                )}
+              </div>
+            )}
+          </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs text-muted-foreground">
-                Press ⌘/Ctrl + Enter to send once ready.
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePreview}>
-                  Preview
-                </Button>
-                <Button
-                  variant="hero"
-                  className="gap-2"
-                  onClick={handleBroadcast}
-                  disabled={!isFormValid || createBulkNotifications.isPending}
-                >
-                  {createBulkNotifications.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Bell className="w-4 h-4" />
-                  )}
-                  {createBulkNotifications.isPending ? 'Sending...' : 'Send Alert'}
-                </Button>
-              </div>
+          <div className="px-5 py-4 border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef]/50 dark:bg-[#0a1019]/40 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166]">
+              Press <span className="font-mono">⌘/Ctrl + Enter</span> to send once ready.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreview}
+                className="rounded-[9px] h-9 border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[13px] font-medium text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4] hover:bg-[#ede9e2] dark:hover:bg-[#131c27]"
+              >
+                Preview
+              </Button>
+              <Button
+                onClick={handleBroadcast}
+                disabled={!isFormValid || createBulkNotifications.isPending}
+                className="rounded-[9px] h-9 px-[18px] text-[13px] font-semibold text-white border-0 disabled:opacity-60"
+                style={{
+                  background: 'linear-gradient(135deg, #0fa88f, #0d7a6b)',
+                  boxShadow: '0 2px 8px rgba(13,122,107,0.25)',
+                }}
+              >
+                {createBulkNotifications.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Bell className="w-4 h-4" />
+                )}
+                {createBulkNotifications.isPending ? 'Sending...' : 'Send Alert'}
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4 lg:h-full">
-          <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-5 space-y-4 h-full flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="text-lg font-semibold">Recent Alerts</h3>
-                <p className="text-xs text-muted-foreground">Latest alerts you sent.</p>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                {hodTeacherNotifications.length}
-              </Badge>
+        {/* ── Recent alerts column ── */}
+        <div className="bg-white dark:bg-[#101820] border border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] overflow-hidden h-full flex flex-col">
+          <div className="px-5 pt-5 pb-4 border-b border-[#e8e2da] dark:border-[#1c2d3d] flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className={eyebrowWarm}>History</p>
+              <h3 className="text-[13px] font-semibold text-[#18202e] dark:text-[#e2eaf4] mt-1">Recent alerts</h3>
+              <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166] mt-1">Latest alerts you sent.</p>
             </div>
+            <Badge
+              variant="outline"
+              className="shrink-0 font-mono text-[11px] rounded-full px-2.5 py-1 border-[#e8e2da] dark:border-[#1c2d3d] bg-[#ede9e2] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299]"
+            >
+              {hodTeacherNotifications.length}
+            </Badge>
+          </div>
+
+          <div className="p-4 flex-1">
             {notificationsLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={`alert-skeleton-${index}`} className="flex items-start gap-3 rounded-lg border p-4 animate-pulse">
-                    <div className="h-9 w-9 rounded-md bg-muted" />
+                  <div key={`alert-skeleton-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#e8e2da] dark:border-[#1c2d3d] p-4 animate-pulse">
+                    <div className="h-8 w-8 rounded-[8px] bg-[#ede9e2] dark:bg-[#131c27]" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3 w-40 rounded bg-muted" />
-                      <div className="h-3 w-full rounded bg-muted" />
-                      <div className="h-3 w-24 rounded bg-muted" />
+                      <div className="h-3 w-40 rounded bg-[#ede9e2] dark:bg-[#131c27]" />
+                      <div className="h-3 w-full rounded bg-[#f0ece6] dark:bg-[#172130]" />
+                      <div className="h-3 w-24 rounded bg-[#f0ece6] dark:bg-[#172130]" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : hodTeacherNotifications.length > 0 ? (
-              <div className="divide-y border rounded-lg">
-                {hodTeacherNotifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-3 p-4">
-                    <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <Bell className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">{notification.title}</span>
-                        <Badge
-                          variant={notificationTypeVariant[notification.type || 'info'] || 'secondary'}
-                          className="text-[10px] uppercase"
-                        >
-                          {notification.type || 'info'}
-                        </Badge>
+              <div className="divide-y divide-[#f0ece6] dark:divide-[#172130] border border-[#e8e2da] dark:border-[#1c2d3d] rounded-[12px] overflow-hidden">
+                {hodTeacherNotifications.map((notification) => {
+                  const t = notification.type || 'info';
+                  return (
+                    <div key={notification.id} className="flex items-start gap-3 p-4 hover:bg-[#ede9e2]/40 dark:hover:bg-[#131c27]/50 transition-colors">
+                      <div className={`w-8 h-8 rounded-[8px] border flex items-center justify-center flex-shrink-0 ${alertTileStyles[t] ?? alertTileStyles.info}`}>
+                        <Bell className="w-3.5 h-3.5" />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {notification.message.length > 120 ? `${notification.message.slice(0, 120)}...` : notification.message}
-                      </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-muted-foreground">
-                          {notification.created_at
-                            ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
-                            : 'Just now'}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => handleDuplicate(notification)}>
-                            Duplicate
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-[11px]"
-                            onClick={() => handleResend(notification)}
-                            disabled={createNotification.isPending}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4] truncate">{notification.title}</span>
+                          <Badge
+                            variant="outline"
+                            className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2 py-[2px] border ${alertPillStyles[t] ?? alertPillStyles.info}`}
                           >
-                            Resend
-                          </Button>
+                            {t}
+                          </Badge>
+                        </div>
+                        <p className="text-[12px] leading-relaxed text-[#64748b] dark:text-[#6b8299]">
+                          {notification.message.length > 120 ? `${notification.message.slice(0, 120)}...` : notification.message}
+                        </p>
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                          <span className="text-[11px] text-[#a0aec0] dark:text-[#3d5166]">
+                            {notification.created_at
+                              ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })
+                              : 'Just now'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[11px] font-medium text-[#64748b] dark:text-[#6b8299] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] rounded-md"
+                              onClick={() => handleDuplicate(notification)}
+                            >
+                              Duplicate
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[11px] font-medium text-[#64748b] dark:text-[#6b8299] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] rounded-md"
+                              onClick={() => handleResend(notification)}
+                              disabled={createNotification.isPending}
+                            >
+                              Resend
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div className="flex-1 rounded-lg border border-dashed bg-secondary/10 p-6 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-                <div className="h-12 w-12 rounded-full border border-dashed flex items-center justify-center">
-                  <Bell className="w-5 h-5 opacity-60" />
+              <div className="flex-1 rounded-[12px] border border-dashed border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef]/60 dark:bg-[#0a1019]/40 p-6 text-center flex flex-col items-center justify-center gap-3">
+                <div className="h-12 w-12 rounded-full border border-dashed border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-[#a0aec0] dark:text-[#3d5166]" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">No alerts sent yet</p>
-                  <p className="text-xs text-muted-foreground">Compose an alert to notify teachers quickly.</p>
+                  <p className="font-medium text-[13px] text-[#18202e] dark:text-[#e2eaf4]">No alerts sent yet</p>
+                  <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166] mt-1">Compose an alert to notify teachers quickly.</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => titleRef.current?.focus()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => titleRef.current?.focus()}
+                  className="rounded-[9px] border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[12px] font-medium text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4]"
+                >
                   Send your first alert
                 </Button>
               </div>
@@ -559,6 +620,6 @@ export function HODAlerts() {
           </div>
         </div>
       </div>
-    </div>
+    </HodPageShell>
   );
 }

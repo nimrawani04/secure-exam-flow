@@ -52,3 +52,4 @@ packages/react-devtools-timeline/dist
 .env
 .env.local
 .env*.local
+dist

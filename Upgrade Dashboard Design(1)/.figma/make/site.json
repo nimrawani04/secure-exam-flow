@@ -1,0 +1,10 @@
+{
+  "description": "Enhances and upgrades dashboards with premium designs to improve user experience and visual appeal for professional users.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

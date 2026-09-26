@@ -3,9 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "./pages/Landing";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import UploadPaper from "./pages/UploadPaper";
 import Submissions from "./pages/Submissions";
@@ -20,7 +21,6 @@ import HODExamSessions from "./pages/HODExamSessions";
 import HODCalendar from "./pages/HODCalendar";
 import TeacherCalendar from "./pages/TeacherCalendar";
 import DatesheetManagement from "./pages/DatesheetManagement";
-import ExaminerPanels from "./pages/ExaminerPanels";
 import { applyStoredAccent } from "./lib/theme";
 import { DeepLinkHandler } from "./components/DeepLinkHandler";
 
@@ -41,9 +41,8 @@ const App = () => {
             <DeepLinkHandler />
             <Routes>
               <Route path="/" element={<Landing />} />
-              {/* Legacy auth endpoints — single entry point is now / */}
-              <Route path="/auth" element={<Navigate to="/" replace />} />
-              <Route path="/login" element={<Navigate to="/" replace />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/login" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/upload" element={<UploadPaper />} />
               <Route path="/submissions" element={<Submissions />} />
@@ -58,8 +57,6 @@ const App = () => {
               <Route path="/teacher/calendar" element={<TeacherCalendar />} />
               <Route path="/calendar" element={<TeacherCalendar />} />
               
-              <Route path="/hod/panels" element={<ExaminerPanels />} />
-              <Route path="/exam-cell/panels" element={<ExaminerPanels />} />
               <Route path="/exam-cell/datesheets" element={<DatesheetManagement />} />
               <Route path="/exam-cell/sessions" element={<Dashboard />} />
               <Route path="/exam-cell/alerts" element={<Dashboard />} />

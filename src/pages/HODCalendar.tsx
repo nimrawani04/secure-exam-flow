@@ -1,13 +1,24 @@
 import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { HodPageShell } from '@/components/layout/HodPageShell';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useHODPapers } from '@/hooks/useHODPapers';
 import { useHODExamSessions } from '@/hooks/useHODExamSessions';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Lock, RefreshCw, CheckCircle2, AlertCircle, Clock, FileText } from 'lucide-react';
+import {
+  Lock,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  Loader2,
+  Inbox,
+} from 'lucide-react';
 import { EXAM_TYPE_LABELS } from '@/types';
 
 type PaperStatusKey = 'not_selected' | 'needs_resubmission' | 'approved' | 'locked' | 'resubmitted_pending' | 'pending_review';
@@ -23,40 +34,49 @@ interface CalendarEvent {
   label: string;
 }
 
-const STATUS_CONFIG: Record<PaperStatusKey, { color: string; dotClass: string; icon: typeof Clock; label: string }> = {
+const STATUS_CONFIG: Record<
+  PaperStatusKey,
+  { dotClass: string; pill: string; tile: string; icon: typeof Clock; label: string }
+> = {
   pending_review: {
-    color: 'bg-warning/15 text-warning border-warning/20',
-    dotClass: 'bg-warning',
+    dotClass: 'bg-amber-500',
+    pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300',
+    tile: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
     icon: Clock,
     label: 'Pending Review',
   },
   not_selected: {
-    color: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800',
-    dotClass: 'bg-yellow-500',
+    dotClass: 'bg-[#a0aec0] dark:bg-[#3d5166]',
+    pill: 'border-[#e8e2da] bg-[#f7f4ef] text-[#64748b] dark:border-[#1c2d3d] dark:bg-[#131c27] dark:text-[#6b8299]',
+    tile: 'bg-[#f0ece5] text-[#64748b] dark:bg-[#1c2d3d] dark:text-[#6b8299]',
     icon: AlertCircle,
     label: 'Not Yet Selected',
   },
   needs_resubmission: {
-    color: 'bg-destructive/15 text-destructive border-destructive/20',
-    dotClass: 'bg-destructive',
+    dotClass: 'bg-rose-500',
+    pill: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300',
+    tile: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
     icon: RefreshCw,
     label: 'Needs Resubmission',
   },
   approved: {
-    color: 'bg-success/15 text-success border-success/20',
-    dotClass: 'bg-success',
+    dotClass: 'bg-emerald-500',
+    pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300',
+    tile: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
     icon: CheckCircle2,
     label: 'Approved',
   },
   locked: {
-    color: 'bg-primary/15 text-primary border-primary/20',
-    dotClass: 'bg-primary',
+    dotClass: 'bg-[#0d7a6b] dark:bg-[#2dd4bf]',
+    pill: 'border-teal-200 bg-[#eaf6f4] text-[#0d7a6b] dark:border-[#2dd4bf]/25 dark:bg-[#2dd4bf]/10 dark:text-[#2dd4bf]',
+    tile: 'bg-[#eaf6f4] text-[#0d7a6b] dark:bg-[#2dd4bf]/15 dark:text-[#2dd4bf]',
     icon: Lock,
     label: 'Locked (Finalized)',
   },
   resubmitted_pending: {
-    color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800',
-    dotClass: 'bg-purple-500',
+    dotClass: 'bg-violet-500',
+    pill: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-300',
+    tile: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
     icon: FileText,
     label: 'Resubmitted – Awaiting Review',
   },
@@ -72,6 +92,9 @@ function mapPaperStatus(status: string, isSelected: boolean): PaperStatusKey {
   if (status === 'pending_review') return 'pending_review';
   return 'not_selected';
 }
+
+const PANEL = 'bg-white dark:bg-[#101820] border border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px]';
+const EYEBROW = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]';
 
 export default function HODCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -164,125 +187,214 @@ export default function HODCalendar() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Paper Status Calendar</h1>
-          <p className="text-muted-foreground mt-1">Track exam paper submissions and statuses at a glance</p>
+      <HodPageShell
+        eyebrow="HOD · Calendar"
+        title={<>Paper <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">Calendar</em></>}
+        description="Deadlines and exam dates across your department."
+      >
+      <div className="space-y-5">
+
+        {/* Status legend */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={EYEBROW}>Legend</span>
+          {(Object.entries(STATUS_CONFIG) as [PaperStatusKey, (typeof STATUS_CONFIG)[PaperStatusKey]][]).map(([key, cfg]) => (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#e8e2da] bg-white px-2.5 py-1 dark:border-[#1c2d3d] dark:bg-[#101820]"
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dotClass)} />
+              <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#64748b] dark:text-[#6b8299]">
+                {cfg.label}
+              </span>
+              <span className="font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                {statusCounts[key]}
+              </span>
+            </span>
+          ))}
         </div>
 
-        {/* Status Legend */}
-        <div className="flex flex-wrap gap-3">
-          {(Object.entries(STATUS_CONFIG) as [PaperStatusKey, typeof STATUS_CONFIG[PaperStatusKey]][]).map(([key, cfg]) => {
-            const Icon = cfg.icon;
-            return (
-              <div key={key} className="flex items-center gap-1.5 text-xs">
-                <span className={cn('h-2.5 w-2.5 rounded-full', cfg.dotClass)} />
-                <Icon className="h-3 w-3 opacity-70" />
-                <span className="text-muted-foreground">
-                  {cfg.label} ({statusCounts[key]})
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+        <div className="grid items-start gap-5 lg:grid-cols-[340px_1fr]">
           {/* Calendar */}
-          <Card className="w-fit mx-auto lg:mx-0">
-            <CardContent className="p-3">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="pointer-events-auto"
-                modifiers={{
-                  hasEvent: (date) => eventDates.has(format(date, 'yyyy-MM-dd')),
-                }}
-                modifiersClassNames={{
-                  hasEvent: 'font-bold',
-                }}
-                components={{
-                  DayContent: ({ date }) => {
-                    const key = format(date, 'yyyy-MM-dd');
-                    const dayEvents = eventDates.get(key);
-                    return (
-                      <div className="relative flex flex-col items-center">
-                        <span>{date.getDate()}</span>
-                        {dayEvents && dayEvents.length > 0 && (
-                          <div className="flex gap-0.5 mt-0.5">
-                            {dayEvents.slice(0, 3).map((ev, i) => (
-                              <span
-                                key={i}
-                                className={cn('h-1.5 w-1.5 rounded-full', STATUS_CONFIG[ev.status].dotClass)}
-                              />
-                            ))}
-                            {dayEvents.length > 3 && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  },
-                }}
-              />
-            </CardContent>
-          </Card>
+          <section className={cn(PANEL, 'w-fit overflow-hidden mx-auto lg:mx-0')}>
+            <div className="flex items-center justify-between px-4 pt-4 pb-1">
+              <p className={EYEBROW}>Month view</p>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(new Date())}
+                className="rounded-[8px] border border-[#e8e2da] bg-white px-2 py-1 font-mono text-[11px] text-[#64748b] transition-colors hover:bg-[#ede9e2] hover:text-[#18202e] dark:border-[#1c2d3d] dark:bg-[#101820] dark:text-[#6b8299] dark:hover:bg-[#131c27] dark:hover:text-[#e2eaf4]"
+              >
+                Today
+              </button>
+            </div>
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              className="pointer-events-auto"
+              modifiers={{
+                hasEvent: (date) => eventDates.has(format(date, 'yyyy-MM-dd')),
+              }}
+              modifiersClassNames={{
+                hasEvent: 'font-bold',
+              }}
+              classNames={{
+                caption_label: 'font-serif text-[15px] font-medium text-[#18202e] dark:text-[#e2eaf4]',
+                nav_button:
+                  'h-7 w-7 rounded-[8px] border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-0 text-[12px] text-[#64748b] dark:text-[#6b8299] opacity-100 hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]',
+                head_cell:
+                  'w-11 rounded-md font-mono text-[10px] font-normal uppercase text-[#a0aec0] dark:text-[#3d5166]',
+                cell: 'h-11 w-11 p-0 text-center text-[13px] relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-transparent',
+                day: 'h-11 w-11 rounded-[10px] p-0 font-normal tabular-nums text-[#18202e] dark:text-[#e2eaf4] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] aria-selected:opacity-100',
+                day_selected:
+                  '!bg-[#0d7a6b] !text-white hover:!bg-[#0b6a5e] hover:!text-white focus:!bg-[#0d7a6b] focus:!text-white dark:!bg-[#2dd4bf] dark:!text-[#0c1118] dark:hover:!bg-[#2dd4bf] dark:focus:!bg-[#2dd4bf]',
+                day_today:
+                  'font-semibold ring-1 ring-inset ring-[#0d7a6b]/60 dark:ring-[#2dd4bf]/60 rounded-[10px]',
+                day_outside: 'text-[#a0aec0] dark:text-[#3d5166] opacity-50',
+                day_disabled: 'text-[#a0aec0] dark:text-[#3d5166] opacity-40',
+              }}
+              components={{
+                IconLeft: () => <ChevronLeft className="h-3.5 w-3.5" />,
+                IconRight: () => <ChevronRight className="h-3.5 w-3.5" />,
+                DayContent: ({ date }: { date: Date }) => {
+                  const key = format(date, 'yyyy-MM-dd');
+                  const dayEvents = eventDates.get(key);
+                  const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
+                  return (
+                    <span className="flex flex-col items-center justify-center leading-none">
+                      <span className="text-[13px] tabular-nums">{date.getDate()}</span>
+                      {dayEvents && dayEvents.length > 0 && (
+                        <span className="mt-1 flex items-center gap-[3px]">
+                          {dayEvents.slice(0, 3).map((ev, i) => (
+                            <span
+                              key={i}
+                              className={cn(
+                                'h-1.5 w-1.5 rounded-full',
+                                isSelected ? 'bg-white/85 dark:bg-[#0c1118]/70' : STATUS_CONFIG[ev.status].dotClass
+                              )}
+                            />
+                          ))}
+                          {dayEvents.length > 3 && (
+                            <span
+                              className={cn(
+                                'h-1.5 w-1.5 rounded-full',
+                                isSelected ? 'bg-white/60 dark:bg-[#0c1118]/50' : 'bg-[#a0aec0] dark:bg-[#3d5166]'
+                              )}
+                            />
+                          )}
+                        </span>
+                      )}
+                    </span>
+                  );
+                },
+              }}
+            />
+            <div className="border-t border-[#e8e2da] px-4 py-2.5 dark:border-[#1c2d3d]">
+              <p className="font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                {events.length} deadline{events.length === 1 ? '' : 's'} tracked · {eventDates.size} active day{eventDates.size === 1 ? '' : 's'}
+              </p>
+            </div>
+          </section>
 
-          {/* Selected Day Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">
-                {selectedDate ? format(selectedDate, 'EEEE, d MMMM yyyy') : 'Select a date'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          {/* Selected day agenda */}
+          <section className={cn(PANEL, 'min-w-0 overflow-hidden')}>
+            <div className="border-b border-[#e8e2da] px-4 py-3.5 dark:border-[#1c2d3d]">
+              <p className={EYEBROW}>Agenda</p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="font-serif text-[19px] font-medium leading-snug text-[#18202e] dark:text-[#e2eaf4]">
+                  {selectedDate ? format(selectedDate, 'EEEE, d MMMM yyyy') : 'Select a date'}
+                </h2>
+                {selectedDate && (
+                  <span className="font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                    {selectedEvents.length} item{selectedEvents.length === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-4">
               {isLoading ? (
-                <p className="text-muted-foreground text-sm">Loading…</p>
+                <div className="flex items-center gap-2.5 rounded-[10px] border border-[#e8e2da] px-3.5 py-4 dark:border-[#1c2d3d]">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#0d7a6b] dark:text-[#2dd4bf]" />
+                  <p className="text-[13px] text-[#64748b] dark:text-[#6b8299]">Loading calendar…</p>
+                </div>
               ) : selectedEvents.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No paper deadlines on this date.</p>
+                <div className="rounded-[10px] border border-dashed border-[#e8e2da] bg-[#faf8f4] px-4 py-8 text-center dark:border-[#1c2d3d] dark:bg-[#131c27]/40">
+                  <CalendarDays className="mx-auto h-6 w-6 text-[#a0aec0] dark:text-[#3d5166]" />
+                  <p className="mt-2 text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4]">Nothing scheduled</p>
+                  <p className="mt-0.5 text-[12px] text-[#64748b] dark:text-[#6b8299]">
+                    No paper deadlines fall on this date.
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-3">
+                <ul className="space-y-2">
                   {selectedEvents.map((ev) => {
                     const cfg = STATUS_CONFIG[ev.status];
                     const Icon = cfg.icon;
                     return (
-                      <div
+                      <li
                         key={ev.id}
-                        className={cn(
-                          'flex items-start gap-3 rounded-lg border p-3',
-                          cfg.color
-                        )}
+                        className="flex items-start gap-3 rounded-[10px] border border-[#ece7df] px-3 py-2.5 transition-colors hover:bg-[#ede9e2]/50 dark:border-[#1c2d3d] dark:hover:bg-[#131c27]"
                       >
-                        <Icon className="h-5 w-5 mt-0.5 shrink-0" />
+                        <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px]', cfg.tile)}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm">{ev.subjectName}</p>
-                          <p className="text-xs opacity-80">
-                            {ev.subjectCode} · {EXAM_TYPE_LABELS[ev.examType] || ev.examType}
-                          </p>
-                          <Badge variant="outline" className="mt-1.5 text-[10px]">
-                            {cfg.label}
-                          </Badge>
+                          <div className="flex flex-wrap items-baseline gap-x-2">
+                            <p className="truncate text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+                              {ev.subjectName}
+                            </p>
+                            <span className="font-mono text-[11px] tabular-nums text-[#64748b] dark:text-[#6b8299]">
+                              {ev.subjectCode}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-full border border-[#e8e2da] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[#64748b] dark:border-[#1c2d3d] dark:text-[#6b8299]">
+                              {EXAM_TYPE_LABELS[ev.examType] || ev.examType}
+                            </span>
+                            <span className="inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                              <Clock className="h-3 w-3" />
+                              {format(ev.deadlineDate, 'd MMM yyyy')}
+                            </span>
+                            <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-medium', cfg.pill)}>
+                              {cfg.label}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
 
         {/* All upcoming events list */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">All Paper Deadlines</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <section className={cn(PANEL, 'overflow-hidden')}>
+          <div className="border-b border-[#e8e2da] px-4 py-3.5 dark:border-[#1c2d3d]">
+            <p className={EYEBROW}>All deadlines</p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 className="font-serif text-[19px] font-medium leading-snug text-[#18202e] dark:text-[#e2eaf4]">
+                All Paper Deadlines
+              </h2>
+              <span className="font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                {events.length} total
+              </span>
+            </div>
+          </div>
+          <div className="p-4">
             {isLoading ? (
-              <p className="text-muted-foreground text-sm">Loading…</p>
+              <div className="flex items-center gap-2.5 rounded-[10px] border border-[#e8e2da] px-3.5 py-4 dark:border-[#1c2d3d]">
+                <Loader2 className="h-4 w-4 animate-spin text-[#0d7a6b] dark:text-[#2dd4bf]" />
+                <p className="text-[13px] text-[#64748b] dark:text-[#6b8299]">Loading deadlines…</p>
+              </div>
             ) : events.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No exam sessions or papers found.</p>
+              <div className="rounded-[10px] border border-dashed border-[#e8e2da] bg-[#faf8f4] px-4 py-8 text-center dark:border-[#1c2d3d] dark:bg-[#131c27]/40">
+                <Inbox className="mx-auto h-6 w-6 text-[#a0aec0] dark:text-[#3d5166]" />
+                <p className="mt-2 text-[13px] font-medium text-[#18202e] dark:text-[#e2eaf4]">No deadlines yet</p>
+                <p className="mt-0.5 text-[12px] text-[#64748b] dark:text-[#6b8299]">
+                  No exam sessions or papers found for your department.
+                </p>
+              </div>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {events
@@ -290,29 +402,35 @@ export default function HODCalendar() {
                   .map((ev) => {
                     const cfg = STATUS_CONFIG[ev.status];
                     const Icon = cfg.icon;
+                    const active = selectedDate ? isSameDay(ev.date, selectedDate) : false;
                     return (
                       <button
                         key={ev.id}
                         onClick={() => setSelectedDate(ev.date)}
                         className={cn(
-                          'flex items-center gap-2.5 rounded-lg border p-2.5 text-left transition-colors hover:ring-2 hover:ring-ring/30',
-                          cfg.color
+                          'flex items-center gap-2.5 rounded-[10px] border border-[#ece7df] px-2.5 py-2 text-left transition-colors hover:bg-[#ede9e2]/60 dark:border-[#1c2d3d] dark:hover:bg-[#131c27]',
+                          active && 'border-[#0d7a6b]/50 ring-1 ring-[#0d7a6b]/30 dark:border-[#2dd4bf]/40 dark:ring-[#2dd4bf]/25'
                         )}
                       >
-                        <span className={cn('h-2.5 w-2.5 rounded-full shrink-0', cfg.dotClass)} />
+                        <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px]', cfg.tile)}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{ev.label}</p>
-                          <p className="text-[10px] opacity-70">{format(ev.date, 'd MMM yyyy')}</p>
+                          <p className="truncate text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">{ev.label}</p>
+                          <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[#a0aec0] dark:text-[#3d5166]">
+                            {format(ev.date, 'd MMM yyyy')}
+                          </p>
                         </div>
-                        <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        <span className={cn('h-2 w-2 shrink-0 rounded-full', cfg.dotClass)} />
                       </button>
                     );
                   })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
+      </HodPageShell>
     </DashboardLayout>
   );
 }

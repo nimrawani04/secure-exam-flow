@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
 
 interface Department {
   id: string;
@@ -33,31 +34,49 @@ export default function Landing() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [isPasswordReset, setIsPasswordReset] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('reset') === 'true' || window.location.hash.includes('type=recovery');
+  });
+  // Ref mirror so the redirect effect never fires mid-reset (avoids state race)
+  const isPasswordResetRef = useRef(isPasswordReset);
+  const [authError, setAuthError] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.includes('error=')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      return hashParams.get('error_description')?.replace(/\+/g, ' ') || 'Authentication error occurred';
+    }
+    return null;
+  });
+  const { signIn, signUp, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Detect any auth-related hash fragments or query params and redirect to /auth
+  // Handle password-recovery and auth-error callbacks in place (single / entry point)
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        isPasswordResetRef.current = true;
+        setIsPasswordReset(true);
+      }
+    });
+
+    const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
-    const search = window.location.search;
-    const searchParams = new URLSearchParams(window.location.search);
-    
-    const hasAuthHash = 
-      hash.includes('type=recovery') ||
-      hash.includes('type=signup') ||
-      hash.includes('error=') ||
-      hash.includes('access_token=');
-    
-    // PKCE flow uses ?code= query param for token exchange
-    const hasAuthCode = searchParams.has('code');
-    const hasResetParam = searchParams.get('reset') === 'true';
-    
-    if (hasAuthHash || hasAuthCode || hasResetParam) {
-      // Preserve both query params and hash fragment, redirect to /auth
-      navigate('/auth' + search + hash, { replace: true });
+    if (hash.includes('type=recovery') || params.get('reset') === 'true') {
+      isPasswordResetRef.current = true;
+      setIsPasswordReset(true);
     }
-  }, [navigate]);
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Redirect signed-in users to dashboard (but NOT during password reset)
+  useEffect(() => {
+    if (isAuthenticated && !isPasswordResetRef.current) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -185,6 +204,49 @@ export default function Landing() {
                   End-to-end encrypted | Activity logged | Role-based access
                 </p>
               </div>
+
+              {isPasswordReset ? (
+                <div className="mt-4">
+                  <PasswordResetForm
+                    onBackToSignIn={() => {
+                      isPasswordResetRef.current = false;
+                      setIsPasswordReset(false);
+                      window.history.replaceState(null, '', window.location.pathname);
+                    }}
+                  />
+                </div>
+              ) : authError ? (
+                <div className="mt-4 space-y-4 text-center">
+                  <div className="w-14 h-14 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
+                    <AlertCircle className="w-7 h-7 text-destructive" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Link expired or invalid</h2>
+                    <p className="text-white/70 mt-1 text-xs">{authError}</p>
+                  </div>
+                  <Button
+                    className="w-full bg-white text-slate-900 hover:bg-white/90"
+                    onClick={() => {
+                      setAuthError(null);
+                      setShowForgotPassword(true);
+                      window.history.replaceState(null, '', window.location.pathname);
+                    }}
+                  >
+                    Request a new reset link
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthError(null);
+                      window.history.replaceState(null, '', window.location.pathname);
+                    }}
+                    className="text-xs text-white/70 hover:text-white"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              ) : (
+              <>
 
               <div className="mt-4 grid grid-cols-2 rounded-lg border border-white/20 bg-slate-900/40 p-1">
                 <button
@@ -331,6 +393,8 @@ export default function Landing() {
                   {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
                 </Button>
               </form>
+              </>
+              )}
             </div>
           </div>
         </div>

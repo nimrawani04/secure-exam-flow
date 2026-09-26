@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, KeyRound, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export function PasswordResetForm() {
+export function PasswordResetForm({ onBackToSignIn }: { onBackToSignIn?: () => void }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -117,7 +117,7 @@ export function PasswordResetForm() {
       <div className="text-center">
         <button
           type="button"
-          onClick={() => navigate('/auth')}
+          onClick={() => (onBackToSignIn ? onBackToSignIn() : navigate('/'))}
           className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" />
