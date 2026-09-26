@@ -26,7 +26,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { FileSpreadsheet, Plus, Save, Send, Trash2, Upload, FileDown, UserPlus } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  Upload,
+  FileDown,
+  UserPlus,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
 
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
@@ -64,6 +76,8 @@ export default function ExaminerPanels() {
   const [editingId, setEditingId] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [pool, setPool] = useState<PoolTeacher[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadPool = async () => {
@@ -191,7 +205,24 @@ export default function ExaminerPanels() {
     return [...map.values()];
   }, [panels]);
 
-  const addFromPool = (t: PoolTeacher) => {
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    setMembers((prev) => {
+      if (fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next.map((r, i) => ({ ...r, position: i + 1 }));
+    });
+  };
+
+  const moveMember = (index: number, direction: 'up' | 'down') => {
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= members.length) return;
+    handleReorder(index, target);
+  };
+
+  const insertPoolTeacherAt = (t: PoolTeacher, targetIndex?: number) => {
     const row: PanelMember = {
       position: 0,
       name: t.name,
@@ -202,10 +233,27 @@ export default function ExaminerPanels() {
       status: t.status || '',
     };
     setMembers((rows) => {
-      const blank = rows.findIndex((r) => !r.name.trim());
-      const next = blank >= 0 ? rows.map((r, i) => (i === blank ? row : r)) : [...rows, row];
+      let next = [...rows];
+      if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex < next.length) {
+        if (!next[targetIndex].name.trim()) {
+          next[targetIndex] = row;
+        } else {
+          next.splice(targetIndex, 0, row);
+        }
+      } else {
+        const blank = next.findIndex((r) => !r.name.trim());
+        if (blank >= 0) {
+          next[blank] = row;
+        } else {
+          next.push(row);
+        }
+      }
       return next.map((r, i) => ({ ...r, position: i + 1 }));
     });
+  };
+
+  const addFromPool = (t: PoolTeacher) => {
+    insertPoolTeacherAt(t);
   };
 
   const saveToPool = async (m: PanelMember) => {
@@ -407,13 +455,31 @@ export default function ExaminerPanels() {
               </div>
 
               <div className="space-y-2">
-                <Label>Add from your teacher list (added in the order you tap)</Label>
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <Label>Add from your teacher list</Label>
+                  <span className="text-xs text-muted-foreground">Click to append or drag into table to insert at a specific position</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {pool.length === 0 && <p className="text-sm text-muted-foreground">No saved teachers yet.</p>}
                   {pool.map((t) => {
                     const added = members.some((m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase());
                     return (
-                      <Button key={t.id} size="sm" variant={added ? 'secondary' : 'outline'} disabled={added} onClick={() => addFromPool(t)}>
+                      <Button
+                        key={t.id}
+                        size="sm"
+                        variant={added ? 'secondary' : 'outline'}
+                        disabled={added}
+                        onClick={() => addFromPool(t)}
+                        draggable={!added}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify(t));
+                          e.dataTransfer.setData('text/plain', t.name);
+                          e.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        className={!added ? 'cursor-grab active:cursor-grabbing hover:border-primary/60 transition-all select-none' : ''}
+                        title={added ? 'Already added' : 'Click to add or drag into table'}
+                      >
+                        <GripVertical className="w-3 h-3 mr-1 text-muted-foreground/60" />
                         <Plus className="w-3 h-3 mr-1" /> {t.name}
                       </Button>
                     );
@@ -423,7 +489,10 @@ export default function ExaminerPanels() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Examiners</Label>
+                  <div>
+                    <Label>Examiners</Label>
+                    <p className="text-xs text-muted-foreground">Drag rows with the grip handle or use up/down arrows to rearrange.</p>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -433,63 +502,174 @@ export default function ExaminerPanels() {
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border bg-card">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="p-2 text-left w-10">#</th>
+                        <th className="p-2 text-center w-12 text-xs font-semibold text-muted-foreground">Order</th>
+                        <th className="p-2 text-center w-10 text-xs font-semibold text-muted-foreground">#</th>
                         <th className="p-2 text-left min-w-[150px]">Name</th>
                         <th className="p-2 text-left min-w-[130px]">Designation</th>
                         <th className="p-2 text-left min-w-[140px]">Specialization</th>
                         <th className="p-2 text-left min-w-[180px]">Postal address</th>
                         <th className="p-2 text-left min-w-[160px]">Contact details</th>
                         <th className="p-2 text-left min-w-[110px]">Status</th>
-                        <th className="p-2 w-10" />
+                        <th className="p-2 w-16" />
                       </tr>
                     </thead>
-                    <tbody>
-                      {members.map((m, idx) => (
-                        <tr key={idx} className="border-t">
-                          <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                          {(
-                            [
-                              'name',
-                              'designation',
-                              'specialization',
-                              'postal_address',
-                              'contact_details',
-                              'status',
-                            ] as (keyof PanelMember)[]
-                          ).map((key) => (
-                            <td key={key} className="p-1">
-                              <Input
-                                value={String(m[key] ?? '')}
-                                onChange={(e) => setMember(idx, key, e.target.value)}
-                                className="h-9"
-                              />
-                            </td>
-                          ))}
-                          <td className="p-1 whitespace-nowrap">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => saveToPool(m)}
-                              aria-label="Save teacher to list"
-                              title="Save to teacher list"
-                            >
-                              <UserPlus className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setMembers((rows) => rows.filter((_, i) => i !== idx))}
-                              aria-label="Remove examiner"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                    <tbody
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const json = e.dataTransfer.getData('application/json');
+                        if (json) {
+                          try {
+                            const t = JSON.parse(json) as PoolTeacher;
+                            if (t && t.name) {
+                              insertPoolTeacherAt(t);
+                            }
+                          } catch (err) {
+                            // ignore
+                          }
+                        }
+                      }}
+                    >
+                      {members.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                            <p className="text-sm font-medium">No examiners added yet</p>
+                            <p className="text-xs mt-1">Tap a teacher above, drag one in, or click "Add row".</p>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        members.map((m, idx) => (
+                          <tr
+                            key={idx}
+                            draggable
+                            onDragStart={(e) => {
+                              setDraggedIndex(idx);
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', String(idx));
+                              e.dataTransfer.setData('application/x-examiner-row', String(idx));
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = e.dataTransfer.types.includes('application/json') ? 'copy' : 'move';
+                              if (dragOverIndex !== idx) setDragOverIndex(idx);
+                            }}
+                            onDragLeave={(e) => {
+                              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                              if (dragOverIndex === idx) setDragOverIndex(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDragOverIndex(null);
+                              const json = e.dataTransfer.getData('application/json');
+                              if (json) {
+                                try {
+                                  const t = JSON.parse(json) as PoolTeacher;
+                                  if (t && t.name) {
+                                    insertPoolTeacherAt(t, idx);
+                                    setDraggedIndex(null);
+                                    return;
+                                  }
+                                } catch (err) {
+                                  // ignore
+                                }
+                              }
+                              const fromIdxStr = e.dataTransfer.getData('application/x-examiner-row') || e.dataTransfer.getData('text/plain');
+                              const fromIdx = Number(fromIdxStr);
+                              if (!isNaN(fromIdx) && fromIdx >= 0 && fromIdx < members.length) {
+                                handleReorder(fromIdx, idx);
+                              }
+                              setDraggedIndex(null);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedIndex(null);
+                              setDragOverIndex(null);
+                            }}
+                            className={`border-t transition-colors ${
+                              draggedIndex === idx ? 'opacity-40 bg-muted/50' : ''
+                            } ${
+                              dragOverIndex === idx ? 'bg-primary/10 border-t-2 border-t-primary' : ''
+                            }`}
+                          >
+                            <td className="p-1 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <div
+                                  className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted"
+                                  title="Drag to rearrange"
+                                  aria-label="Drag to rearrange"
+                                >
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => moveMember(idx, 'up')}
+                                    className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted rounded"
+                                    title="Move up"
+                                    aria-label="Move up"
+                                  >
+                                    <ArrowUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === members.length - 1}
+                                    onClick={() => moveMember(idx, 'down')}
+                                    className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted rounded"
+                                    title="Move down"
+                                    aria-label="Move down"
+                                  >
+                                    <ArrowDown className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-2 font-medium text-muted-foreground text-center">{idx + 1}</td>
+                            {(
+                              [
+                                'name',
+                                'designation',
+                                'specialization',
+                                'postal_address',
+                                'contact_details',
+                                'status',
+                              ] as (keyof PanelMember)[]
+                            ).map((key) => (
+                              <td key={key} className="p-1">
+                                <Input
+                                  value={String(m[key] ?? '')}
+                                  onChange={(e) => setMember(idx, key, e.target.value)}
+                                  className="h-9"
+                                />
+                              </td>
+                            ))}
+                            <td className="p-1 whitespace-nowrap text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => saveToPool(m)}
+                                aria-label="Save teacher to list"
+                                title="Save to teacher list"
+                              >
+                                <UserPlus className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setMembers((rows) => rows.filter((_, i) => i !== idx))}
+                                aria-label="Remove examiner"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
