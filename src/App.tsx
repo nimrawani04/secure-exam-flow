@@ -23,6 +23,7 @@ import DatesheetManagement from "./pages/DatesheetManagement";
 import ExaminerPanels from "./pages/ExaminerPanels";
 import { applyStoredAccent } from "./lib/theme";
 import { DeepLinkHandler } from "./components/DeepLinkHandler";
+import { CookieConsent } from "./components/CookieConsent";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <CookieConsent />
           <BrowserRouter>
             <DeepLinkHandler />
             <Routes>
