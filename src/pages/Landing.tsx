@@ -6,11 +6,8 @@ import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
-<<<<<<< HEAD
 import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
-=======
 import { openCookiePreferences } from '@/components/CookieConsent';
->>>>>>> 3f5e88cc834d190ec051186c46d5445a82bafc17
 
 interface Department {
   id: string;

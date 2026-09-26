@@ -324,27 +324,10 @@ export default function ExaminerPanels() {
       status: t.status || '',
     };
     setMembers((rows) => {
-      let next = [...rows];
-      if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex < next.length) {
-        if (!next[targetIndex].name.trim()) {
-          next[targetIndex] = row;
-        } else {
-          next.splice(targetIndex, 0, row);
-        }
-      } else {
-        const blank = next.findIndex((r) => !r.name.trim());
-        if (blank >= 0) {
-          next[blank] = row;
-        } else {
-          next.push(row);
-        }
-      }
+      const blank = rows.findIndex((r) => !r.name.trim());
+      const next = blank >= 0 ? rows.map((r, i) => (i === blank ? row : r)) : [...rows, row];
       return next.map((r, i) => ({ ...r, position: i + 1 }));
     });
-  };
-
-  const addFromPool = (t: PoolTeacher) => {
-    insertPoolTeacherAt(t);
   };
 
   const saveToPool = async (m: PanelMember) => {
