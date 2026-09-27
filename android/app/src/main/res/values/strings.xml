@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CUK Exam Flow</string>
+    <string name="title_activity_main">CUK Exam Flow</string>
+    <string name="package_name">com.cuk.secureexamflow</string>
+    <string name="custom_url_scheme">com.cuk.secureexamflow</string>
+</resources>

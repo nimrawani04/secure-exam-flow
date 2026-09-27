@@ -53,3 +53,11 @@ packages/react-devtools-timeline/dist
 .env.local
 .env*.local
 dist
+
+# Android
+android/local.properties
+android/.gradle
+android/build
+android/app/build
+*.apk
+*.aab
