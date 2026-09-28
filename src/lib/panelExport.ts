@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
+import ExcelJS from 'exceljs';
 import type { ExaminerPanel, PanelMember, PanelHeaderInput } from '@/hooks/useExaminerPanels';
 
 export const MEMBER_COLUMNS = [
@@ -108,6 +109,38 @@ function downloadBasicTemplate() {
     { wch: 6 }, { wch: 36 }, { wch: 4 }, { wch: 4 }, { wch: 30 },
   ];
 
+  const thinBorder = {
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } },
+  };
+
+  const headerFill = {
+    patternType: 'solid',
+    fgColor: { rgb: 'F2F4F7' },
+  };
+
+  // Apply borders and fonts to all data cells so it matches the PDF format visually
+  for (let r = 0; r < data.length; r++) {
+    for (let c = 0; c <= 10; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+      ws[cellRef].s = {
+        border: thinBorder,
+        font: { name: 'Times New Roman', sz: 9.5 },
+        alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+      };
+      if (r === 3 || r === 4) {
+        ws[cellRef].s.fill = headerFill;
+        ws[cellRef].s.font.bold = true;
+      } else if (r < 3) {
+        ws[cellRef].s.font.bold = true;
+        ws[cellRef].s.alignment.horizontal = c >= 9 ? 'center' : 'left';
+      }
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Panel Format');
   XLSX.writeFile(wb, 'panel-of-examiners-template.xlsx');
@@ -166,6 +199,12 @@ export async function parsePanelWorkbookWithHeader(file: File): Promise<ParsedPa
           header.semester = val.split(':')[1]?.trim() || nextVal;
         } else if (/^batch/i.test(val)) {
           header.batch = val.split(':')[1]?.trim() || nextVal;
+        } else if (/teacher in-?charge/i.test(val)) {
+          header.teacher_incharge_name = val.split(':')[1]?.trim() || nextVal;
+        } else if (/head/i.test(val) && !/department offering/i.test(val)) {
+          header.head_name = val.split(':')[1]?.trim() || nextVal;
+        } else if (/dean/i.test(val)) {
+          header.dean_name = val.split(':')[1]?.trim() || nextVal;
         }
       }
     }
@@ -245,22 +284,416 @@ export function exportPanelsPdf(panels: ExaminerPanel[], fileName: string) {
   if (panels.length === 0) return;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
 
-  // Group panels by session and semester
-  const groups = new Map<string, ExaminerPanel[]>();
-  panels.forEach((p) => {
-    const key = `${p.session_label || 'current'} · Sem ${p.semester || '-'}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(p);
+  // Each subject is rendered as an individual document with its own 3 signatures directly after it (1 page each)
+  panels.forEach((p, index) => {
+    if (index > 0) doc.addPage();
+    drawSinglePanelDocument(doc, p);
   });
 
-  let groupIndex = 0;
-  groups.forEach((groupPanels) => {
-    if (groupIndex > 0) doc.addPage();
-    drawSemesterPanelDocument(doc, groupPanels);
-    groupIndex++;
+  doc.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+}
+
+/**
+ * Exports all panels of a semester in a unified official layout on a SINGLE page.
+ * Scaled dynamically so that all courses and signatures fit cleanly on 1 landscape A4 page when printed.
+ */
+export function exportCombinedSemesterPdf(panels: ExaminerPanel[], fileName: string) {
+  if (panels.length === 0) return;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  drawCombinedSemesterDocument(doc, panels);
+  doc.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+}
+
+/**
+ * Generates an Excel sheet name strictly formatted as:
+ * Semester - X B.Tech/M.tech
+ * where X is the actual semester (e.g. VII, III, 1).
+ * Guaranteed to be <= 31 characters, contains no invalid characters, and unique within the workbook.
+ */
+export function formatSemesterSheetName(
+  semester?: string | null,
+  programme?: string | null,
+  suffix?: string | null,
+  usedNames?: Set<string>
+): string {
+  let cleanSem = (semester || '').trim().replace(/^(?:semester|sem)\s*/i, '').trim();
+  if (!cleanSem) cleanSem = 'I';
+
+  const p = (programme || '').trim();
+  let degree = 'B.Tech';
+  if (/m\.?tech/i.test(p)) degree = 'M.Tech';
+  else if (/b\.?tech/i.test(p)) degree = 'B.Tech';
+  else if (/mca/i.test(p)) degree = 'MCA';
+  else if (/bca/i.test(p)) degree = 'BCA';
+  else if (/m\.?sc/i.test(p)) degree = 'M.Sc';
+  else if (/b\.?sc/i.test(p)) degree = 'B.Sc';
+  else if (/ph\.?d/i.test(p)) degree = 'Ph.D';
+  else if (p) degree = p.split(/[\s·-]+/)[0];
+
+  let name = suffix
+    ? `Semester - ${cleanSem} ${degree} (${suffix})`
+    : `Semester - ${cleanSem} ${degree}`;
+
+  name = name.replace(/[:\\/?*\[\]]/g, '-').trim();
+  if (name.length > 31) name = name.substring(0, 31).trim();
+
+  if (usedNames) {
+    let candidate = name;
+    let counter = 2;
+    while (Array.from(usedNames).some((n) => n.toLowerCase() === candidate.toLowerCase())) {
+      const tag = ` (${counter})`;
+      const maxBase = 31 - tag.length;
+      candidate = `${name.substring(0, maxBase).trim()}${tag}`;
+      counter++;
+    }
+    name = candidate;
+    usedNames.add(name);
+  }
+  return name;
+}
+
+/**
+ * Builds an official Excel worksheet for one or more subject panels in a semester.
+ * Each subject panel contains:
+ * 1. Top metadata header block (Department, School, Session, Semester, Batch, Programme)
+ * 2. Two-tier official table with merged course details and 5 ordered expert preference rows
+ * 3. Endorsement certificate text
+ * 4. All 3 signatures: Teacher In-charge, Head/Co-ordinator, and Dean of School
+ */
+export function buildSemesterWorksheet(panels: ExaminerPanel[]): XLSX.WorkSheet {
+  const data: (string | number | null)[][] = [];
+  const merges: XLSX.Range[] = [];
+  const rowHeights: { hpt: number }[] = [];
+  let currentRow = 0;
+
+  panels.forEach((p, pIdx) => {
+    // 0. Confidential Document Title
+    const titleRow = currentRow;
+    data.push([
+      'PANEL OF EXAMINERS (CONFIDENTIAL)',
+      null, null, null, null, null, null, null, null, null, null,
+    ]);
+    merges.push({ s: { r: titleRow, c: 0 }, e: { r: titleRow, c: 10 } });
+    rowHeights[titleRow] = { hpt: 26 };
+    currentRow++;
+
+    // 1. Metadata Block
+    data.push([
+      `Name of the Department offering the courses:  ${p.department_label || '-'}`,
+      null, null, null, null, null, null, null, null,
+      `Semester:  ${p.semester || '-'}`,
+      null,
+    ]);
+    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 8 } });
+    merges.push({ s: { r: currentRow, c: 9 }, e: { r: currentRow, c: 10 } });
+    rowHeights[currentRow] = { hpt: 20 };
+    currentRow++;
+
+    data.push([
+      `School:  ${p.school || '-'}`,
+      null, null, null, null, null, null, null, null,
+      `Batch:  ${p.batch || '-'}`,
+      null,
+    ]);
+    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 8 } });
+    merges.push({ s: { r: currentRow, c: 9 }, e: { r: currentRow, c: 10 } });
+    rowHeights[currentRow] = { hpt: 20 };
+    currentRow++;
+
+    data.push([
+      `Session:  ${p.session_label || '-'}`,
+      null, null, null, null, null, null, null, null,
+      p.programme ? `Programme:  ${p.programme}` : '',
+      null,
+    ]);
+    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 8 } });
+    merges.push({ s: { r: currentRow, c: 9 }, e: { r: currentRow, c: 10 } });
+    rowHeights[currentRow] = { hpt: 20 };
+    currentRow++;
+
+    // 2. Table Header 1
+    const tHead1 = currentRow;
+    data.push([
+      'Details of the course(s) for which panel is submitted',
+      null, null, null, null, null,
+      'S.\nNo.',
+      'Particulars of the Experts in order of Preference\n(Name/Designation/Department)',
+      null, null,
+      'Contact Details\n(Email ID/Mobile No.)',
+    ]);
+    merges.push({ s: { r: tHead1, c: 0 }, e: { r: tHead1, c: 5 } });
+    merges.push({ s: { r: tHead1, c: 6 }, e: { r: tHead1 + 1, c: 6 } });
+    merges.push({ s: { r: tHead1, c: 7 }, e: { r: tHead1 + 1, c: 9 } });
+    merges.push({ s: { r: tHead1, c: 10 }, e: { r: tHead1 + 1, c: 10 } });
+    rowHeights[tHead1] = { hpt: 26 };
+    currentRow++;
+
+    // Table Header 2
+    const tHead2 = currentRow;
+    data.push([
+      'Course Title',
+      'Course Code',
+      'Credits',
+      'Nature of Course \n(Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)',
+      'Programme(s)\n(whose students have opted the course)',
+      'Whether Regular/ Backlog or Both',
+      null, null, null, null, null,
+    ]);
+    rowHeights[tHead2] = { hpt: 38 };
+    currentRow++;
+
+    // 3. 5 Rows of Experts
+    const expStartRow = currentRow;
+    const members = p.members || [];
+    for (let i = 0; i < 5; i++) {
+      const m = members[i];
+      const particulars = m && m.name
+        ? [m.name.trim(), m.designation?.trim(), m.specialization?.trim() || m.postal_address?.trim()].filter(Boolean).join(' / ')
+        : '';
+      const contact = m ? m.contact_details || '' : '';
+
+      data.push([
+        i === 0 ? (p.course_title || '') : null,
+        i === 0 ? (p.course_code || '') : null,
+        i === 0 ? String(p.credits || '4') : null,
+        i === 0 ? (p.course_nature || 'Major') : null,
+        i === 0 ? (p.programme || '') : null,
+        i === 0 ? (p.regular_backlog || 'Regular') : null,
+        i + 1,
+        particulars,
+        null, null,
+        contact,
+      ]);
+      merges.push({ s: { r: currentRow, c: 7 }, e: { r: currentRow, c: 9 } });
+      rowHeights[currentRow] = { hpt: 24 };
+      currentRow++;
+    }
+
+    // Vertical merges for course particulars columns 0 to 5
+    for (let col = 0; col <= 5; col++) {
+      merges.push({ s: { r: expStartRow, c: col }, e: { r: expStartRow + 4, c: col } });
+    }
+
+    // Spacer
+    data.push(['', '', '', '', '', '', '', '', '', '', '']);
+    rowHeights[currentRow] = { hpt: 12 };
+    currentRow++;
+
+    // 4. Endorsement Certificate
+    const certHeadRow = currentRow;
+    data.push([
+      'Certificate by the Head/Coordinator of the Department (Duly Endorsed by Dean Concerned)',
+      null, null, null, null, null, null, null, null, null, null,
+    ]);
+    merges.push({ s: { r: certHeadRow, c: 0 }, e: { r: certHeadRow, c: 10 } });
+    rowHeights[certHeadRow] = { hpt: 22 };
+    currentRow++;
+
+    const certTextRow = currentRow;
+    data.push([
+      'Certified that the detailed particulars furnished in the Panel of Examiners like Contact Details, Postal Address and Specialization are correct/operational. Further, under normal settings, the Examiners as stated above shall readily accept any confidential assignment.',
+      null, null, null, null, null, null, null, null, null, null,
+    ]);
+    merges.push({ s: { r: certTextRow, c: 0 }, e: { r: certTextRow, c: 10 } });
+    rowHeights[certTextRow] = { hpt: 30 };
+    currentRow++;
+
+    // Spacer
+    data.push(['', '', '', '', '', '', '', '', '', '', '']);
+    rowHeights[currentRow] = { hpt: 12 };
+    currentRow++;
+
+    // 5. 3 Signatures: Teacher In-charge, Head/Co-ordinator, and Dean of School
+    const sigLabelRow = currentRow;
+    data.push([
+      '(Signature of Teacher In-charge)', null, null,
+      null,
+      '(Signature of Head/Co-ordinator)', null, null,
+      null,
+      '(Signature of the Dean of School)', null, null,
+    ]);
+    merges.push({ s: { r: sigLabelRow, c: 0 }, e: { r: sigLabelRow, c: 2 } });
+    merges.push({ s: { r: sigLabelRow, c: 4 }, e: { r: sigLabelRow, c: 6 } });
+    merges.push({ s: { r: sigLabelRow, c: 8 }, e: { r: sigLabelRow, c: 10 } });
+    rowHeights[sigLabelRow] = { hpt: 22 };
+    currentRow++;
+
+    const sigNameRow = currentRow;
+    data.push([
+      p.teacher_incharge_name || '', null, null,
+      null,
+      p.head_name || '', null, null,
+      null,
+      p.dean_name || '', null, null,
+    ]);
+    merges.push({ s: { r: sigNameRow, c: 0 }, e: { r: sigNameRow, c: 2 } });
+    merges.push({ s: { r: sigNameRow, c: 4 }, e: { r: sigNameRow, c: 6 } });
+    merges.push({ s: { r: sigNameRow, c: 8 }, e: { r: sigNameRow, c: 10 } });
+    rowHeights[sigNameRow] = { hpt: 20 };
+    currentRow++;
+
+    // 2 blank spacing rows before next subject
+    if (pIdx < panels.length - 1) {
+      data.push(['', '', '', '', '', '', '', '', '', '', '']);
+      data.push(['', '', '', '', '', '', '', '', '', '', '']);
+      rowHeights[currentRow] = { hpt: 14 };
+      rowHeights[currentRow + 1] = { hpt: 14 };
+      currentRow += 2;
+    }
   });
 
-  doc.save(fileName);
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!merges'] = merges;
+  ws['!rows'] = rowHeights;
+  ws['!cols'] = [
+    { wch: 28 }, // Course Title
+    { wch: 14 }, // Course Code
+    { wch: 10 }, // Credits
+    { wch: 30 }, // Nature of Course
+    { wch: 24 }, // Programme
+    { wch: 18 }, // Regular/Backlog
+    { wch: 7 },  // S. No.
+    { wch: 35 }, // Particulars of Experts
+    { wch: 4 },  // (merged col)
+    { wch: 4 },  // (merged col)
+    { wch: 30 }, // Contact Details
+  ];
+
+  const thinBorder = {
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } },
+  };
+
+  const headerFill = {
+    patternType: 'solid',
+    fgColor: { rgb: 'F2F4F7' },
+  };
+
+  const metaFill = {
+    patternType: 'solid',
+    fgColor: { rgb: 'FAFBFD' },
+  };
+
+  // Apply complete styles & borders to EVERY cell in the sheet
+  let rowCursor = 0;
+  panels.forEach((p, pIdx) => {
+    // 0. Confidential Document Title
+    for (let c = 0; c <= 10; c++) {
+      const ref = XLSX.utils.encode_cell({ r: rowCursor, c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+      ws[ref].s = {
+        font: { name: 'Times New Roman', sz: 13, bold: true },
+        alignment: { vertical: 'center', horizontal: 'center' },
+      };
+    }
+    rowCursor++;
+
+    // 1. Metadata Block (3 rows x 11 cols) with borders
+    for (let r = rowCursor; r < rowCursor + 3; r++) {
+      for (let c = 0; c <= 10; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = {
+          border: thinBorder,
+          fill: metaFill,
+          font: { name: 'Times New Roman', sz: 9.5, bold: true },
+          alignment: {
+            vertical: 'center',
+            horizontal: c >= 9 ? 'center' : 'left',
+            wrapText: true,
+          },
+        };
+      }
+    }
+    rowCursor += 3;
+
+    // 2. Table Headers (2 rows x 11 cols) with borders & gray fill
+    for (let r = rowCursor; r < rowCursor + 2; r++) {
+      for (let c = 0; c <= 10; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = {
+          border: thinBorder,
+          fill: headerFill,
+          font: { name: 'Times New Roman', sz: r === rowCursor ? 9.5 : 8.5, bold: true },
+          alignment: {
+            vertical: 'center',
+            horizontal: 'center',
+            wrapText: true,
+          },
+        };
+      }
+    }
+    rowCursor += 2;
+
+    // 3. 5 Expert Rows (5 rows x 11 cols) with borders
+    for (let r = rowCursor; r < rowCursor + 5; r++) {
+      for (let c = 0; c <= 10; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        const isCenterCol = c === 1 || c === 2 || c === 5 || c === 6;
+        ws[ref].s = {
+          border: thinBorder,
+          font: { name: 'Times New Roman', sz: 9.5, bold: c === 6 },
+          alignment: {
+            vertical: 'center',
+            horizontal: isCenterCol ? 'center' : 'left',
+            wrapText: true,
+          },
+        };
+      }
+    }
+    rowCursor += 5;
+
+    // Spacer
+    rowCursor++;
+
+    // 4. Endorsement Certificate Header
+    for (let c = 0; c <= 10; c++) {
+      const ref = XLSX.utils.encode_cell({ r: rowCursor, c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+      ws[ref].s = {
+        font: { name: 'Times New Roman', sz: 10, bold: true },
+        alignment: { vertical: 'center', horizontal: 'center' },
+      };
+    }
+    rowCursor++;
+
+    // Certificate Statement
+    for (let c = 0; c <= 10; c++) {
+      const ref = XLSX.utils.encode_cell({ r: rowCursor, c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+      ws[ref].s = {
+        font: { name: 'Times New Roman', sz: 9, italic: true },
+        alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+      };
+    }
+    rowCursor++;
+
+    // Spacer
+    rowCursor++;
+
+    // 5. Signatures (labels and names)
+    for (let r = rowCursor; r < rowCursor + 2; r++) {
+      for (let c = 0; c <= 10; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = {
+          font: { name: 'Times New Roman', sz: 9.5, bold: r === rowCursor },
+          alignment: { vertical: 'center', horizontal: 'center' },
+        };
+      }
+    }
+    rowCursor += 2;
+
+    if (pIdx < panels.length - 1) {
+      rowCursor += 2;
+    }
+  });
+
+  return ws;
 }
 
 function formatExpertParticulars(m?: PanelMember, defaultDept?: string | null): string {
@@ -273,10 +706,338 @@ function formatExpertParticulars(m?: PanelMember, defaultDept?: string | null): 
   return parts.join(' / ');
 }
 
+/**
+ * Builds an official Excel worksheet using ExcelJS with:
+ * - Print page setup configured to force fitting onto 1 page (fitToWidth = 1, fitToHeight = 1, landscape, A4)
+ * - Complete cell borders on all headers, metadata, and data cells
+ * - Proper header fills and text alignments
+ * - All 3 signatures: Teacher In-charge, Head/Co-ordinator, and Dean of School
+ */
+export function buildSemesterWorksheetExcelJS(
+  wb: ExcelJS.Workbook,
+  panels: ExaminerPanel[],
+  sheetName: string
+): ExcelJS.Worksheet {
+  const ws = wb.addWorksheet(sheetName);
+
+  // Set page setup to guarantee all panels of the semester fit on 1 single page when printed
+  ws.pageSetup = {
+    orientation: 'landscape',
+    paperSize: 9, // A4
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    margins: {
+      left: 0.25,
+      right: 0.25,
+      top: 0.25,
+      bottom: 0.25,
+      header: 0.1,
+      footer: 0.1,
+    },
+  };
+
+  ws.columns = [
+    { width: 28 }, // 1: Title
+    { width: 14 }, // 2: Code
+    { width: 10 }, // 3: Credits
+    { width: 30 }, // 4: Nature
+    { width: 24 }, // 5: Programme
+    { width: 18 }, // 6: Reg/Back
+    { width: 7 },  // 7: S. No.
+    { width: 35 }, // 8: Particulars
+    { width: 4 },  // 9: Merged
+    { width: 4 },  // 10: Merged
+    { width: 30 }, // 11: Contact
+  ];
+
+  const thinBorder: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin', color: { argb: 'FF000000' } },
+    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+    left: { style: 'thin', color: { argb: 'FF000000' } },
+    right: { style: 'thin', color: { argb: 'FF000000' } },
+  };
+
+  const headerFill: ExcelJS.FillPattern = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFF2F4F7' },
+  };
+
+  const metaFill: ExcelJS.FillPattern = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFFAFBFD' },
+  };
+
+  let r = 1;
+  panels.forEach((p, pIdx) => {
+    // 0. Confidential Document Title
+    ws.getRow(r).getCell(1).value = 'PANEL OF EXAMINERS (CONFIDENTIAL)';
+    ws.mergeCells(r, 1, r, 11);
+    ws.getRow(r).getCell(1).font = { name: 'Times New Roman', size: 13, bold: true };
+    ws.getRow(r).getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getRow(r).height = 26;
+    r++;
+
+    // 1. Metadata Block
+    const meta = [
+      [
+        `Name of the Department offering the courses:  ${p.department_label || '-'}`,
+        `Semester:  ${p.semester || '-'}`,
+      ],
+      [
+        `School:  ${p.school || '-'}`,
+        `Batch:  ${p.batch || '-'}`,
+      ],
+      [
+        `Session:  ${p.session_label || '-'}`,
+        p.programme ? `Programme:  ${p.programme}` : '',
+      ],
+    ];
+
+    meta.forEach(([colLeft, colRight]) => {
+      ws.getRow(r).getCell(1).value = colLeft;
+      ws.mergeCells(r, 1, r, 9);
+      ws.getRow(r).getCell(10).value = colRight;
+      ws.mergeCells(r, 10, r, 11);
+      ws.getRow(r).height = 20;
+
+      for (let c = 1; c <= 11; c++) {
+        const cell = ws.getRow(r).getCell(c);
+        cell.border = thinBorder;
+        cell.fill = metaFill;
+        cell.font = { name: 'Times New Roman', size: 9.5, bold: true };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: c >= 10 ? 'center' : 'left',
+          wrapText: true,
+        };
+      }
+      r++;
+    });
+
+    // 2. Table Header 1
+    const tHead1 = r;
+    ws.getRow(r).getCell(1).value = 'Details of the course(s) for which panel is submitted';
+    ws.mergeCells(r, 1, r, 6);
+    ws.getRow(r).getCell(7).value = 'S.\nNo.';
+    ws.mergeCells(r, 7, r + 1, 7);
+    ws.getRow(r).getCell(8).value =
+      'Particulars of the Experts in order of Preference\n(Name/Designation/Department)';
+    ws.mergeCells(r, 8, r + 1, 10);
+    ws.getRow(r).getCell(11).value = 'Contact Details\n(Email ID/Mobile No.)';
+    ws.mergeCells(r, 11, r + 1, 11);
+    ws.getRow(r).height = 26;
+    r++;
+
+    // Table Header 2
+    const subHeaders = [
+      'Course Title',
+      'Course Code',
+      'Credits',
+      'Nature of Course \n(Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)',
+      'Programme(s)\n(whose students have opted the course)',
+      'Whether Regular/ Backlog or Both',
+    ];
+    subHeaders.forEach((sh, idx) => {
+      ws.getRow(r).getCell(idx + 1).value = sh;
+    });
+    ws.getRow(r).height = 38;
+
+    for (let tr = tHead1; tr <= r; tr++) {
+      for (let c = 1; c <= 11; c++) {
+        const cell = ws.getRow(tr).getCell(c);
+        cell.border = thinBorder;
+        cell.fill = headerFill;
+        cell.font = { name: 'Times New Roman', size: 8.5, bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      }
+    }
+    r++;
+
+    // 3. 5 Rows of Experts
+    const expStartRow = r;
+    const members = p.members || [];
+    for (let i = 0; i < 5; i++) {
+      const curRow = r;
+      const m = members[i];
+      const particulars = formatExpertParticulars(m, p.department_label);
+      const contact = m?.contact_details || '';
+
+      if (i === 0) {
+        ws.getRow(curRow).getCell(1).value = p.course_title || '';
+        ws.getRow(curRow).getCell(2).value = p.course_code || '';
+        ws.getRow(curRow).getCell(3).value = String(p.credits || '4');
+        ws.getRow(curRow).getCell(4).value = p.course_nature || 'Major';
+        ws.getRow(curRow).getCell(5).value = p.programme || '';
+        ws.getRow(curRow).getCell(6).value = p.regular_backlog || 'Regular';
+      }
+      ws.getRow(curRow).getCell(7).value = i + 1;
+      ws.getRow(curRow).getCell(8).value = particulars;
+      ws.mergeCells(curRow, 8, curRow, 10);
+      ws.getRow(curRow).getCell(11).value = contact;
+      ws.getRow(curRow).height = 24;
+
+      for (let c = 1; c <= 11; c++) {
+        const cell = ws.getRow(curRow).getCell(c);
+        cell.border = thinBorder;
+        cell.font = { name: 'Times New Roman', size: 9, bold: c === 7 };
+        const isCenter = c === 2 || c === 3 || c === 6 || c === 7;
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: isCenter ? 'center' : 'left',
+          wrapText: true,
+        };
+      }
+      r++;
+    }
+
+    // Vertical merges for course particulars columns 1 to 6
+    for (let c = 1; c <= 6; c++) {
+      ws.mergeCells(expStartRow, c, expStartRow + 4, c);
+    }
+
+    // Spacer
+    ws.getRow(r).height = 10;
+    r++;
+
+    // 4. Endorsement Certificate Header
+    const certHeadRow = r;
+    ws.getRow(r).getCell(1).value =
+      'Certificate by the Head/Coordinator of the Department (Duly Endorsed by Dean Concerned)';
+    ws.mergeCells(r, 1, r, 11);
+    ws.getRow(r).getCell(1).font = { name: 'Times New Roman', size: 10, bold: true };
+    ws.getRow(r).getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getRow(r).height = 22;
+    r++;
+
+    // Certificate Statement
+    const certTextRow = r;
+    ws.getRow(r).getCell(1).value =
+      'Certified that the detailed particulars furnished in the Panel of Examiners like Contact Details, Postal Address and Specialization are correct/operational. Further, under normal settings, the Examiners as stated above shall readily accept any confidential assignment.';
+    ws.mergeCells(r, 1, r, 11);
+    ws.getRow(r).getCell(1).font = { name: 'Times New Roman', size: 9, italic: true };
+    ws.getRow(r).getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    ws.getRow(r).height = 28;
+    r++;
+
+    // Spacer
+    ws.getRow(r).height = 10;
+    r++;
+
+    // 5. 3 Signatures: Teacher In-charge, Head/Co-ordinator, and Dean of School
+    const sigLabelRow = r;
+    ws.getRow(r).getCell(1).value = '(Signature of Teacher In-charge)';
+    ws.mergeCells(r, 1, r, 3);
+    ws.getRow(r).getCell(5).value = '(Signature of Head/Co-ordinator)';
+    ws.mergeCells(r, 5, r, 7);
+    ws.getRow(r).getCell(9).value = '(Signature of the Dean of School)';
+    ws.mergeCells(r, 9, r, 11);
+    ws.getRow(r).height = 22;
+    r++;
+
+    const sigNameRow = r;
+    ws.getRow(r).getCell(1).value = p.teacher_incharge_name || '';
+    ws.mergeCells(r, 1, r, 3);
+    ws.getRow(r).getCell(5).value = p.head_name || '';
+    ws.mergeCells(r, 5, r, 7);
+    ws.getRow(r).getCell(9).value = p.dean_name || '';
+    ws.mergeCells(r, 9, r, 11);
+    ws.getRow(r).height = 20;
+
+    for (let sr = sigLabelRow; sr <= sigNameRow; sr++) {
+      for (let c = 1; c <= 11; c++) {
+        const cell = ws.getRow(sr).getCell(c);
+        cell.font = { name: 'Times New Roman', size: 9.5, bold: sr === sigLabelRow };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+    }
+    r++;
+
+    if (pIdx < panels.length - 1) {
+      ws.getRow(r).height = 14;
+      ws.getRow(r + 1).height = 14;
+      r += 2;
+    }
+  });
+
+  return ws;
+}
+
+/**
+ * Exports one or more panels to an Excel (.xlsx) workbook using ExcelJS.
+ * Features:
+ * - Fits all panels of a semester onto 1 single page when printed (`fitToPage: true, fitToWidth: 1, fitToHeight: 1`)
+ * - Thin borders on all cells
+ * - Subtle fills and Times New Roman typography matching official standards
+ * - All 3 signatures: Teacher In-charge, Head/Co-ordinator, Dean of School
+ * Modes:
+ * - 'by_semester' (default): Groups panels by semester/programme, storing each semester in a separate sheet
+ *   named strictly as `Semester - X B.Tech/M.tech` where X is the actual semester.
+ * - 'by_subject': Stores each course/panel in a separate sheet inside the workbook.
+ */
+export async function exportPanelsExcel(
+  panels: ExaminerPanel[],
+  fileName: string,
+  mode: 'by_semester' | 'by_subject' = 'by_semester'
+) {
+  if (panels.length === 0) return;
+  const wb = new ExcelJS.Workbook();
+  const usedNames = new Set<string>();
+
+  if (mode === 'by_subject') {
+    panels.forEach((p, idx) => {
+      const sheetName = formatSemesterSheetName(
+        p.semester,
+        p.programme,
+        p.course_code || `Course ${idx + 1}`,
+        usedNames
+      );
+      buildSemesterWorksheetExcelJS(wb, [p], sheetName);
+    });
+  } else {
+    // Group by session, programme, semester
+    const semMap = new Map<string, ExaminerPanel[]>();
+    panels.forEach((p) => {
+      const key = `${p.session_label || ''}|${p.programme || ''}|${p.semester || ''}`;
+      if (!semMap.has(key)) semMap.set(key, []);
+      semMap.get(key)!.push(p);
+    });
+
+    semMap.forEach((semPanels) => {
+      const sample = semPanels[0];
+      const sheetName = formatSemesterSheetName(
+        sample.semester,
+        sample.programme,
+        null,
+        usedNames
+      );
+      buildSemesterWorksheetExcelJS(wb, semPanels, sheetName);
+    });
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function exportPanelExcel(panel: ExaminerPanel) {
+  exportPanelsExcel([panel], `panel-${panel.course_code || 'course'}.xlsx`, 'by_semester');
+}
+
 function drawHeaderMetadata(doc: jsPDF, p: ExaminerPanel, startY: number) {
   const leftMargin = 28;
-  const width = doc.internal.pageSize.getWidth();
-  const tableWidth = width - leftMargin * 2;
+  const tableWidth = 784;
 
   autoTable(doc, {
     startY,
@@ -322,7 +1083,7 @@ function drawHeaderMetadata(doc: jsPDF, p: ExaminerPanel, startY: number) {
       lineWidth: 0.5,
     },
     columnStyles: {
-      0: { cellWidth: 545 },
+      0: { cellWidth: 544 },
       1: { cellWidth: 240 },
     },
     margin: { left: leftMargin, right: leftMargin },
@@ -364,15 +1125,15 @@ const TABLE_HEAD = [
 ];
 
 const COLUMN_STYLES = {
-  0: { cellWidth: 105, halign: 'left' as const },
+  0: { cellWidth: 104, halign: 'left' as const },
   1: { cellWidth: 60, halign: 'center' as const },
   2: { cellWidth: 38, halign: 'center' as const },
-  3: { cellWidth: 105, halign: 'left' as const },
+  3: { cellWidth: 104, halign: 'left' as const },
   4: { cellWidth: 85, halign: 'left' as const },
   5: { cellWidth: 68, halign: 'center' as const },
   6: { cellWidth: 28, halign: 'center' as const },
   7: { cellWidth: 168, halign: 'left' as const },
-  8: { cellWidth: 128, halign: 'left' as const },
+  8: { cellWidth: 127, halign: 'left' as const },
 };
 
 function buildCourseBodyRows(panel: ExaminerPanel): any[][] {
@@ -407,18 +1168,19 @@ function buildCourseBodyRows(panel: ExaminerPanel): any[][] {
   return rows;
 }
 
-function drawCertificate(doc: jsPDF, headName?: string | null, deanName?: string | null) {
+function drawCertificate(
+  doc: jsPDF,
+  teacherInchargeName?: string | null,
+  headName?: string | null,
+  deanName?: string | null
+) {
   const width = doc.internal.pageSize.getWidth();
   const leftMargin = 28;
 
-  let certY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 16 : 460;
-  if (certY + 95 > doc.internal.pageSize.getHeight() - 25) {
-    doc.addPage();
-    certY = 35;
-  }
+  const certY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 12 : 360;
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.text(
     'Certificate by the Head/Coordinator of the Department (Duly Endorsed by Dean Concerned)',
     width / 2,
@@ -427,22 +1189,30 @@ function drawCertificate(doc: jsPDF, headName?: string | null, deanName?: string
   );
 
   doc.setFont('times', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   const certText =
     'Certified that the detailed particulars furnished in the Panel of Examiners like Contact Details, Postal Address and Specialization are correct/operational. Further, under normal settings, the Examiners as stated above shall readily accept any confidential assignment.';
-  doc.text(doc.splitTextToSize(certText, width - 80), width / 2, certY + 14, { align: 'center', maxWidth: width - 80 });
+  doc.text(doc.splitTextToSize(certText, width - 80), width / 2, certY + 12, { align: 'center', maxWidth: width - 80 });
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
+
+  // 3 Signatures: Teacher In-charge, Head/Co-ordinator, and Dean of School
+  const sigY = certY + 38;
   doc.text(
-    `(Signature of Head/Co-ordinator)${headName ? '   ' + headName : ''}`,
-    leftMargin + 30,
-    certY + 52
+    `(Signature of Teacher In-charge)\n${teacherInchargeName ? teacherInchargeName : ''}`,
+    leftMargin + 15,
+    sigY
   );
   doc.text(
-    `(Signature of the Dean of School)${deanName ? '   ' + deanName : ''}`,
-    width / 2 + 60,
-    certY + 52
+    `(Signature of Head/Co-ordinator)\n${headName ? headName : ''}`,
+    width / 2 - 45,
+    sigY
+  );
+  doc.text(
+    `(Signature of the Dean of School)\n${deanName ? deanName : ''}`,
+    width - leftMargin - 185,
+    sigY
   );
 }
 
@@ -479,7 +1249,7 @@ function drawSinglePanelDocument(doc: jsPDF, panel: ExaminerPanel) {
       font: 'times',
       lineColor: [150, 150, 150],
       lineWidth: 0.5,
-      cellPadding: 4,
+      cellPadding: 3.5,
       textColor: [0, 0, 0],
     },
     columnStyles: COLUMN_STYLES,
@@ -487,34 +1257,151 @@ function drawSinglePanelDocument(doc: jsPDF, panel: ExaminerPanel) {
     tableWidth,
   });
 
-  // Certificate block
-  drawCertificate(doc, panel.head_name, panel.dean_name);
+  // Certificate block with all 3 signatures (Teacher In-charge, Head, Dean)
+  drawCertificate(doc, panel.teacher_incharge_name, panel.head_name, panel.dean_name);
 }
 
-function drawSemesterPanelDocument(doc: jsPDF, panels: ExaminerPanel[]) {
-  const first = panels[0];
-  const width = doc.internal.pageSize.getWidth();
-  const leftMargin = 28;
-  const tableWidth = width - leftMargin * 2;
+/**
+ * Draws all panels belonging to a single semester on a SINGLE landscape A4 page.
+ * Uses adaptive row padding and font sizing to guarantee that all courses,
+ * expert particulars, endorsement certificate, and all 3 signatures fit onto 1 printed page.
+ */
+function drawCombinedSemesterDocument(doc: jsPDF, panels: ExaminerPanel[]) {
+  if (panels.length === 0) return;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const leftMargin = 24;
+  const tableWidth = pageWidth - leftMargin * 2;
+  const p0 = panels[0];
 
-  // Title
+  // Document Title
   doc.setFont('times', 'bold');
-  doc.setFontSize(14);
-  doc.text('PANEL OF EXAMINERS (CONFIDENTIAL)', width / 2, 32, { align: 'center' });
+  doc.setFontSize(11.5);
+  doc.text('PANEL OF EXAMINERS (CONFIDENTIAL)', pageWidth / 2, 22, { align: 'center' });
 
-  // Metadata block
-  drawHeaderMetadata(doc, first, 44);
-
-  // Combine all courses into the same table
-  const tableStartY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : 110;
-  const body: any[][] = [];
-  panels.forEach((p) => {
-    body.push(...buildCourseBodyRows(p));
+  // Top Semester Metadata Block
+  autoTable(doc, {
+    startY: 28,
+    body: [
+      [
+        {
+          content: `Name of the Department offering the courses:  ${p0.department_label || '-'}`,
+          styles: { fontStyle: 'bold' },
+        },
+        {
+          content: `Semester:  ${p0.semester || '-'}`,
+          styles: { fontStyle: 'bold' },
+        },
+      ],
+      [
+        {
+          content: `School:  ${p0.school || '-'}`,
+          styles: { fontStyle: 'bold' },
+        },
+        {
+          content: `Batch:  ${p0.batch || '-'}`,
+          styles: { fontStyle: 'bold' },
+        },
+      ],
+      [
+        {
+          content: `Session:  ${p0.session_label || '-'}`,
+          styles: { fontStyle: 'bold' },
+        },
+        {
+          content: p0.programme ? `Programme:  ${p0.programme}` : '',
+          styles: { fontStyle: 'bold' },
+        },
+      ],
+    ],
+    theme: 'grid',
+    styles: {
+      font: 'times',
+      fontSize: 8,
+      cellPadding: 2.2,
+      textColor: [0, 0, 0],
+      lineColor: [180, 180, 180],
+      lineWidth: 0.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 540 },
+      1: { cellWidth: tableWidth - 540 },
+    },
+    margin: { left: leftMargin, right: leftMargin },
+    tableWidth,
   });
 
+  // Dynamic sizing based on number of panels to GUARANTEE fitting on 1 single page when printed
+  const courseCount = panels.length;
+  const isLarge = courseCount >= 4;
+  const isMedium = courseCount === 3;
+  const cellPad = isLarge ? 1.4 : (isMedium ? 2 : 2.5);
+  const dataFontSize = isLarge ? 6.5 : (isMedium ? 7 : 7.5);
+
+  const body: any[][] = [];
+  panels.forEach((p) => {
+    const rowCount = Math.max(5, p.members.length);
+    for (let r = 0; r < rowCount; r++) {
+      const member = p.members[r];
+      const particulars = formatExpertParticulars(member, p.department_label);
+      const contact = member?.contact_details || '';
+
+      if (r === 0) {
+        body.push([
+          { content: p.course_title || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: dataFontSize } },
+          { content: p.course_code || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: dataFontSize } },
+          { content: String(p.credits || '-'), rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: dataFontSize } },
+          { content: p.course_nature || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: Math.max(6, dataFontSize - 0.5) } },
+          { content: p.programme || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: Math.max(6, dataFontSize - 0.5) } },
+          { content: p.regular_backlog || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: Math.max(6, dataFontSize - 0.5) } },
+          { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: dataFontSize } },
+          { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: dataFontSize } },
+          { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: dataFontSize } },
+        ]);
+      } else {
+        body.push([
+          { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: dataFontSize } },
+          { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: dataFontSize } },
+          { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: dataFontSize } },
+        ]);
+      }
+    }
+  });
+
+  const tableStartY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4 : 95;
   autoTable(doc, {
     startY: tableStartY,
-    head: TABLE_HEAD,
+    head: [
+      [
+        {
+          content: 'Details of the course(s) for which panel is submitted',
+          colSpan: 6,
+          styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5, cellPadding: 2 },
+        },
+        {
+          content: 'S. No.',
+          rowSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        },
+        {
+          content: 'Particulars of the Experts in order of Preference\n(Name/Designation/Department)',
+          rowSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        },
+        {
+          content: 'Contact Details\n(Email ID/Mobile No.)',
+          rowSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        },
+      ],
+      [
+        { content: 'Course Title', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.8 } },
+        { content: 'Course Code', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.8 } },
+        { content: 'Credits', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.8 } },
+        { content: 'Nature', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+        { content: 'Programme(s)', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+        { content: 'Reg/Back', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+      ],
+    ],
     body,
     theme: 'grid',
     headStyles: {
@@ -522,20 +1409,69 @@ function drawSemesterPanelDocument(doc: jsPDF, panels: ExaminerPanel[]) {
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       lineColor: [120, 120, 120],
-      lineWidth: 0.6,
+      lineWidth: 0.5,
     },
     styles: {
       font: 'times',
       lineColor: [150, 150, 150],
-      lineWidth: 0.5,
-      cellPadding: 4,
+      lineWidth: 0.4,
+      cellPadding: cellPad,
       textColor: [0, 0, 0],
     },
-    columnStyles: COLUMN_STYLES,
+    columnStyles: {
+      0: { cellWidth: 104, halign: 'left' },
+      1: { cellWidth: 54, halign: 'center' },
+      2: { cellWidth: 34, halign: 'center' },
+      3: { cellWidth: 90, halign: 'left' },
+      4: { cellWidth: 80, halign: 'left' },
+      5: { cellWidth: 55, halign: 'center' },
+      6: { cellWidth: 26, halign: 'center' },
+      7: { cellWidth: 195, halign: 'left' },
+      8: { cellWidth: 154, halign: 'left' },
+    },
     margin: { left: leftMargin, right: leftMargin },
     tableWidth,
   });
 
-  // Certificate block
-  drawCertificate(doc, first.head_name, first.dean_name);
+  // Endorsement certificate and signatures
+  const certY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : 410;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(8);
+  doc.text(
+    'Certificate by the Head/Coordinator of the Department (Duly Endorsed by Dean Concerned)',
+    pageWidth / 2,
+    certY,
+    { align: 'center' }
+  );
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(7);
+  const certText =
+    'Certified that the detailed particulars furnished in the Panel of Examiners like Contact Details, Postal Address and Specialization are correct/operational. Further, under normal settings, the Examiners as stated above shall readily accept any confidential assignment.';
+  doc.text(doc.splitTextToSize(certText, pageWidth - 60), pageWidth / 2, certY + 9, { align: 'center', maxWidth: pageWidth - 60 });
+
+  const sigY = certY + 30;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(8);
+
+  const teacherIncharges = Array.from(new Set(panels.map((p) => p.teacher_incharge_name).filter(Boolean))).join(', ');
+  const headName = p0.head_name || '';
+  const deanName = p0.dean_name || '';
+
+  doc.text(
+    `(Signature of Teacher In-charge)\n${teacherIncharges}`,
+    leftMargin + 20,
+    sigY
+  );
+  doc.text(
+    `(Signature of Head/Co-ordinator)\n${headName}`,
+    pageWidth / 2 - 40,
+    sigY
+  );
+  doc.text(
+    `(Signature of the Dean of School)\n${deanName}`,
+    pageWidth - leftMargin - 180,
+    sigY
+  );
 }
+

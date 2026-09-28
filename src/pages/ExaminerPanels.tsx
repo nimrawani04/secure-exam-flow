@@ -14,6 +14,10 @@ import {
   parsePanelWorkbookWithHeader,
   exportPanelPdf,
   exportPanelsPdf,
+  exportCombinedSemesterPdf,
+  exportPanelExcel,
+  exportPanelsExcel,
+  formatSemesterSheetName,
 } from '@/lib/panelExport';
 import {
   IT_DEPARTMENT,
@@ -26,6 +30,13 @@ import {
 } from '@/lib/itCatalog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -41,6 +52,7 @@ import {
   Download,
   Eye,
   FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface PoolTeacher {
@@ -65,6 +77,7 @@ const emptyHeader: PanelHeaderInput = {
   course_nature: 'Major',
   regular_backlog: 'Regular',
   batch: '',
+  teacher_incharge_name: '',
   head_name: '',
   dean_name: '',
   notes: '',
@@ -298,6 +311,7 @@ export default function ExaminerPanels() {
       session_label: h.session_label,
       programme: h.programme,
       semester: h.semester,
+      teacher_incharge_name: '',
       head_name: h.head_name,
       dean_name: h.dean_name,
     }));
@@ -386,6 +400,7 @@ export default function ExaminerPanels() {
           regular_backlog: header.regular_backlog,
           batch: header.batch,
           status: 'draft',
+          teacher_incharge_name: header.teacher_incharge_name,
           head_name: header.head_name,
           dean_name: header.dean_name,
           notes: header.notes,
@@ -416,6 +431,7 @@ export default function ExaminerPanels() {
       course_nature: panel.course_nature || 'Major',
       regular_backlog: panel.regular_backlog || 'Regular',
       batch: panel.batch || '',
+      teacher_incharge_name: panel.teacher_incharge_name || '',
       head_name: panel.head_name || '',
       dean_name: panel.dean_name || '',
       notes: panel.notes || '',
@@ -453,6 +469,7 @@ export default function ExaminerPanels() {
       regular_backlog: header.regular_backlog || 'Regular',
       batch: header.batch || '',
       status: 'draft',
+      teacher_incharge_name: header.teacher_incharge_name || '',
       head_name: header.head_name || '',
       dean_name: header.dean_name || '',
       notes: header.notes || '',
@@ -483,19 +500,11 @@ export default function ExaminerPanels() {
                     Confidential examiner panels submitted by academic departments.
                   </p>
                 </div>
-                {semesterGroups.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                {panels.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ExportAllDropdown panels={panels} />
                     {semesterGroups.map((g) => (
-                      <Button
-                        key={g.key}
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px]"
-                        onClick={() => exportPanelsPdf(g.panels, `panels-${g.label.replace(/[^a-z0-9]+/gi, '-')}.pdf`)}
-                      >
-                        <FileDown className="w-4 h-4 mr-2 text-[#0d7a6b] dark:text-[#2dd4bf]" />
-                        Download {g.label} ({g.panels.length})
-                      </Button>
+                      <SemesterDownloadMenu key={g.key} group={g} />
                     ))}
                   </div>
                 )}
@@ -1104,9 +1113,20 @@ export default function ExaminerPanels() {
                     Postal Address and Specialization are correct/operational. Further, under normal settings, the Examiners
                     as stated above shall readily accept any confidential assignment.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[#e2e8f0] dark:border-[#1e2a38]">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#e2e8f0] dark:border-[#1e2a38]">
                     <div className="flex flex-col gap-1">
-                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]">
+                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
+                        (Signature of Teacher In-charge):
+                      </span>
+                      <input
+                        value={header.teacher_incharge_name}
+                        placeholder="Teacher In-charge Name"
+                        onChange={(e) => setField('teacher_incharge_name', e.target.value)}
+                        className="h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
                         (Signature of Head/Co-ordinator):
                       </span>
                       <input
@@ -1117,7 +1137,7 @@ export default function ExaminerPanels() {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]">
+                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
                         (Signature of the Dean of School):
                       </span>
                       <input
@@ -1203,19 +1223,11 @@ export default function ExaminerPanels() {
                     {panels.length} panel{panels.length !== 1 ? 's' : ''} in the current examination cycle.
                   </p>
                 </div>
-                {semesterGroups.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                {panels.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ExportAllDropdown panels={panels} />
                     {semesterGroups.map((g) => (
-                      <Button
-                        key={g.key}
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px]"
-                        onClick={() => exportPanelsPdf(g.panels, `panels-${g.label.replace(/[^a-z0-9]+/gi, '-')}.pdf`)}
-                      >
-                        <FileDown className="w-3.5 h-3.5 mr-1.5 text-[#0d7a6b] dark:text-[#2dd4bf]" />
-                        Whole Semester PDF: {g.label} ({g.panels.length})
-                      </Button>
+                      <SemesterDownloadMenu key={g.key} group={g} />
                     ))}
                   </div>
                 )}
@@ -1254,6 +1266,180 @@ export default function ExaminerPanels() {
   );
 }
 
+function SemesterDownloadMenu({
+  group,
+}: {
+  group: { key: string; label: string; panels: ExaminerPanel[] };
+}) {
+  const sample = group.panels[0];
+  const sheetName = sample
+    ? formatSemesterSheetName(sample.semester, sample.programme)
+    : 'Semester - X';
+
+  const cleanLabel = group.label.replace(/[^a-z0-9]+/gi, '-');
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#f8fafc] dark:hover:bg-[#16202c] shadow-xs"
+        >
+          <FileDown className="w-3.5 h-3.5 text-[#0d7a6b] dark:text-[#2dd4bf]" />
+          <span>Whole Semester: {group.label} ({group.panels.length})</span>
+          <ChevronDown className="w-3 h-3 text-[#64748b] ml-0.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
+        <DropdownMenuLabel className="text-[11px] font-semibold text-[#64748b] dark:text-[#889cb0] px-2.5 py-1">
+          {group.label} ({group.panels.length} panel{group.panels.length !== 1 ? 's' : ''})
+        </DropdownMenuLabel>
+        
+        {/* Primary PDF: All Panels on 1 Single Page */}
+        <DropdownMenuItem
+          onClick={() => exportCombinedSemesterPdf(group.panels, `panels-${cleanLabel}-single-page.pdf`)}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#fff1f2] dark:hover:bg-[rgba(244,63,94,0.08)] focus:bg-[#fff1f2] dark:focus:bg-[rgba(244,63,94,0.08)]"
+        >
+          <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4] flex items-center gap-1.5">
+              <span>Download PDF (All in 1 Page)</span>
+              <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-semibold tracking-wide">
+                1 PAGE
+              </span>
+            </div>
+            <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+              All {group.panels.length} course{group.panels.length !== 1 ? 's' : ''} on a single printed landscape page with 3 signatures
+            </div>
+          </div>
+        </DropdownMenuItem>
+
+        {/* Secondary PDF: 1 Page Per Panel */}
+        {group.panels.length > 1 && (
+          <DropdownMenuItem
+            onClick={() => exportPanelsPdf(group.panels, `panels-${cleanLabel}-per-subject.pdf`)}
+            className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f1f5f9] dark:hover:bg-[#1c2d3d] focus:bg-[#f1f5f9] dark:focus:bg-[#1c2d3d]"
+          >
+            <div className="p-1.5 rounded-md bg-rose-50/60 dark:bg-rose-950/20 text-rose-500 mt-0.5 shrink-0">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+                Download PDF (1 Page per Subject)
+              </div>
+              <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+                {group.panels.length} pages · strictly 1 page each with signatures
+              </div>
+            </div>
+          </DropdownMenuItem>
+        )}
+
+        {/* Excel Option: Fit Sheet to 1 Printed Page */}
+        <DropdownMenuItem
+          onClick={() => exportPanelsExcel(group.panels, `panels-${cleanLabel}.xlsx`, 'by_semester')}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
+        >
+          <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">
+            <FileSpreadsheet className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4] flex items-center gap-1.5">
+              <span>Download Excel (.xlsx)</span>
+              <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold tracking-wide">
+                Fit 1 Page
+              </span>
+            </div>
+            <div className="text-[10.5px] text-emerald-700 dark:text-emerald-400 font-mono">
+              Sheet: {sheetName} (Borders & Print-Scaled)
+            </div>
+          </div>
+        </DropdownMenuItem>
+
+        {group.panels.length > 1 && (
+          <DropdownMenuItem
+            onClick={() => exportPanelsExcel(group.panels, `panels-${cleanLabel}-by-course.xlsx`, 'by_subject')}
+            className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
+          >
+            <div className="p-1.5 rounded-md bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 mt-0.5 shrink-0">
+              <FileSpreadsheet className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+                Excel (Separate Sheet per Subject)
+              </div>
+              <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+                {group.panels.length} sheets · each scaled to 1 printed page
+              </div>
+            </div>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
+  if (panels.length === 0) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg border-[#0d7a6b] dark:border-[#2dd4bf] text-[#0d7a6b] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Export All Semesters</span>
+          <ChevronDown className="w-3 h-3 ml-0.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
+        <DropdownMenuLabel className="text-[11px] font-semibold text-[#64748b] dark:text-[#889cb0] px-2.5 py-1">
+          Export All Panels ({panels.length} course{panels.length !== 1 ? 's' : ''})
+        </DropdownMenuLabel>
+
+        <DropdownMenuItem
+          onClick={() => exportPanelsExcel(panels, 'all-semesters-examiner-panels.xlsx', 'by_semester')}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
+        >
+          <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">
+            <FileSpreadsheet className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+              Export All to Excel (.xlsx)
+            </div>
+            <div className="text-[10.5px] text-emerald-700 dark:text-emerald-400">
+              Each semester in its own sheet: Semester - X B.Tech/M.tech
+            </div>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => exportPanelsPdf(panels, 'all-semesters-examiner-panels.pdf')}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f1f5f9] dark:hover:bg-[#1c2d3d] focus:bg-[#f1f5f9] dark:focus:bg-[#1c2d3d]"
+        >
+          <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+              Export All to PDF
+            </div>
+            <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+              Single document with 3 signatures after every subject
+            </div>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // Visual Card Rendering Saved Panels in the Official Layout
 function OfficialPanelCard({
   panel,
@@ -1264,6 +1450,7 @@ function OfficialPanelCard({
   onSend,
   onDelete,
   onDownloadPdf,
+  onDownloadExcel,
 }: {
   panel: ExaminerPanel;
   isHod: boolean;
@@ -1273,6 +1460,7 @@ function OfficialPanelCard({
   onSend?: () => void;
   onDelete?: () => void;
   onDownloadPdf: () => void;
+  onDownloadExcel?: () => void;
 }) {
   const rowCount = Math.max(5, panel.members.length);
   const displayMembers = Array.from({ length: rowCount }, (_, i) => {
@@ -1328,9 +1516,20 @@ function OfficialPanelCard({
             size="sm"
             onClick={onDownloadPdf}
             className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
+            title="Download PDF"
           >
             <FileDown className="w-3.5 h-3.5 mr-1 text-[#0d7a6b] dark:text-[#2dd4bf]" />
-            Download PDF
+            PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDownloadExcel || (() => exportPanelExcel(panel))}
+            className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#166534] dark:text-[#4ade80] hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)]"
+            title="Download Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
+            Excel
           </Button>
           {isHod && onEdit && (
             <Button
@@ -1543,18 +1742,30 @@ function OfficialPanelCard({
               Address and Specialization are correct/operational. Further, under normal settings, the Examiners as
               stated above shall readily accept any confidential assignment.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[#e2e8f0] dark:border-[#1e2a38]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-[#e2e8f0] dark:border-[#1e2a38] text-[11px]">
               <div>
-                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">
-                  (Signature of Head/Co-ordinator):{' '}
+                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] block sm:inline">
+                  (Signature of Teacher In-charge):{' '}
                 </span>
-                <span className="text-[#334155] dark:text-[#cbd5e1]">{panel.head_name || '________________'}</span>
+                <span className="text-[#334155] dark:text-[#cbd5e1] font-medium">
+                  {panel.teacher_incharge_name || '________________'}
+                </span>
               </div>
               <div>
-                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">
+                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] block sm:inline">
+                  (Signature of Head/Co-ordinator):{' '}
+                </span>
+                <span className="text-[#334155] dark:text-[#cbd5e1] font-medium">
+                  {panel.head_name || '________________'}
+                </span>
+              </div>
+              <div>
+                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] block sm:inline">
                   (Signature of the Dean of School):{' '}
                 </span>
-                <span className="text-[#334155] dark:text-[#cbd5e1]">{panel.dean_name || '________________'}</span>
+                <span className="text-[#334155] dark:text-[#cbd5e1] font-medium">
+                  {panel.dean_name || '________________'}
+                </span>
               </div>
             </div>
           </div>

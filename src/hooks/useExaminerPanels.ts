@@ -29,6 +29,7 @@ export interface ExaminerPanel {
   regular_backlog: string | null;
   batch: string | null;
   status: string;
+  teacher_incharge_name: string | null;
   head_name: string | null;
   dean_name: string | null;
   notes: string | null;
@@ -49,6 +50,7 @@ export interface PanelHeaderInput {
   course_nature: string;
   regular_backlog: string;
   batch: string;
+  teacher_incharge_name: string;
   head_name: string;
   dean_name: string;
   notes: string;
@@ -85,12 +87,25 @@ export function useExaminerPanels() {
     }
 
     setPanels(
-      (data || []).map((p: any) => ({
-        ...p,
-        members: ((p.examiner_panel_members || []) as PanelMember[]).sort(
-          (a, b) => a.position - b.position
-        ),
-      }))
+      (data || []).map((p: any) => {
+        let teacher_incharge_name = p.teacher_incharge_name || null;
+        let cleanNotes = p.notes || null;
+        if (!teacher_incharge_name && p.notes) {
+          const match = p.notes.match(/^\[TIC:\s*([^\]]*)\]\s*([\s\S]*)$/);
+          if (match) {
+            teacher_incharge_name = match[1].trim() || null;
+            cleanNotes = match[2].trim() || null;
+          }
+        }
+        return {
+          ...p,
+          teacher_incharge_name,
+          notes: cleanNotes,
+          members: ((p.examiner_panel_members || []) as PanelMember[]).sort(
+            (a, b) => a.position - b.position
+          ),
+        };
+      })
     );
     setIsLoading(false);
   }, [user]);
@@ -115,11 +130,32 @@ export function useExaminerPanels() {
       return null;
     }
 
+    const notesWithTic = header.teacher_incharge_name?.trim()
+      ? `[TIC: ${header.teacher_incharge_name.trim()}] ${header.notes || ''}`
+      : (header.notes || null);
+
+    const payload: Record<string, any> = {
+      school: header.school,
+      department_label: header.department_label,
+      programme: header.programme,
+      semester: header.semester,
+      session_label: header.session_label,
+      course_title: header.course_title,
+      course_code: header.course_code,
+      credits: header.credits,
+      course_nature: header.course_nature,
+      regular_backlog: header.regular_backlog,
+      batch: header.batch,
+      head_name: header.head_name,
+      dean_name: header.dean_name,
+      notes: notesWithTic,
+    };
+
     let id = panelId;
     if (id) {
       const { error } = await supabase
         .from('examiner_panels')
-        .update({ ...header })
+        .update(payload)
         .eq('id', id);
       if (error) {
         toast.error('Could not save the panel');
@@ -130,7 +166,7 @@ export function useExaminerPanels() {
       const { data, error } = await supabase
         .from('examiner_panels')
         .insert({
-          ...header,
+          ...payload,
           department_id: profile.department_id,
           created_by: user.id,
         })
