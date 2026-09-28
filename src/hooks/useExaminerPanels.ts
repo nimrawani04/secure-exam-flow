@@ -24,6 +24,10 @@ export interface ExaminerPanel {
   session_label: string | null;
   course_title: string | null;
   course_code: string | null;
+  credits: string | null;
+  course_nature: string | null;
+  regular_backlog: string | null;
+  batch: string | null;
   status: string;
   head_name: string | null;
   dean_name: string | null;
@@ -41,6 +45,10 @@ export interface PanelHeaderInput {
   session_label: string;
   course_title: string;
   course_code: string;
+  credits: string;
+  course_nature: string;
+  regular_backlog: string;
+  batch: string;
   head_name: string;
   dean_name: string;
   notes: string;
