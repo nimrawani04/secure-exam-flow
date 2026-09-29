@@ -15,6 +15,7 @@ import {
   exportPanelPdf,
   exportPanelsPdf,
   exportCombinedSemesterPdf,
+  exportAllCombinedSemestersPdf,
   exportPanelExcel,
   exportPanelsExcel,
   formatSemesterSheetName,
@@ -354,6 +355,18 @@ export default function ExaminerPanels() {
       toast.error('Choose the session, programme, semester and course first');
       return;
     }
+    if (!header.teacher_incharge_name.trim()) {
+      toast.error('Teacher In-charge Name is required (compulsory)');
+      return;
+    }
+    if (!header.head_name.trim()) {
+      toast.error('Head / Coordinator Name is required (compulsory)');
+      return;
+    }
+    if (!header.dean_name.trim()) {
+      toast.error('Dean of School Name is required (compulsory)');
+      return;
+    }
     setSaving(true);
     const id = await savePanel(header, members, editingId);
     setSaving(false);
@@ -367,6 +380,10 @@ export default function ExaminerPanels() {
     }
     if (!header.session_label || !header.programme || !header.semester || !header.course_title) {
       toast.error('Choose the session, programme, semester and course first');
+      return;
+    }
+    if (!header.teacher_incharge_name.trim() || !header.head_name.trim() || !header.dean_name.trim()) {
+      toast.error('Please fill in Teacher In-charge, Head/Coordinator, and Dean of School names (all compulsory)');
       return;
     }
     setSending(true);
@@ -617,134 +634,145 @@ export default function ExaminerPanels() {
               </div>
 
               <div className="p-5 sm:p-6 space-y-6">
-                {/* 1. Header Information Block (matching top of screenshot) */}
-                <div className="rounded-[10px] border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0e1622] p-4 text-[12px]">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                    {/* Left Column */}
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          Name of the Department offering the courses:
-                        </label>
-                        <input
-                          value={header.department_label}
-                          onChange={(e) => setField('department_label', e.target.value)}
-                          placeholder="Department offering the courses"
-                          className="w-full h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
-                        />
-                      </div>
+                {/* 1. Header Information Block (Linear & Clean Design) */}
+                <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0e1622] p-4 sm:p-5 shadow-xs">
+                  <div className="mb-3 flex items-center justify-between border-b border-[#e2e8f0] dark:border-[#1e2a38] pb-2.5">
+                    <div>
+                      <h3 className="text-[13px] font-bold text-[#1c2430] dark:text-[#e6edf3]">
+                        Panel Course & Academic Particulars
+                      </h3>
+                      <p className="text-[11px] text-[#64748b] dark:text-[#889cb0]">
+                        Select academic session, programme, and semester in sequential order to populate catalog courses.
+                      </p>
+                    </div>
+                  </div>
 
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          School:
-                        </label>
-                        <input
-                          value={header.school}
-                          onChange={(e) => setField('school', e.target.value)}
-                          placeholder="School name"
-                          className="w-full h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          Session:
-                        </label>
-                        <select
-                          value={header.session_label}
-                          onChange={(e) =>
-                            setHeader((h) => ({
-                              ...h,
-                              session_label: e.target.value,
-                              programme: '',
-                              semester: '',
-                              course_code: '',
-                              course_title: '',
-                            }))
-                          }
-                          className="w-full h-8 px-2 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
-                        >
-                          <option value="">Choose session</option>
-                          {SESSION_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* 1. Department */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        Name of the Department offering the courses:
+                      </label>
+                      <input
+                        value={header.department_label}
+                        onChange={(e) => setField('department_label', e.target.value)}
+                        placeholder="Department offering the courses"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                      />
                     </div>
 
-                    {/* Right Column */}
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          Semester:
-                        </label>
-                        {programme?.manual ? (
-                          <input
-                            value={header.semester}
-                            placeholder="Semester (e.g. I, III, V)"
-                            onChange={(e) => setField('semester', e.target.value)}
-                            className="w-full h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
-                          />
-                        ) : (
-                          <select
-                            value={header.semester}
-                            disabled={!programme}
-                            onChange={(e) =>
-                              setHeader((h) => ({ ...h, semester: e.target.value, course_code: '', course_title: '' }))
-                            }
-                            className="w-full h-8 px-2 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] disabled:opacity-50"
-                          >
-                            <option value="">Choose semester</option>
-                            {semesterInfo.map((s) => (
-                              <option key={s.label} value={s.label} disabled={!s.unlocked}>
-                                {s.label}
-                                {s.complete ? ' (done)' : !s.unlocked ? ' (locked)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
+                    {/* 2. School */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        School:
+                      </label>
+                      <input
+                        value={header.school}
+                        onChange={(e) => setField('school', e.target.value)}
+                        placeholder="School name"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          Batch:
-                        </label>
+                    {/* 3. Session */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        Session:
+                      </label>
+                      <select
+                        value={header.session_label}
+                        onChange={(e) =>
+                          setHeader((h) => ({
+                            ...h,
+                            session_label: e.target.value,
+                            programme: '',
+                            semester: '',
+                            course_code: '',
+                            course_title: '',
+                          }))
+                        }
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                      >
+                        <option value="">Choose session</option>
+                        {SESSION_OPTIONS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 4. Programme */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        Programme:
+                      </label>
+                      <select
+                        value={header.programme}
+                        disabled={!header.session_label}
+                        onChange={(e) =>
+                          setHeader((h) => ({
+                            ...h,
+                            programme: e.target.value,
+                            semester: '',
+                            course_code: '',
+                            course_title: '',
+                          }))
+                        }
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                      >
+                        <option value="">Choose programme</option>
+                        {IT_PROGRAMMES.map((p) => (
+                          <option key={p.name} value={p.name}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 5. Semester */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        Semester:
+                      </label>
+                      {programme?.manual ? (
                         <input
-                          value={header.batch}
-                          placeholder="e.g. 2023"
-                          onChange={(e) => setField('batch', e.target.value)}
-                          className="w-full h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
+                          value={header.semester}
+                          placeholder="Semester (e.g. I, III, V)"
+                          onChange={(e) => setField('semester', e.target.value)}
+                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1">
-                          Programme:
-                        </label>
+                      ) : (
                         <select
-                          value={header.programme}
-                          disabled={!header.session_label}
+                          value={header.semester}
+                          disabled={!programme}
                           onChange={(e) =>
-                            setHeader((h) => ({
-                              ...h,
-                              programme: e.target.value,
-                              semester: '',
-                              course_code: '',
-                              course_title: '',
-                            }))
+                            setHeader((h) => ({ ...h, semester: e.target.value, course_code: '', course_title: '' }))
                           }
-                          className="w-full h-8 px-2 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] disabled:opacity-50"
+                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
                         >
-                          <option value="">Choose programme</option>
-                          {IT_PROGRAMMES.map((p) => (
-                            <option key={p.name} value={p.name}>
-                              {p.name}
+                          <option value="">Choose semester</option>
+                          {semesterInfo.map((s) => (
+                            <option key={s.label} value={s.label} disabled={!s.unlocked}>
+                              {s.label}
+                              {s.complete ? ' (done)' : !s.unlocked ? ' (locked)' : ''}
                             </option>
                           ))}
                         </select>
-                      </div>
+                      )}
+                    </div>
+
+                    {/* 6. Batch */}
+                    <div>
+                      <label className="block text-[11.5px] font-bold text-[#1c2430] dark:text-[#e6edf3] mb-1.5">
+                        Batch:
+                      </label>
+                      <input
+                        value={header.batch}
+                        placeholder="e.g. 2023"
+                        onChange={(e) => setField('batch', e.target.value)}
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                      />
                     </div>
                   </div>
                 </div>
@@ -806,8 +834,24 @@ export default function ExaminerPanels() {
                   </div>
 
                   <div className="w-full overflow-x-auto rounded-[10px] border border-[#d0d7de] dark:border-[#2a3847] shadow-sm">
-                    <table className="w-full min-w-[1100px] border-collapse text-[11.5px] bg-white dark:bg-[#101820]">
-                      {/* Two-tier Table Header matching image */}
+                    <table
+                      className="border-collapse text-[11.5px] bg-white dark:bg-[#101820]"
+                      style={{ minWidth: '1940px', width: '100%', tableLayout: 'fixed' }}
+                    >
+                      <colgroup>
+                        <col style={{ width: '260px' }} />
+                        <col style={{ width: '120px' }} />
+                        <col style={{ width: '80px' }} />
+                        <col style={{ width: '180px' }} />
+                        <col style={{ width: '190px' }} />
+                        <col style={{ width: '150px' }} />
+                        <col style={{ width: '55px' }} />
+                        <col style={{ width: '450px' }} />
+                        <col style={{ width: '360px' }} />
+                        <col style={{ width: '95px' }} />
+                      </colgroup>
+
+                      {/* Two-tier Table Header */}
                       <thead>
                         <tr className="bg-[#f0f4f8] dark:bg-[#131e2b] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
                           <th
@@ -818,13 +862,13 @@ export default function ExaminerPanels() {
                           </th>
                           <th
                             rowSpan={2}
-                            className="w-[45px] px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                            className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                           >
                             S.<br />No.
                           </th>
                           <th
                             rowSpan={2}
-                            className="w-[340px] px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                            className="px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                           >
                             <div>Particulars of the Experts in order of Preference</div>
                             <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
@@ -833,41 +877,41 @@ export default function ExaminerPanels() {
                           </th>
                           <th
                             rowSpan={2}
-                            className="w-[280px] px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                            className="px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                           >
                             <div>Contact Details</div>
                             <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
                               (Email ID/Mobile No.)
                             </div>
                           </th>
-                          <th rowSpan={2} className="w-[75px] px-2 py-2 text-center font-bold text-[10px] uppercase tracking-wider">
+                          <th rowSpan={2} className="px-2 py-2 text-center font-bold text-[10px] uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
 
                         <tr className="bg-[#f8fafc] dark:bg-[#182332] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
-                          <th className="w-[180px] px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-3 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             Course Title
                           </th>
-                          <th className="w-[95px] px-2.5 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             Course Code
                           </th>
-                          <th className="w-[55px] px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-1 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             Credits
                           </th>
-                          <th className="w-[170px] px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             <div>Nature of Course</div>
                             <div className="text-[9px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
                               (Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)
                             </div>
                           </th>
-                          <th className="w-[140px] px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             <div>Programme(s)</div>
                             <div className="text-[9px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
                               (whose students have opted the course)
                             </div>
                           </th>
-                          <th className="w-[110px] px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                          <th className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             <div>Whether Regular/</div>
                             <div>Backlog or Both</div>
                           </th>
@@ -890,17 +934,17 @@ export default function ExaminerPanels() {
                                   {/* Course Title */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2.5 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-3 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     {programme?.manual ? (
                                       <input
                                         value={header.course_title}
                                         placeholder="Course Title"
                                         onChange={(e) => setField('course_title', e.target.value)}
-                                        className="w-full px-2 py-1.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium"
+                                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                       />
                                     ) : (
-                                      <div className="space-y-1.5">
+                                      <div className="space-y-2">
                                         <select
                                           value={courseKey(header.course_code, header.course_title)}
                                           disabled={!header.semester}
@@ -914,7 +958,7 @@ export default function ExaminerPanels() {
                                               course_title: found?.title || '',
                                             }));
                                           }}
-                                          className="w-full px-2 py-1.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium disabled:opacity-50"
+                                          className="w-full h-9 px-2.5 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium disabled:opacity-50 outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                         >
                                           <option value="">
                                             {header.semester && remainingCourses.length === 0
@@ -929,9 +973,9 @@ export default function ExaminerPanels() {
                                         </select>
                                         <input
                                           value={header.course_title}
-                                          placeholder="Or enter title"
+                                          placeholder="Or enter custom course title"
                                           onChange={(e) => setField('course_title', e.target.value)}
-                                          className="w-full px-2 py-1 rounded border border-[#e2e8f0] dark:border-[#1e2a38] bg-white dark:bg-[#101820] text-[11px]"
+                                          className="w-full h-8 px-2.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e2a38] bg-white dark:bg-[#101820] text-[11.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                         />
                                       </div>
                                     )}
@@ -940,38 +984,38 @@ export default function ExaminerPanels() {
                                   {/* Course Code */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2.5 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-3 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     <input
                                       value={header.course_code}
                                       placeholder="Code"
                                       onChange={(e) => setField('course_code', e.target.value)}
-                                      className="w-full px-2 py-1.5 text-center font-mono rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px]"
+                                      className="w-full h-9 px-2 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
                                   {/* Credits */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-2.5 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     <input
                                       value={header.credits}
                                       placeholder="Cr"
                                       onChange={(e) => setField('credits', e.target.value)}
-                                      className="w-full px-1 py-1.5 text-center font-mono rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px]"
+                                      className="w-full h-9 px-1 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
                                   {/* Nature of Course */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2.5 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-3 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     <select
                                       value={header.course_nature}
                                       onChange={(e) => setField('course_nature', e.target.value)}
-                                      className="w-full px-2 py-1.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px]"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     >
                                       {NATURE_OPTIONS.map((opt) => (
                                         <option key={opt} value={opt}>
@@ -984,25 +1028,25 @@ export default function ExaminerPanels() {
                                   {/* Programme(s) */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2.5 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-3 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     <input
                                       value={header.programme}
                                       placeholder="Programme"
                                       onChange={(e) => setField('programme', e.target.value)}
-                                      className="w-full px-2 py-1.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px]"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
                                   {/* Whether Regular/Backlog or Both */}
                                   <td
                                     rowSpan={totalRows}
-                                    className="p-2.5 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
+                                    className="p-3 align-middle text-center border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
                                     <select
                                       value={header.regular_backlog}
                                       onChange={(e) => setField('regular_backlog', e.target.value)}
-                                      className="w-full px-2 py-1.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] text-center"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] text-center font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     >
                                       {REGULAR_BACKLOG_OPTIONS.map((opt) => (
                                         <option key={opt} value={opt}>
@@ -1020,44 +1064,44 @@ export default function ExaminerPanels() {
                               </td>
 
                               {/* Particulars of Expert (Name / Designation / Department) */}
-                              <td className="p-2 border-r border-[#d0d7de] dark:border-[#2a3847]">
-                                <div className="space-y-1">
+                              <td className="p-2.5 border-r border-[#d0d7de] dark:border-[#2a3847]">
+                                <div className="space-y-1.5">
                                   <input
                                     value={member.name}
                                     onChange={(e) => updateMember(index, 'name', e.target.value)}
                                     placeholder={`Preference #${index + 1} Expert Name (e.g. Prof. A. K. Sharma)`}
-                                    className="w-full h-[29px] px-2 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] font-medium placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
+                                    className="w-full h-8 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-semibold placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
                                   />
-                                  <div className="grid grid-cols-2 gap-1">
+                                  <div className="grid grid-cols-[160px_1fr] gap-1.5">
                                     <input
                                       value={member.designation}
                                       onChange={(e) => updateMember(index, 'designation', e.target.value)}
-                                      placeholder="Designation (e.g. Professor)"
-                                      className="h-[26px] px-2 rounded border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none"
+                                      placeholder="Designation"
+                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     />
                                     <input
                                       value={member.specialization}
                                       onChange={(e) => updateMember(index, 'specialization', e.target.value)}
-                                      placeholder="Department / Affiliation"
-                                      className="h-[26px] px-2 rounded border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none"
+                                      placeholder="Department / Specialization / Affiliation"
+                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
                                     />
                                   </div>
                                 </div>
                               </td>
 
                               {/* Contact Details (Email ID / Mobile No.) */}
-                              <td className="p-2 border-r border-[#d0d7de] dark:border-[#2a3847]">
+                              <td className="p-2.5 border-r border-[#d0d7de] dark:border-[#2a3847]">
                                 <input
                                   value={member.contact_details}
                                   onChange={(e) => updateMember(index, 'contact_details', e.target.value)}
                                   placeholder="Email ID / Mobile No. (e.g. name@univ.edu, +91 9876543210)"
-                                  className="w-full h-[32px] px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
+                                  className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
                                 />
                               </td>
 
                               {/* Actions */}
                               <td className="p-1.5 text-center">
-                                <div className="inline-flex items-center gap-0.5">
+                                <div className="inline-flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() => moveMember(index, -1)}
@@ -1065,7 +1109,7 @@ export default function ExaminerPanels() {
                                     title="Move up"
                                     className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4] disabled:opacity-20"
                                   >
-                                    <ChevronUp className="h-3.5 w-3.5" />
+                                    <ChevronUp className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"
@@ -1074,7 +1118,7 @@ export default function ExaminerPanels() {
                                     title="Move down"
                                     className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4] disabled:opacity-20"
                                   >
-                                    <ChevronDown className="h-3.5 w-3.5" />
+                                    <ChevronDown className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"
@@ -1083,7 +1127,7 @@ export default function ExaminerPanels() {
                                     title="Save to teacher list"
                                     className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] disabled:opacity-20"
                                   >
-                                    <UserPlus className="h-3.5 w-3.5" />
+                                    <UserPlus className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"
@@ -1091,7 +1135,7 @@ export default function ExaminerPanels() {
                                     title={members.length > 5 ? 'Remove slot' : 'Clear slot'}
                                     className="p-1 rounded text-[#9f1239] dark:text-[#fb7185] hover:bg-[#fef2f5] dark:hover:bg-[rgba(251,113,133,0.08)]"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-4 w-4" />
                                   </button>
                                 </div>
                               </td>
@@ -1115,36 +1159,45 @@ export default function ExaminerPanels() {
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#e2e8f0] dark:border-[#1e2a38]">
                     <div className="flex flex-col gap-1">
-                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
-                        (Signature of Teacher In-charge):
-                      </span>
+                      <label className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px] flex items-center gap-1">
+                        (Signature of Teacher In-charge): <span className="text-red-500 font-bold">*</span>
+                      </label>
                       <input
+                        required
                         value={header.teacher_incharge_name}
-                        placeholder="Teacher In-charge Name"
+                        placeholder="Teacher In-charge Name (Compulsory)"
                         onChange={(e) => setField('teacher_incharge_name', e.target.value)}
-                        className="h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
+                        className={`h-8 px-2.5 rounded border ${
+                          !header.teacher_incharge_name.trim() ? 'border-amber-400 dark:border-amber-500/50' : 'border-[#d0d7de] dark:border-[#2a3847]'
+                        } bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]`}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
-                        (Signature of Head/Co-ordinator):
-                      </span>
+                      <label className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px] flex items-center gap-1">
+                        (Signature of Head/Co-ordinator): <span className="text-red-500 font-bold">*</span>
+                      </label>
                       <input
+                        required
                         value={header.head_name}
-                        placeholder="Head / Coordinator Name"
+                        placeholder="Head / Coordinator Name (Compulsory)"
                         onChange={(e) => setField('head_name', e.target.value)}
-                        className="h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
+                        className={`h-8 px-2.5 rounded border ${
+                          !header.head_name.trim() ? 'border-amber-400 dark:border-amber-500/50' : 'border-[#d0d7de] dark:border-[#2a3847]'
+                        } bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]`}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px]">
-                        (Signature of the Dean of School):
-                      </span>
+                      <label className="font-bold text-[#1c2430] dark:text-[#e6edf3] text-[11px] flex items-center gap-1">
+                        (Signature of the Dean of School): <span className="text-red-500 font-bold">*</span>
+                      </label>
                       <input
+                        required
                         value={header.dean_name}
-                        placeholder="Dean of School Name"
+                        placeholder="Dean of School Name (Compulsory)"
                         onChange={(e) => setField('dean_name', e.target.value)}
-                        className="h-8 px-2.5 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]"
+                        className={`h-8 px-2.5 rounded border ${
+                          !header.dean_name.trim() ? 'border-amber-400 dark:border-amber-500/50' : 'border-[#d0d7de] dark:border-[#2a3847]'
+                        } bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px]`}
                       />
                     </div>
                   </div>
@@ -1393,15 +1446,55 @@ function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
           className="rounded-lg border-[#0d7a6b] dark:border-[#2dd4bf] text-[#0d7a6b] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Export All Semesters</span>
+          <span>Export All ({panels.length} Courses)</span>
           <ChevronDown className="w-3 h-3 ml-0.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
+      <DropdownMenuContent align="end" className="w-88 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
         <DropdownMenuLabel className="text-[11px] font-semibold text-[#64748b] dark:text-[#889cb0] px-2.5 py-1">
-          Export All Panels ({panels.length} course{panels.length !== 1 ? 's' : ''})
+          Master Export ({panels.length} course{panels.length !== 1 ? 's' : ''})
         </DropdownMenuLabel>
 
+        {/* 1. Master PDF: 1 Page Per Semester */}
+        <DropdownMenuItem
+          onClick={() => exportAllCombinedSemestersPdf(panels, 'all-semesters-examiner-panels-master.pdf')}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#fff1f2] dark:hover:bg-[rgba(244,63,94,0.08)] focus:bg-[#fff1f2] dark:focus:bg-[rgba(244,63,94,0.08)]"
+        >
+          <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4] flex items-center gap-1.5">
+              <span>Combined Master PDF (1 Page/Semester)</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-semibold tracking-wide">
+                RECOMMENDED
+              </span>
+            </div>
+            <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+              Consolidates each semester onto a single landscape page with official signatures into 1 master PDF
+            </div>
+          </div>
+        </DropdownMenuItem>
+
+        {/* 2. Master PDF: 1 Page Per Subject */}
+        <DropdownMenuItem
+          onClick={() => exportPanelsPdf(panels, 'all-semesters-all-subjects.pdf')}
+          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f1f5f9] dark:hover:bg-[#1c2d3d] focus:bg-[#f1f5f9] dark:focus:bg-[#1c2d3d]"
+        >
+          <div className="p-1.5 rounded-md bg-rose-50/60 dark:bg-rose-950/20 text-rose-500 mt-0.5 shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
+              Combined Master PDF (1 Page/Subject)
+            </div>
+            <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+              {panels.length} pages · single document with full signatures after every subject
+            </div>
+          </div>
+        </DropdownMenuItem>
+
+        {/* 3. Excel: Each Semester in a Separate Sheet */}
         <DropdownMenuItem
           onClick={() => exportPanelsExcel(panels, 'all-semesters-examiner-panels.xlsx', 'by_semester')}
           className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
@@ -1415,23 +1508,6 @@ function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
             </div>
             <div className="text-[10.5px] text-emerald-700 dark:text-emerald-400">
               Each semester in its own sheet: Semester - X B.Tech/M.tech
-            </div>
-          </div>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem
-          onClick={() => exportPanelsPdf(panels, 'all-semesters-examiner-panels.pdf')}
-          className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f1f5f9] dark:hover:bg-[#1c2d3d] focus:bg-[#f1f5f9] dark:focus:bg-[#1c2d3d]"
-        >
-          <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-[12px] font-medium text-[#18202e] dark:text-[#e2eaf4]">
-              Export All to PDF
-            </div>
-            <div className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
-              Single document with 3 signatures after every subject
             </div>
           </div>
         </DropdownMenuItem>
@@ -1567,9 +1643,9 @@ function OfficialPanelCard({
       {/* Expanded Official Format Preview */}
       {isExpanded && (
         <div className="p-4 space-y-3">
-          {/* Metadata Grid */}
-          <div className="border border-[#d0d7de] dark:border-[#2a3847] rounded-md bg-[#fafbfc] dark:bg-[#0c131d] p-3 text-[11.5px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+          {/* Metadata Grid (Linear Order) */}
+          <div className="border border-[#d0d7de] dark:border-[#2a3847] rounded-lg bg-[#fafbfc] dark:bg-[#0c131d] p-3.5 text-[11.5px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5">
               <div>
                 <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">
                   Name of the Department offering the courses:{' '}
@@ -1577,16 +1653,8 @@ function OfficialPanelCard({
                 <span className="text-[#475569] dark:text-[#94a3b8]">{panel.department_label || '—'}</span>
               </div>
               <div>
-                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Semester: </span>
-                <span className="text-[#475569] dark:text-[#94a3b8]">{panel.semester || '—'}</span>
-              </div>
-              <div>
                 <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">School: </span>
                 <span className="text-[#475569] dark:text-[#94a3b8]">{panel.school || '—'}</span>
-              </div>
-              <div>
-                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Batch: </span>
-                <span className="text-[#475569] dark:text-[#94a3b8]">{panel.batch || '—'}</span>
               </div>
               <div>
                 <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Session: </span>
@@ -1596,29 +1664,51 @@ function OfficialPanelCard({
                 <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Programme: </span>
                 <span className="text-[#475569] dark:text-[#94a3b8]">{panel.programme || '—'}</span>
               </div>
+              <div>
+                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Semester: </span>
+                <span className="text-[#475569] dark:text-[#94a3b8]">{panel.semester || '—'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-[#1c2430] dark:text-[#e6edf3]">Batch: </span>
+                <span className="text-[#475569] dark:text-[#94a3b8]">{panel.batch || '—'}</span>
+              </div>
             </div>
           </div>
 
           {/* Unified Table */}
-          <div className="overflow-x-auto rounded-md border border-[#d0d7de] dark:border-[#2a3847]">
-            <table className="w-full min-w-[1050px] border-collapse text-[11.5px]">
+          <div className="overflow-x-auto rounded-lg border border-[#d0d7de] dark:border-[#2a3847]">
+            <table
+              className="border-collapse text-[11.5px]"
+              style={{ minWidth: '1850px', width: '100%', tableLayout: 'fixed' }}
+            >
+              <colgroup>
+                <col style={{ width: '250px' }} />
+                <col style={{ width: '120px' }} />
+                <col style={{ width: '80px' }} />
+                <col style={{ width: '170px' }} />
+                <col style={{ width: '180px' }} />
+                <col style={{ width: '150px' }} />
+                <col style={{ width: '55px' }} />
+                <col style={{ width: '480px' }} />
+                <col style={{ width: '365px' }} />
+              </colgroup>
               <thead>
                 <tr className="bg-[#f0f4f8] dark:bg-[#131e2b] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
                   <th
                     colSpan={6}
-                    className="px-3 py-1.5 text-center font-bold text-[12px] border-r border-[#d0d7de] dark:border-[#2a3847]"
+                    className="px-3 py-2 text-center font-bold text-[12px] border-r border-[#d0d7de] dark:border-[#2a3847]"
                   >
                     Details of the course(s) for which panel is submitted
                   </th>
                   <th
                     rowSpan={2}
-                    className="w-[42px] px-2 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                    className="px-2 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                   >
                     S.<br />No.
                   </th>
                   <th
                     rowSpan={2}
-                    className="w-[360px] px-3 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                    className="px-3 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                   >
                     <div>Particulars of the Experts in order of Preference</div>
                     <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
@@ -1633,22 +1723,22 @@ function OfficialPanelCard({
                   </th>
                 </tr>
                 <tr className="bg-[#f8fafc] dark:bg-[#182332] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
-                  <th className="w-[180px] px-2 py-1 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-3 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Course Title
                   </th>
-                  <th className="w-[90px] px-2 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Course Code
                   </th>
-                  <th className="w-[50px] px-1 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-1 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Credits
                   </th>
-                  <th className="w-[150px] px-2 py-1 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Nature of Course
                   </th>
-                  <th className="w-[130px] px-2 py-1 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Programme(s)
                   </th>
-                  <th className="w-[100px] px-2 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
+                  <th className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                     Whether Regular/Backlog
                   </th>
                 </tr>
