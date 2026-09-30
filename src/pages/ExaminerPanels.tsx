@@ -54,7 +54,14 @@ import {
   Eye,
   FileText,
   FileSpreadsheet,
+  GripVertical,
+  Search,
+  Filter,
+  FilterX,
+  ArrowUpDown,
+  Shuffle,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PoolTeacher {
   id: string;
@@ -114,6 +121,17 @@ export default function ExaminerPanels() {
   const [pool, setPool] = useState<PoolTeacher[]>([]);
   const [viewPanelId, setViewPanelId] = useState<string | null>(null);
 
+  // Drag & Drop state for teacher swapping
+  const [draggedMemberIndex, setDraggedMemberIndex] = useState<number | null>(null);
+  const [dragOverMemberIndex, setDragOverMemberIndex] = useState<number | null>(null);
+  const [draggedPoolTeacher, setDraggedPoolTeacher] = useState<PoolTeacher | null>(null);
+
+  // Panel filter states (Semester-wise, Programme, Status, Search)
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('all');
+  const [selectedProgrammeFilter, setSelectedProgrammeFilter] = useState<string>('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
   const fileRef = useRef<HTMLInputElement>(null);
   const archiveRef = useRef<HTMLDivElement>(null);
 
@@ -135,20 +153,30 @@ export default function ExaminerPanels() {
         status: dt.status || null,
       }));
 
-      setPool([...dbPool, ...defaultsToAdd]);
+      const fullPool = [...dbPool, ...defaultsToAdd];
+      fullPool.sort((a, b) => {
+        const cleanA = a.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+        const cleanB = b.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+        return cleanA.localeCompare(cleanB, undefined, { sensitivity: 'base' });
+      });
+
+      setPool(fullPool);
     } catch (e) {
       console.warn('Using default teacher list:', e);
-      setPool(
-        DEFAULT_TEACHER_POOL.map((dt, idx) => ({
-          id: `default-${idx}`,
-          name: dt.name,
-          designation: dt.designation,
-          specialization: dt.specialization,
-          postal_address: dt.postal_address,
-          contact_details: dt.contact_details,
-          status: dt.status || null,
-        }))
-      );
+      const sortedDefaults = DEFAULT_TEACHER_POOL.map((dt, idx) => ({
+        id: `default-${idx}`,
+        name: dt.name,
+        designation: dt.designation,
+        specialization: dt.specialization,
+        postal_address: dt.postal_address,
+        contact_details: dt.contact_details,
+        status: dt.status || null,
+      })).sort((a, b) => {
+        const cleanA = a.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+        const cleanB = b.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+        return cleanA.localeCompare(cleanB, undefined, { sensitivity: 'base' });
+      });
+      setPool(sortedDefaults);
     }
   };
 
@@ -211,9 +239,68 @@ export default function ExaminerPanels() {
     return sem.courses.filter((x) => !doneKeys.has(`${sem.label}|${courseKey(x.code, x.title)}`));
   }, [availableSemesters, programme, header.semester, doneKeys]);
 
+  // Unique lists for Filtering Saved Panels
+  const availableSemestersList = useMemo(() => {
+    const set = new Set<string>();
+    panels.forEach((p) => {
+      if (p.semester) set.add(p.semester);
+    });
+    return Array.from(set).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.replace(/\D/g, ''), 10);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b);
+    });
+  }, [panels]);
+
+  const availableProgrammesList = useMemo(() => {
+    const set = new Set<string>();
+    panels.forEach((p) => {
+      if (p.programme) set.add(p.programme);
+    });
+    return Array.from(set).sort();
+  }, [panels]);
+
+  const filteredPanels = useMemo(() => {
+    return panels.filter((p) => {
+      // Semester filter
+      if (selectedSemesterFilter !== 'all' && p.semester !== selectedSemesterFilter) {
+        return false;
+      }
+      // Programme filter
+      if (selectedProgrammeFilter !== 'all' && p.programme !== selectedProgrammeFilter) {
+        return false;
+      }
+      // Status filter
+      if (selectedStatusFilter !== 'all' && p.status !== selectedStatusFilter) {
+        return false;
+      }
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchTitle = (p.course_title || '').toLowerCase().includes(q);
+        const matchCode = (p.course_code || '').toLowerCase().includes(q);
+        const matchTeacher = (p.teacher_incharge_name || '').toLowerCase().includes(q);
+        const matchSem = (p.semester || '').toLowerCase().includes(q);
+        const matchProg = (p.programme || '').toLowerCase().includes(q);
+        const matchMembers = p.members.some(
+          (m) =>
+            (m.name || '').toLowerCase().includes(q) ||
+            (m.designation || '').toLowerCase().includes(q) ||
+            (m.specialization || '').toLowerCase().includes(q)
+        );
+        if (!matchTitle && !matchCode && !matchTeacher && !matchSem && !matchProg && !matchMembers) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [panels, selectedSemesterFilter, selectedProgrammeFilter, selectedStatusFilter, searchQuery]);
+
   const semesterGroups = useMemo(() => {
     const map = new Map<string, { key: string; label: string; panels: ExaminerPanel[] }>();
-    panels.forEach((p) => {
+    const sourcePanels = selectedSemesterFilter === 'all' ? panels : filteredPanels;
+    sourcePanels.forEach((p) => {
       if (!p.semester) return;
       const key = `${p.session_label}|${p.programme}|${p.semester}`;
       const label = [p.programme, `Sem ${p.semester}`, p.session_label].filter(Boolean).join(' · ');
@@ -221,7 +308,106 @@ export default function ExaminerPanels() {
       map.get(key)!.panels.push(p);
     });
     return [...map.values()];
-  }, [panels]);
+  }, [panels, filteredPanels, selectedSemesterFilter]);
+
+  const sortedPool = useMemo(() => {
+    return [...pool].sort((a, b) => {
+      const cleanA = a.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+      const cleanB = b.name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+/i, '').trim();
+      return cleanA.localeCompare(cleanB, undefined, { sensitivity: 'base' });
+    });
+  }, [pool]);
+
+  // Drag & Drop Handlers for Swapping Teachers within Panel
+  const handleDragStartMember = (e: React.DragEvent, index: number) => {
+    setDraggedMemberIndex(index);
+    setDraggedPoolTeacher(null);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `member-${index}`);
+  };
+
+  const handleDragStartPool = (e: React.DragEvent, teacher: PoolTeacher) => {
+    setDraggedPoolTeacher(teacher);
+    setDraggedMemberIndex(null);
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', `pool-${teacher.id}`);
+  };
+
+  const handleDragOverMember = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = draggedPoolTeacher ? 'copy' : 'move';
+    if (dragOverMemberIndex !== index) {
+      setDragOverMemberIndex(index);
+    }
+  };
+
+  const handleDragLeaveMember = () => {
+    setDragOverMemberIndex(null);
+  };
+
+  const handleDropOnMember = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    setDragOverMemberIndex(null);
+
+    // If dragging a teacher chip from the pool onto a row
+    if (draggedPoolTeacher) {
+      const t = draggedPoolTeacher;
+      const existingIndex = members.findIndex(
+        (m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase()
+      );
+      if (existingIndex >= 0 && existingIndex !== targetIndex) {
+        // Swap existing teacher slot with target slot
+        setMembers((prev) => {
+          const next = [...prev];
+          const temp = next[targetIndex];
+          next[targetIndex] = { ...next[existingIndex], position: targetIndex + 1 };
+          next[existingIndex] = { ...temp, position: existingIndex + 1 };
+          return next;
+        });
+        toast.success(`Swapped ${t.name} to Preference #${targetIndex + 1}`);
+      } else {
+        // Assign new expert to target slot
+        const newExpert: PanelMember = {
+          position: targetIndex + 1,
+          name: t.name,
+          designation: t.designation || '',
+          specialization: t.specialization || '',
+          postal_address: t.postal_address || '',
+          contact_details: t.contact_details || '',
+          status: t.status || '',
+        };
+        setMembers((prev) => prev.map((m, i) => (i === targetIndex ? newExpert : m)));
+        toast.success(`Assigned ${t.name} to Preference #${targetIndex + 1}`);
+      }
+      setDraggedPoolTeacher(null);
+      return;
+    }
+
+    // If swapping two member rows in the panel
+    if (draggedMemberIndex !== null && draggedMemberIndex !== targetIndex) {
+      const sourceIndex = draggedMemberIndex;
+      setMembers((prev) => {
+        const next = [...prev];
+        const temp = next[targetIndex];
+        next[targetIndex] = { ...next[sourceIndex], position: targetIndex + 1 };
+        next[sourceIndex] = { ...temp, position: sourceIndex + 1 };
+        return next;
+      });
+
+      const sourceName = members[sourceIndex].name.trim() || `Slot #${sourceIndex + 1}`;
+      const targetName = members[targetIndex].name.trim() || `Slot #${targetIndex + 1}`;
+      toast.success(
+        `Swapped ${sourceName} (Pref #${sourceIndex + 1}) ↔ ${targetName} (Pref #${targetIndex + 1})`
+      );
+    }
+    setDraggedMemberIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedMemberIndex(null);
+    setDragOverMemberIndex(null);
+    setDraggedPoolTeacher(null);
+  };
 
   const addFromPool = (t: PoolTeacher) => {
     if (members.some((m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase())) {
@@ -498,6 +684,145 @@ export default function ExaminerPanels() {
 
   const filledCount = useMemo(() => members.filter((m) => m.name.trim()).length, [members]);
 
+  const renderFilterBar = () => {
+    const hasActiveFilters =
+      selectedSemesterFilter !== 'all' ||
+      selectedProgrammeFilter !== 'all' ||
+      selectedStatusFilter !== 'all' ||
+      searchQuery.trim() !== '';
+
+    return (
+      <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-4 shadow-xs mb-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a0aec0] dark:text-[#3d5166]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search panels by subject, code, teacher, semester..."
+              className="w-full h-9 pl-9 pr-8 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#a0aec0] hover:text-[#18202e] dark:hover:text-[#e2eaf4]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Programme Filter */}
+          {availableProgrammesList.length > 0 && (
+            <select
+              value={selectedProgrammeFilter}
+              onChange={(e) => setSelectedProgrammeFilter(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
+            >
+              <option value="all">All Programmes ({panels.length})</option>
+              {availableProgrammesList.map((prog) => (
+                <option key={prog} value={prog}>
+                  {prog}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Status Filter */}
+          <select
+            value={selectedStatusFilter}
+            onChange={(e) => setSelectedStatusFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
+          >
+            <option value="all">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent to Exam Cell</option>
+          </select>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedSemesterFilter('all');
+                setSelectedProgrammeFilter('all');
+                setSelectedStatusFilter('all');
+                setSearchQuery('');
+              }}
+              className="h-9 px-3 text-[11.5px] text-[#64748b] dark:text-[#889cb0] hover:text-[#18202e] dark:hover:text-[#e2eaf4]"
+            >
+              <FilterX className="w-3.5 h-3.5 mr-1 text-[#9f1239] dark:text-[#fb7185]" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {/* Semester Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-[#e2e8f0] dark:border-[#1e2a38]">
+          <span className="text-[10.5px] font-bold text-[#a0aec0] dark:text-[#3d5166] uppercase tracking-[0.08em] mr-1.5 flex items-center gap-1">
+            <Filter className="w-3 h-3 text-[var(--accent-color,#0d7a6b)]" /> Semester Filter:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setSelectedSemesterFilter('all')}
+            className={cn(
+              'h-7 px-3 rounded-full text-[11.5px] font-medium transition-all flex items-center gap-1.5',
+              selectedSemesterFilter === 'all'
+                ? 'bg-[var(--accent-color,#0d7a6b)] text-white font-semibold shadow-xs'
+                : 'bg-[#f1f5f9] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] hover:bg-[#e2e8f0] dark:hover:bg-[#1e2a38] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
+            )}
+          >
+            <span>All Panels</span>
+            <span
+              className={cn(
+                'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
+                selectedSemesterFilter === 'all'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[#e2e8f0] dark:bg-[#1c2d3d] text-[#475569] dark:text-[#94a3b8]'
+              )}
+            >
+              {panels.length}
+            </span>
+          </button>
+
+          {availableSemestersList.map((sem) => {
+            const semCount = panels.filter((p) => p.semester === sem).length;
+            const isSelected = selectedSemesterFilter === sem;
+
+            return (
+              <button
+                key={sem}
+                type="button"
+                onClick={() => setSelectedSemesterFilter(sem)}
+                className={cn(
+                  'h-7 px-3 rounded-full text-[11.5px] font-medium transition-all flex items-center gap-1.5',
+                  isSelected
+                    ? 'bg-[var(--accent-color,#0d7a6b)] text-white font-semibold shadow-xs'
+                    : 'bg-[#f1f5f9] dark:bg-[#131c27] text-[#64748b] dark:text-[#6b8299] hover:bg-[#e2e8f0] dark:hover:bg-[#1e2a38] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
+                )}
+              >
+                <span>Sem {sem}</span>
+                <span
+                  className={cn(
+                    'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
+                    isSelected
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#e2e8f0] dark:bg-[#1c2d3d] text-[#475569] dark:text-[#94a3b8]'
+                  )}
+                >
+                  {semCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Exam Cell View
   if (!isHod) {
     return (
@@ -511,15 +836,18 @@ export default function ExaminerPanels() {
                     Examination Cell · Confidential Panel Records
                   </p>
                   <h1 className="m-0 font-serif italic font-light text-[32px] sm:text-[43px] leading-[1.1] tracking-[-0.025em]">
-                    Panel of <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">Examiners</em>
+                    Panel of <em className="not-italic text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]">Examiners</em>
                   </h1>
                   <p className="mt-[10px] text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
-                    Confidential examiner panels submitted by academic departments.
+                    Confidential examiner panels submitted by academic departments. Filter semester-wise below.
                   </p>
                 </div>
                 {panels.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <ExportAllDropdown panels={panels} />
+                    <ExportAllDropdown
+                      panels={selectedSemesterFilter === 'all' ? panels : filteredPanels}
+                      label={selectedSemesterFilter !== 'all' ? `Export Sem ${selectedSemesterFilter}` : undefined}
+                    />
                     {semesterGroups.map((g) => (
                       <SemesterDownloadMenu key={g.key} group={g} />
                     ))}
@@ -527,17 +855,33 @@ export default function ExaminerPanels() {
                 )}
               </div>
 
+              {/* Filter Controls for Exam Cell */}
+              {panels.length > 0 && renderFilterBar()}
+
               <div className="space-y-6">
                 {isLoading ? (
                   <div className="p-8 text-center text-[13px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d]">
                     Loading confidential panels…
                   </div>
-                ) : panels.length === 0 ? (
-                  <div className="p-8 text-center text-[13px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d]">
-                    No examiner panels have been submitted yet.
+                ) : filteredPanels.length === 0 ? (
+                  <div className="p-8 text-center text-[13px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#e8e2da] dark:border-[#1c2d3d] space-y-2">
+                    <p>No examiner panels found matching the selected semester/search criteria.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSemesterFilter('all');
+                        setSelectedProgrammeFilter('all');
+                        setSelectedStatusFilter('all');
+                        setSearchQuery('');
+                      }}
+                      className="text-xs"
+                    >
+                      Reset All Filters
+                    </Button>
                   </div>
                 ) : (
-                  panels.map((panel) => (
+                  filteredPanels.map((panel) => (
                     <OfficialPanelCard
                       key={panel.id}
                       panel={panel}
@@ -567,10 +911,10 @@ export default function ExaminerPanels() {
                   Confidential · Examination Cycle 2025
                 </p>
                 <h1 className="m-0 font-serif italic font-light text-[32px] sm:text-[43px] leading-[1.1] tracking-[-0.025em]">
-                  Panel of <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">Examiners</em>
+                  Panel of <em className="not-italic text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]">Examiners</em>
                 </h1>
                 <p className="mt-[10px] text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
-                  Official format for submitting expert examiner preferences to the Examination Cell.
+                  Official format for submitting expert examiner preferences. Drag & drop teachers to swap order.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
@@ -614,11 +958,17 @@ export default function ExaminerPanels() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-[11px] text-[#64748b] dark:text-[#6b8299]">
-                    Official unified format with course particulars and 5 expert preferences in order.
+                    Official unified format. Drag teacher rows or pool chips to swap examiner preference order.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2.5 py-1 rounded-full bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] text-[#0d7a6b] dark:text-[#2dd4bf] font-mono text-[10px] font-medium">
+                  <span
+                    className="px-2.5 py-1 rounded-full font-mono text-[10px] font-medium"
+                    style={{
+                      backgroundColor: 'var(--accent-soft, rgba(13,122,107,0.08))',
+                      color: 'var(--accent-color, #0d7a6b)',
+                    }}
+                  >
                     {filledCount} of {members.length} preferences set
                   </span>
                   <Button
@@ -627,14 +977,14 @@ export default function ExaminerPanels() {
                     onClick={handleDownloadPreviewPdf}
                     className="h-8 text-[11.5px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
                   >
-                    <FileDown className="w-3.5 h-3.5 mr-1.5 text-[#0d7a6b] dark:text-[#2dd4bf]" />
+                    <FileDown className="w-3.5 h-3.5 mr-1.5 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
                     Preview PDF
                   </Button>
                 </div>
               </div>
 
               <div className="p-5 sm:p-6 space-y-6">
-                {/* 1. Header Information Block (Linear & Clean Design) */}
+                {/* 1. Header Information Block */}
                 <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0e1622] p-4 sm:p-5 shadow-xs">
                   <div className="mb-3 flex items-center justify-between border-b border-[#e2e8f0] dark:border-[#1e2a38] pb-2.5">
                     <div>
@@ -657,7 +1007,7 @@ export default function ExaminerPanels() {
                         value={header.department_label}
                         onChange={(e) => setField('department_label', e.target.value)}
                         placeholder="Department offering the courses"
-                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       />
                     </div>
 
@@ -670,7 +1020,7 @@ export default function ExaminerPanels() {
                         value={header.school}
                         onChange={(e) => setField('school', e.target.value)}
                         placeholder="School name"
-                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       />
                     </div>
 
@@ -691,7 +1041,7 @@ export default function ExaminerPanels() {
                             course_title: '',
                           }))
                         }
-                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       >
                         <option value="">Choose session</option>
                         {SESSION_OPTIONS.map((s) => (
@@ -719,7 +1069,7 @@ export default function ExaminerPanels() {
                             course_title: '',
                           }))
                         }
-                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       >
                         <option value="">Choose programme</option>
                         {IT_PROGRAMMES.map((p) => (
@@ -740,7 +1090,7 @@ export default function ExaminerPanels() {
                           value={header.semester}
                           placeholder="Semester (e.g. I, III, V)"
                           onChange={(e) => setField('semester', e.target.value)}
-                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                         />
                       ) : (
                         <select
@@ -749,7 +1099,7 @@ export default function ExaminerPanels() {
                           onChange={(e) =>
                             setHeader((h) => ({ ...h, semester: e.target.value, course_code: '', course_title: '' }))
                           }
-                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                          className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                         >
                           <option value="">Choose semester</option>
                           {semesterInfo.map((s) => (
@@ -771,26 +1121,29 @@ export default function ExaminerPanels() {
                         value={header.batch}
                         placeholder="e.g. 2023"
                         onChange={(e) => setField('batch', e.target.value)}
-                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[#0d7a6b] dark:focus:ring-[#2dd4bf] outline-none"
+                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Quick-assign Teacher Chips */}
+                {/* 2. Quick-assign Teacher Chips with Drag & Drop capability */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <div>
-                      <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3]">
-                        Teacher Directory · Quick Assign
+                      <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3] flex items-center gap-1.5">
+                        <span>Teacher Directory · Drag or Click to Swap</span>
+                        <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-[var(--accent-soft,rgba(13,122,107,0.1))] text-[var(--accent-color,#0d7a6b)] font-mono">
+                          Drag & Drop Active
+                        </span>
                       </p>
                       <p className="text-[10.5px] text-[#a0aec0] dark:text-[#3d5166]">
-                        Click any teacher to assign them to the next preference slot (1 to 5).
+                        Drag any teacher chip directly onto a preference row to swap or assign them.
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {pool.map((t) => {
+                    {sortedPool.map((t) => {
                       const isAssigned = members.some(
                         (m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase()
                       );
@@ -798,16 +1151,21 @@ export default function ExaminerPanels() {
                         <button
                           key={t.id}
                           type="button"
+                          draggable
+                          onDragStart={(e) => handleDragStartPool(e, t)}
+                          onDragEnd={handleDragEnd}
                           onClick={() => addFromPool(t)}
                           disabled={isAssigned}
-                          className={`h-7 px-2.5 flex items-center gap-1.5 rounded-md border text-[11px] transition-colors ${
+                          className={cn(
+                            'h-7 px-2.5 flex items-center gap-1.5 rounded-md border text-[11px] transition-all cursor-grab active:cursor-grabbing',
                             isAssigned
-                              ? 'border-[#2dd4bf]/40 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.1)] text-[#0d7a6b] dark:text-[#2dd4bf] opacity-60 cursor-default'
-                              : 'border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#475569] dark:text-[#94a3b8] hover:border-[#0d7a6b] dark:hover:border-[#2dd4bf] cursor-pointer'
-                          }`}
+                              ? 'border-[#2dd4bf]/40 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.1)] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] opacity-60 cursor-default'
+                              : 'border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#475569] dark:text-[#94a3b8] hover:border-[var(--accent-color,#0d7a6b)] dark:hover:border-[#2dd4bf]'
+                          )}
                         >
+                          <GripVertical className="h-3 w-3 text-[#a0aec0] shrink-0" />
                           {isAssigned ? (
-                            <Check className="h-3 w-3 text-[#0d7a6b] dark:text-[#2dd4bf]" />
+                            <Check className="h-3 w-3 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
                           ) : (
                             <Plus className="h-3 w-3" />
                           )}
@@ -818,16 +1176,21 @@ export default function ExaminerPanels() {
                   </div>
                 </div>
 
-                {/* 3. The Official Unified Table (Two-tier header, vertical course details merge, 5 expert rows) */}
+                {/* 3. Official Unified Table (Draggable rows for teacher swapping) */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3]">
-                      Official Course & Expert Preferences Table
-                    </p>
+                    <div>
+                      <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3]">
+                        Official Course & Expert Preferences Table
+                      </p>
+                      <p className="text-[10.5px] text-[#64748b] dark:text-[#889cb0]">
+                        Drag table rows via <GripVertical className="inline h-3 w-3" /> handle to swap teacher preference order.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setMembers((m) => [...m, emptyMember(m.length + 1)])}
-                      className="text-[11px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] hover:underline flex items-center gap-1"
+                      className="text-[11px] font-medium text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] hover:underline flex items-center gap-1"
                     >
                       <Plus className="h-3.5 w-3.5" /> Add preference slot ({members.length + 1})
                     </button>
@@ -845,13 +1208,11 @@ export default function ExaminerPanels() {
                         <col style={{ width: '180px' }} />
                         <col style={{ width: '190px' }} />
                         <col style={{ width: '150px' }} />
-                        <col style={{ width: '55px' }} />
+                        <col style={{ width: '70px' }} />
                         <col style={{ width: '450px' }} />
                         <col style={{ width: '360px' }} />
-                        <col style={{ width: '95px' }} />
+                        <col style={{ width: '140px' }} />
                       </colgroup>
-
-                      {/* Two-tier Table Header */}
                       <thead>
                         <tr className="bg-[#f0f4f8] dark:bg-[#131e2b] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
                           <th
@@ -862,33 +1223,29 @@ export default function ExaminerPanels() {
                           </th>
                           <th
                             rowSpan={2}
-                            className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                            className="px-2 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                           >
                             S.<br />No.
                           </th>
                           <th
                             rowSpan={2}
-                            className="px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
+                            className="px-3 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
                           >
                             <div>Particulars of the Experts in order of Preference</div>
                             <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
-                              (Name/Designation/Department)
+                              (Name/Designation/Department) · Drag to Swap
                             </div>
                           </th>
-                          <th
-                            rowSpan={2}
-                            className="px-3 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]"
-                          >
+                          <th rowSpan={2} className="px-3 py-1 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             <div>Contact Details</div>
                             <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
                               (Email ID/Mobile No.)
                             </div>
                           </th>
-                          <th rowSpan={2} className="px-2 py-2 text-center font-bold text-[10px] uppercase tracking-wider">
-                            Actions
+                          <th rowSpan={2} className="px-2 py-1 text-center font-bold">
+                            Swap & Actions
                           </th>
                         </tr>
-
                         <tr className="bg-[#f8fafc] dark:bg-[#182332] border-b border-[#d0d7de] dark:border-[#2a3847] text-[#1c2430] dark:text-[#e6edf3]">
                           <th className="px-3 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
                             Course Title
@@ -900,83 +1257,74 @@ export default function ExaminerPanels() {
                             Credits
                           </th>
                           <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
-                            <div>Nature of Course</div>
-                            <div className="text-[9px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
-                              (Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)
-                            </div>
+                            Nature of Course
                           </th>
                           <th className="px-2.5 py-2 text-left font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
-                            <div>Programme(s)</div>
-                            <div className="text-[9px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
-                              (whose students have opted the course)
-                            </div>
+                            Programme(s)
                           </th>
                           <th className="px-2 py-2 text-center font-bold border-r border-[#d0d7de] dark:border-[#2a3847]">
-                            <div>Whether Regular/</div>
-                            <div>Backlog or Both</div>
+                            Whether Regular/Backlog
                           </th>
                         </tr>
                       </thead>
-
                       <tbody>
                         {members.map((member, index) => {
-                          const isFirstRow = index === 0;
                           const totalRows = members.length;
+                          const isDragging = draggedMemberIndex === index;
+                          const isDragOver = dragOverMemberIndex === index;
 
                           return (
                             <tr
-                              key={member.id ? `${member.id}-${index}` : `row-${index}`}
-                              className="border-b border-[#e2e8f0] dark:border-[#1e2a38] hover:bg-[#fafbfc] dark:hover:bg-[#111923] transition-colors"
+                              key={index}
+                              draggable
+                              onDragStart={(e) => handleDragStartMember(e, index)}
+                              onDragOver={(e) => handleDragOverMember(e, index)}
+                              onDragLeave={handleDragLeaveMember}
+                              onDrop={(e) => handleDropOnMember(e, index)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                'border-b border-[#e2e8f0] dark:border-[#1e2a38] transition-all',
+                                isDragging && 'opacity-40 bg-amber-50 dark:bg-amber-950/20',
+                                isDragOver &&
+                                  'bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.15)] ring-2 ring-inset ring-[var(--accent-color,#0d7a6b)] dark:ring-[#2dd4bf]'
+                              )}
                             >
-                              {/* Left 6 columns merged vertically across all rows for this course */}
-                              {isFirstRow && (
+                              {index === 0 && (
                                 <>
                                   {/* Course Title */}
                                   <td
                                     rowSpan={totalRows}
                                     className="p-3 align-middle border-r border-[#d0d7de] dark:border-[#2a3847] bg-[#fbfcfd] dark:bg-[#0d141e]"
                                   >
-                                    {programme?.manual ? (
-                                      <input
-                                        value={header.course_title}
-                                        placeholder="Course Title"
-                                        onChange={(e) => setField('course_title', e.target.value)}
-                                        className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
-                                      />
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <select
-                                          value={courseKey(header.course_code, header.course_title)}
-                                          disabled={!header.semester}
-                                          onChange={(e) => {
-                                            const found = remainingCourses.find(
-                                              (x) => courseKey(x.code, x.title) === e.target.value
-                                            );
-                                            setHeader((h) => ({
-                                              ...h,
-                                              course_code: found?.code || '',
-                                              course_title: found?.title || '',
-                                            }));
-                                          }}
-                                          className="w-full h-9 px-2.5 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium disabled:opacity-50 outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
-                                        >
-                                          <option value="">
-                                            {header.semester && remainingCourses.length === 0
-                                              ? 'All courses done'
-                                              : 'Choose catalog course'}
-                                          </option>
-                                          {remainingCourses.map((x) => (
-                                            <option key={courseKey(x.code, x.title)} value={courseKey(x.code, x.title)}>
-                                              {x.title}
-                                            </option>
+                                    <input
+                                      value={header.course_title}
+                                      placeholder="Select or enter course title"
+                                      onChange={(e) => setField('course_title', e.target.value)}
+                                      className="w-full h-9 px-3 font-semibold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
+                                    />
+                                    {remainingCourses.length > 0 && (
+                                      <div className="mt-2 text-[10.5px]">
+                                        <span className="text-[#64748b] dark:text-[#889cb0] block mb-1">
+                                          Quick Catalog Pick ({remainingCourses.length}):
+                                        </span>
+                                        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+                                          {remainingCourses.map((c) => (
+                                            <button
+                                              key={c.code}
+                                              type="button"
+                                              onClick={() => {
+                                                setHeader((h) => ({
+                                                  ...h,
+                                                  course_title: c.title,
+                                                  course_code: c.code,
+                                                }));
+                                              }}
+                                              className="px-2 py-0.5 rounded text-[10px] font-mono border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] hover:border-[var(--accent-color,#0d7a6b)] text-left truncate max-w-[220px]"
+                                            >
+                                              {c.code} · {c.title}
+                                            </button>
                                           ))}
-                                        </select>
-                                        <input
-                                          value={header.course_title}
-                                          placeholder="Or enter custom course title"
-                                          onChange={(e) => setField('course_title', e.target.value)}
-                                          className="w-full h-8 px-2.5 rounded-lg border border-[#e2e8f0] dark:border-[#1e2a38] bg-white dark:bg-[#101820] text-[11.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
-                                        />
+                                        </div>
                                       </div>
                                     )}
                                   </td>
@@ -990,7 +1338,7 @@ export default function ExaminerPanels() {
                                       value={header.course_code}
                                       placeholder="Code"
                                       onChange={(e) => setField('course_code', e.target.value)}
-                                      className="w-full h-9 px-2 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="w-full h-9 px-2 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
@@ -1003,7 +1351,7 @@ export default function ExaminerPanels() {
                                       value={header.credits}
                                       placeholder="Cr"
                                       onChange={(e) => setField('credits', e.target.value)}
-                                      className="w-full h-9 px-1 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="w-full h-9 px-1 text-center font-mono font-bold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
@@ -1015,7 +1363,7 @@ export default function ExaminerPanels() {
                                     <select
                                       value={header.course_nature}
                                       onChange={(e) => setField('course_nature', e.target.value)}
-                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     >
                                       {NATURE_OPTIONS.map((opt) => (
                                         <option key={opt} value={opt}>
@@ -1034,7 +1382,7 @@ export default function ExaminerPanels() {
                                       value={header.programme}
                                       placeholder="Programme"
                                       onChange={(e) => setField('programme', e.target.value)}
-                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] font-medium outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
                                   </td>
 
@@ -1046,7 +1394,7 @@ export default function ExaminerPanels() {
                                     <select
                                       value={header.regular_backlog}
                                       onChange={(e) => setField('regular_backlog', e.target.value)}
-                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] text-center font-medium outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12px] text-center font-medium outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     >
                                       {REGULAR_BACKLOG_OPTIONS.map((opt) => (
                                         <option key={opt} value={opt}>
@@ -1058,9 +1406,15 @@ export default function ExaminerPanels() {
                                 </>
                               )}
 
-                              {/* S. No. */}
+                              {/* S. No. + Drag Handle */}
                               <td className="p-2 text-center font-bold text-[12px] border-r border-[#d0d7de] dark:border-[#2a3847] text-[#64748b] dark:text-[#889cb0]">
-                                {index + 1}
+                                <div className="flex items-center justify-center gap-1">
+                                  <GripVertical
+                                    className="h-4 w-4 cursor-grab text-[#a0aec0] hover:text-[#18202e] dark:hover:text-[#e2eaf4] shrink-0"
+                                    title="Click & drag to swap teacher position"
+                                  />
+                                  <span>{index + 1}</span>
+                                </div>
                               </td>
 
                               {/* Particulars of Expert (Name / Designation / Department) */}
@@ -1070,20 +1424,20 @@ export default function ExaminerPanels() {
                                     value={member.name}
                                     onChange={(e) => updateMember(index, 'name', e.target.value)}
                                     placeholder={`Preference #${index + 1} Expert Name (e.g. Prof. A. K. Sharma)`}
-                                    className="w-full h-8 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-semibold placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
+                                    className="w-full h-8 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-semibold placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf] outline-none"
                                   />
                                   <div className="grid grid-cols-[160px_1fr] gap-1.5">
                                     <input
                                       value={member.designation}
                                       onChange={(e) => updateMember(index, 'designation', e.target.value)}
                                       placeholder="Designation"
-                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
                                     <input
                                       value={member.specialization}
                                       onChange={(e) => updateMember(index, 'specialization', e.target.value)}
                                       placeholder="Department / Specialization / Affiliation"
-                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf]"
+                                      className="h-7 px-2.5 rounded-md border border-[#e2e8f0] dark:border-[#1e2a38] bg-[#f8fafc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
                                   </div>
                                 </div>
@@ -1095,18 +1449,18 @@ export default function ExaminerPanels() {
                                   value={member.contact_details}
                                   onChange={(e) => updateMember(index, 'contact_details', e.target.value)}
                                   placeholder="Email ID / Mobile No. (e.g. name@univ.edu, +91 9876543210)"
-                                  className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[#0d7a6b] dark:focus:border-[#2dd4bf] outline-none"
+                                  className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium placeholder:text-[#a0aec0] dark:placeholder:text-[#3d5166] focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf] outline-none"
                                 />
                               </td>
 
-                              {/* Actions */}
+                              {/* Actions & Swap Controls */}
                               <td className="p-1.5 text-center">
                                 <div className="inline-flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() => moveMember(index, -1)}
                                     disabled={index === 0}
-                                    title="Move up"
+                                    title="Move up (Swap with previous)"
                                     className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4] disabled:opacity-20"
                                   >
                                     <ChevronUp className="h-4 w-4" />
@@ -1115,7 +1469,7 @@ export default function ExaminerPanels() {
                                     type="button"
                                     onClick={() => moveMember(index, 1)}
                                     disabled={index === members.length - 1}
-                                    title="Move down"
+                                    title="Move down (Swap with next)"
                                     className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#18202e] dark:hover:text-[#e2eaf4] disabled:opacity-20"
                                   >
                                     <ChevronDown className="h-4 w-4" />
@@ -1125,7 +1479,7 @@ export default function ExaminerPanels() {
                                     onClick={() => saveToPool(member)}
                                     disabled={!member.name.trim()}
                                     title="Save to teacher list"
-                                    className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] disabled:opacity-20"
+                                    className="p-1 rounded text-[#64748b] dark:text-[#6b8299] hover:text-[var(--accent-color,#0d7a6b)] dark:hover:text-[#2dd4bf] disabled:opacity-20"
                                   >
                                     <UserPlus className="h-4 w-4" />
                                   </button>
@@ -1241,7 +1595,7 @@ export default function ExaminerPanels() {
                     <button
                       type="button"
                       onClick={handleDownloadPreviewPdf}
-                      className="h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#0d7a6b] dark:text-[#2dd4bf] text-[11.5px] font-medium hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] inline-flex items-center gap-1.5"
+                      className="h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] text-[11.5px] font-medium hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] inline-flex items-center gap-1.5"
                     >
                       <FileDown className="h-3.5 w-3.5" />
                       Download PDF
@@ -1273,18 +1627,24 @@ export default function ExaminerPanels() {
                     Submitted & Saved Panels
                   </h2>
                   <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166] mt-0.5">
-                    {panels.length} panel{panels.length !== 1 ? 's' : ''} in the current examination cycle.
+                    Showing {filteredPanels.length} of {panels.length} panel{panels.length !== 1 ? 's' : ''} in the current examination cycle.
                   </p>
                 </div>
                 {panels.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <ExportAllDropdown panels={panels} />
+                    <ExportAllDropdown
+                      panels={selectedSemesterFilter === 'all' ? panels : filteredPanels}
+                      label={selectedSemesterFilter !== 'all' ? `Export Sem ${selectedSemesterFilter}` : undefined}
+                    />
                     {semesterGroups.map((g) => (
                       <SemesterDownloadMenu key={g.key} group={g} />
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* HOD Filter Bar */}
+              {panels.length > 0 && renderFilterBar()}
 
               {isLoading ? (
                 <div className="p-8 text-center text-[12px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#d0d7de] dark:border-[#1c2d3d]">
@@ -1294,9 +1654,26 @@ export default function ExaminerPanels() {
                 <div className="p-8 text-center text-[12px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#d0d7de] dark:border-[#1c2d3d]">
                   No panels created yet. Fill out the official form above to create your first panel.
                 </div>
+              ) : filteredPanels.length === 0 ? (
+                <div className="p-8 text-center text-[12px] text-[#a0aec0] dark:text-[#3d5166] bg-white dark:bg-[#101820] rounded-[14px] border border-[#d0d7de] dark:border-[#1c2d3d] space-y-2">
+                  <p>No panels match the selected semester, programme, or search criteria.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSemesterFilter('all');
+                      setSelectedProgrammeFilter('all');
+                      setSelectedStatusFilter('all');
+                      setSearchQuery('');
+                    }}
+                    className="text-xs"
+                  >
+                    Reset All Filters
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {panels.map((panel) => (
+                  {filteredPanels.map((panel) => (
                     <OfficialPanelCard
                       key={panel.id}
                       panel={panel}
@@ -1339,7 +1716,7 @@ function SemesterDownloadMenu({
           size="sm"
           className="rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#f8fafc] dark:hover:bg-[#16202c] shadow-xs"
         >
-          <FileDown className="w-3.5 h-3.5 text-[#0d7a6b] dark:text-[#2dd4bf]" />
+          <FileDown className="w-3.5 h-3.5 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
           <span>Whole Semester: {group.label} ({group.panels.length})</span>
           <ChevronDown className="w-3 h-3 text-[#64748b] ml-0.5" />
         </Button>
@@ -1390,7 +1767,7 @@ function SemesterDownloadMenu({
           </DropdownMenuItem>
         )}
 
-        {/* Excel Option: Fit Sheet to 1 Printed Page */}
+        {/* Excel Option */}
         <DropdownMenuItem
           onClick={() => exportPanelsExcel(group.panels, `panels-${cleanLabel}.xlsx`, 'by_semester')}
           className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
@@ -1434,8 +1811,10 @@ function SemesterDownloadMenu({
   );
 }
 
-function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
+function ExportAllDropdown({ panels, label }: { panels: ExaminerPanel[]; label?: string }) {
   if (panels.length === 0) return null;
+
+  const buttonText = label ? `${label} (${panels.length} Course${panels.length !== 1 ? 's' : ''})` : `Export All (${panels.length} Courses)`;
 
   return (
     <DropdownMenu>
@@ -1443,10 +1822,10 @@ function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-lg border-[#0d7a6b] dark:border-[#2dd4bf] text-[#0d7a6b] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
+          className="rounded-lg border-[var(--accent-color,#0d7a6b)] dark:border-[#2dd4bf] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Export All ({panels.length} Courses)</span>
+          <span>{buttonText}</span>
           <ChevronDown className="w-3 h-3 ml-0.5" />
         </Button>
       </DropdownMenuTrigger>
@@ -1494,7 +1873,7 @@ function ExportAllDropdown({ panels }: { panels: ExaminerPanel[] }) {
           </div>
         </DropdownMenuItem>
 
-        {/* 3. Excel: Each Semester in a Separate Sheet */}
+        {/* 3. Excel */}
         <DropdownMenuItem
           onClick={() => exportPanelsExcel(panels, 'all-semesters-examiner-panels.xlsx', 'by_semester')}
           className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)] focus:bg-[#f0fdf4] dark:focus:bg-[rgba(74,222,128,0.08)]"
@@ -1594,7 +1973,7 @@ function OfficialPanelCard({
             className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
             title="Download PDF"
           >
-            <FileDown className="w-3.5 h-3.5 mr-1 text-[#0d7a6b] dark:text-[#2dd4bf]" />
+            <FileDown className="w-3.5 h-3.5 mr-1 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
             PDF
           </Button>
           <Button
@@ -1643,7 +2022,7 @@ function OfficialPanelCard({
       {/* Expanded Official Format Preview */}
       {isExpanded && (
         <div className="p-4 space-y-3">
-          {/* Metadata Grid (Linear Order) */}
+          {/* Metadata Grid */}
           <div className="border border-[#d0d7de] dark:border-[#2a3847] rounded-lg bg-[#fafbfc] dark:bg-[#0c131d] p-3.5 text-[11.5px]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5">
               <div>

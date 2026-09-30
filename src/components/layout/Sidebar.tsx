@@ -303,11 +303,20 @@ export function Sidebar({
           )}
         </div>
         {(!collapsed || isMobile) && (
-          <div className="px-3 py-[9px] rounded-[8px] bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border border-[rgba(13,122,107,0.15)]">
+          <div
+            className="px-3 py-[9px] rounded-[8px] border transition-colors"
+            style={{
+              backgroundColor: 'var(--accent-soft, rgba(13,122,107,0.1))',
+              borderColor: 'var(--accent-ring, rgba(13,122,107,0.2))',
+            }}
+          >
             <p className="text-[9px] font-bold text-[#a0aec0] dark:text-[#3d5166] tracking-[0.1em] uppercase mb-[3px]">
               {departmentName ? 'Department' : 'Role'}
             </p>
-            <p className="text-[11.5px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] leading-[1.4] line-clamp-2">
+            <p
+              className="text-[11.5px] font-medium leading-[1.4] line-clamp-2"
+              style={{ color: 'var(--accent-color, #0d7a6b)' }}
+            >
               {departmentName || getRoleBadge()}
             </p>
           </div>
@@ -341,13 +350,16 @@ export function Sidebar({
                 'w-full flex items-center gap-[9px] px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-left relative transition-colors',
                 collapsed && !isMobile && 'justify-center px-0',
                 isActive
-                  ? 'text-[#0d7a6b] dark:text-[#2dd4bf]'
+                  ? 'font-medium'
                   : 'text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
               )}
-              style={isActive && !collapsed ? { background: 'transparent' } : undefined}
+              style={isActive ? { color: 'var(--accent-color, #0d7a6b)', background: 'transparent' } : undefined}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-[18px] bg-[#0d7a6b] dark:bg-[#2dd4bf] rounded-r-[2px]" />
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-[18px] rounded-r-[2px]"
+                  style={{ backgroundColor: 'var(--accent-color, #0d7a6b)' }}
+                />
               )}
               <span className="relative leading-none">
                 <item.icon className="w-[14px] h-[14px]" />
@@ -363,7 +375,13 @@ export function Sidebar({
                     {item.label}
                   </span>
                   {showBadge && (
-                    <span className="font-mono text-[10px] font-medium px-[7px] py-[2px] rounded-full min-w-[22px] text-center bg-[rgba(13,122,107,0.10)] dark:bg-[rgba(45,212,191,0.14)] text-[#0d7a6b] dark:text-[#2dd4bf]">
+                    <span
+                      className="font-mono text-[10px] font-medium px-[7px] py-[2px] rounded-full min-w-[22px] text-center"
+                      style={{
+                        backgroundColor: 'var(--accent-soft, rgba(13,122,107,0.1))',
+                        color: 'var(--accent-color, #0d7a6b)',
+                      }}
+                    >
                       {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                   )}
@@ -395,9 +413,10 @@ export function Sidebar({
               className={cn(
                 'w-full flex items-center gap-[9px] px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-[13px] transition-colors',
                 location.pathname === '/profile'
-                  ? 'font-medium text-[#0d7a6b] dark:text-[#2dd4bf]'
+                  ? 'font-medium'
                   : 'text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
               )}
+              style={location.pathname === '/profile' ? { color: 'var(--accent-color, #0d7a6b)' } : undefined}
             >
               <User className="w-[14px] h-[14px]" />
               <span className="tracking-[-0.01em]">Profile</span>
@@ -439,7 +458,14 @@ export function Sidebar({
       ) : (
         <div className="px-3 pt-3 pb-[14px] border-t border-[#e8e2da] dark:border-[#1c2d3d] bg-[#f7f4ef] dark:bg-[#0a1019]">
           <div className="flex items-center gap-[9px]">
-            <div className="w-8 h-8 rounded-[8px] shrink-0 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.08)] border border-[rgba(13,122,107,0.18)] flex items-center justify-center font-mono text-[10px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] tracking-[0.05em]">
+            <div
+              className="w-8 h-8 rounded-[8px] shrink-0 border flex items-center justify-center font-mono text-[10px] font-medium tracking-[0.05em]"
+              style={{
+                backgroundColor: 'var(--accent-soft, rgba(13,122,107,0.1))',
+                borderColor: 'var(--accent-ring, rgba(13,122,107,0.2))',
+                color: 'var(--accent-color, #0d7a6b)',
+              }}
+            >
               {getInitials()}
             </div>
             <div className="flex-1 min-w-0">

@@ -386,7 +386,7 @@ export default function Landing() {
                 )}
 
                 <Button
-                  className="w-full bg-white text-slate-900 hover:bg-white/90"
+                  className="w-full bg-white text-slate-900 hover:bg-white/90 font-medium"
                   size="lg"
                   type="submit"
                   disabled={isLoading}

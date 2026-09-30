@@ -21,7 +21,7 @@ import HODCalendar from "./pages/HODCalendar";
 import TeacherCalendar from "./pages/TeacherCalendar";
 import DatesheetManagement from "./pages/DatesheetManagement";
 import ExaminerPanels from "./pages/ExaminerPanels";
-import { applyStoredAccent } from "./lib/theme";
+import { applyStoredAccent, applyInitialTheme } from "./lib/theme";
 import { DeepLinkHandler } from "./components/DeepLinkHandler";
 import { CookieConsent } from "./components/CookieConsent";
 
@@ -29,6 +29,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
+    applyInitialTheme();
     applyStoredAccent();
   }, []);
 

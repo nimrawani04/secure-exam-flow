@@ -1,5 +1,7 @@
 export const DEFAULT_ACCENT_HEX = '#1fb3a1';
 
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 const hexToRgb = (hex: string) => {
   const cleaned = hex.replace('#', '').trim();
   if (cleaned.length === 3) {
@@ -56,6 +58,29 @@ export const hexToHslString = (hex: string) => {
   return `${h} ${s}% ${l}%`;
 };
 
+const toRgba = (hex: string, alpha: number) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(31, 179, 161, ${alpha})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const darkenHex = (hex: string, amount = 0.12) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const r = clamp(Math.round(rgb.r * (1 - amount)), 0, 255);
+  const g = clamp(Math.round(rgb.g * (1 - amount)), 0, 255);
+  const b = clamp(Math.round(rgb.b * (1 - amount)), 0, 255);
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+
+export const getContrastText = (hex: string) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return '#ffffff';
+  const { r, g, b } = rgb;
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.6 ? '#0b1220' : '#ffffff';
+};
+
 export const getAccentStorageKey = (userId?: string | null) =>
   userId ? `accent-color:${userId}` : 'accent-color';
 
@@ -63,8 +88,17 @@ export const setAccentFromHex = (hex: string, userId?: string | null) => {
   const hsl = hexToHslString(hex);
   if (!hsl) return false;
   const root = document.documentElement;
+
+  // Set HSL variables
   root.style.setProperty('--accent', hsl);
   root.style.setProperty('--ring', hsl);
+
+  // Set Hex & RGBA CSS variables globally on root element
+  root.style.setProperty('--accent-color', hex);
+  root.style.setProperty('--accent-soft', toRgba(hex, 0.12));
+  root.style.setProperty('--accent-ring', toRgba(hex, 0.25));
+  root.style.setProperty('--accent-hover', darkenHex(hex, 0.12));
+  root.style.setProperty('--accent-contrast', getContrastText(hex));
 
   const [h, s] = hsl.split(' ');
   root.style.setProperty('--dashboard-bg', `${h} ${s} 96%`);
@@ -74,8 +108,23 @@ export const setAccentFromHex = (hex: string, userId?: string | null) => {
   root.style.setProperty('--sidebar-accent', `${h} ${s} 22%`);
   root.style.setProperty('--sidebar-border', `${h} ${s} 28%`);
 
-  localStorage.setItem(getAccentStorageKey(userId), hex);
+  // Persist both globally and per-user
+  localStorage.setItem('accent-color', hex);
+  if (userId) {
+    localStorage.setItem(getAccentStorageKey(userId), hex);
+  }
   return true;
+};
+
+export const applyInitialTheme = () => {
+  if (typeof window === 'undefined') return;
+  const userExplicitDark = localStorage.getItem('theme_user_explicit') === 'dark';
+  if (userExplicitDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+  }
 };
 
 export const applyStoredAccent = () => {
@@ -87,14 +136,6 @@ export const applyStoredAccent = () => {
 export const applyStoredAccentForUser = (userId?: string | null) => {
   if (typeof window === 'undefined') return;
   const key = getAccentStorageKey(userId);
-  const stored = localStorage.getItem(key) || DEFAULT_ACCENT_HEX;
+  const stored = localStorage.getItem(key) || localStorage.getItem('accent-color') || DEFAULT_ACCENT_HEX;
   setAccentFromHex(stored, userId);
-};
-
-export const getContrastText = (hex: string) => {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return '#ffffff';
-  const { r, g, b } = rgb;
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance > 0.6 ? '#0b1220' : '#ffffff';
 };

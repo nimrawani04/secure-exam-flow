@@ -6,9 +6,9 @@ type ThemeMode = 'light' | 'dark';
 
 const getInitialTheme = (): ThemeMode => {
   if (typeof window === 'undefined') return 'light';
-  const stored = localStorage.getItem('theme') as ThemeMode | null;
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const userExplicit = localStorage.getItem('theme_user_explicit');
+  if (userExplicit === 'dark') return 'dark';
+  return 'light';
 };
 
 export function ThemeToggle({ className, compact = false }: { className?: string; compact?: boolean }) {
@@ -18,10 +18,13 @@ export function ThemeToggle({ className, compact = false }: { className?: string
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      localStorage.setItem('theme_user_explicit', 'dark');
     } else {
       root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      localStorage.setItem('theme_user_explicit', 'light');
     }
-    localStorage.setItem('theme', theme);
   }, [theme]);
 
   const nextLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
