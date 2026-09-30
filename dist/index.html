@@ -9,6 +9,19 @@
   <title>CUK Exam System — Secure Examination Management</title>
 
   <!-- Primary Meta -->
+  <script>
+    (function() {
+      try {
+        var userExplicitDark = localStorage.getItem('theme_user_explicit') === 'dark';
+        if (userExplicitDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="description" content="Secure examination paper management for Central University of Kashmir with role-based access, encrypted workflows, and full activity logging." />
   <meta name="google-site-verification" content="c8RvH9gTdsJ3ElpcZXQmHcxNlim7la9WKxf2PyscAAI" />
   <meta name="author" content="Nimra Wani, Milad Ajaz Bhat" />
@@ -49,13 +62,12 @@
       "description": "Secure examination paper management platform for Central University of Kashmir."
     }
   </script>
-  <script type="module" crossorigin src="/assets/index-2BFAHyrD.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-0S2osB9L.css">
+  <script type="module" crossorigin src="/assets/index-BXZvryqd.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Cdbc8VBe.css">
 </head>
 
 <body>
-  <div id="root"></div>
-
+  <div id="root"></div>
 </body>
 
 </html>
