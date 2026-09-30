@@ -495,7 +495,7 @@ export function buildSemesterWorksheet(panels: ExaminerPanel[]): XLSX.WorkSheet 
         contact,
       ]);
       merges.push({ s: { r: currentRow, c: 7 }, e: { r: currentRow, c: 9 } });
-      rowHeights[currentRow] = { hpt: 24 };
+      rowHeights[currentRow] = { hpt: 28 };
       currentRow++;
     }
 
@@ -1177,10 +1177,7 @@ export function exportPanelExcel(panel: ExaminerPanel) {
   exportPanelsExcel([panel], `panel-${panel.course_code || 'course'}.xlsx`, 'by_semester');
 }
 
-function drawHeaderMetadata(doc: jsPDF, p: ExaminerPanel, startY: number) {
-  const leftMargin = 28;
-  const tableWidth = 784;
-
+function drawHeaderMetadata(doc: jsPDF, p: ExaminerPanel, startY: number, leftMargin = 24, tableWidth = 792) {
   autoTable(doc, {
     startY,
     body: [
@@ -1218,10 +1215,10 @@ function drawHeaderMetadata(doc: jsPDF, p: ExaminerPanel, startY: number) {
     theme: 'grid',
     styles: {
       font: 'times',
-      fontSize: 9.5,
-      cellPadding: 4,
+      fontSize: 9,
+      cellPadding: 3.5,
       textColor: [0, 0, 0],
-      lineColor: [180, 180, 180],
+      lineColor: [170, 170, 170],
       lineWidth: 0.5,
     },
     columnStyles: {
@@ -1238,44 +1235,45 @@ const TABLE_HEAD = [
     {
       content: 'Details of the course(s) for which panel is submitted',
       colSpan: 6,
-      styles: { halign: 'center', fontStyle: 'bold', fontSize: 9.5, cellPadding: 4 },
+      styles: { halign: 'center', fontStyle: 'bold', fontSize: 9, cellPadding: 3.5 },
     },
     {
       content: 'S.\nNo.',
       rowSpan: 2,
-      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 9, cellPadding: 3 },
+      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5, cellPadding: 2.5 },
     },
     {
       content: 'Particulars of the Experts in order of Preference\n(Name/Designation/Department)',
       rowSpan: 2,
-      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5, cellPadding: 3 },
+      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5, cellPadding: 2.5 },
     },
     {
       content: 'Contact Details\n(Email ID/Mobile No.)',
       rowSpan: 2,
-      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5, cellPadding: 3 },
+      styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 8.5, cellPadding: 2.5 },
     },
   ],
   [
-    { content: 'Course Title', styles: { halign: 'center', fontStyle: 'bold', fontSize: 8 } },
-    { content: 'Course Code', styles: { halign: 'center', fontStyle: 'bold', fontSize: 8 } },
-    { content: 'Credits', styles: { halign: 'center', fontStyle: 'bold', fontSize: 8 } },
-    { content: 'Nature of Course\n(Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7 } },
-    { content: 'Programme(s)\n(whose students have opted the course)', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5 } },
-    { content: 'Whether Regular/\nBacklog or Both', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5 } },
+    { content: 'Course Title', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5 } },
+    { content: 'Course Code', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5 } },
+    { content: 'Credits', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7.5 } },
+    { content: 'Nature of Course\n(Major, Minor, Lab, MDC, VAC, SEC, AEC, OGE, MOOCs etc.)', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.8 } },
+    { content: 'Programme(s)\n(whose students have opted the course)', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7 } },
+    { content: 'Whether Regular/\nBacklog or Both', styles: { halign: 'center', fontStyle: 'bold', fontSize: 7 } },
   ],
 ];
 
+// Optimized column distribution: 792 pt total width, giving maximum width to Experts (248 pt) & Contact Details (184 pt)
 const COLUMN_STYLES = {
-  0: { cellWidth: 104, halign: 'left' as const },
-  1: { cellWidth: 60, halign: 'center' as const },
-  2: { cellWidth: 38, halign: 'center' as const },
-  3: { cellWidth: 104, halign: 'left' as const },
-  4: { cellWidth: 85, halign: 'left' as const },
-  5: { cellWidth: 68, halign: 'center' as const },
-  6: { cellWidth: 28, halign: 'center' as const },
-  7: { cellWidth: 168, halign: 'left' as const },
-  8: { cellWidth: 127, halign: 'left' as const },
+  0: { cellWidth: 85, halign: 'left' as const },
+  1: { cellWidth: 48, halign: 'center' as const },
+  2: { cellWidth: 25, halign: 'center' as const },
+  3: { cellWidth: 70, halign: 'left' as const },
+  4: { cellWidth: 62, halign: 'left' as const },
+  5: { cellWidth: 48, halign: 'center' as const },
+  6: { cellWidth: 22, halign: 'center' as const },
+  7: { cellWidth: 248, halign: 'left' as const },
+  8: { cellWidth: 184, halign: 'left' as const },
 };
 
 function buildCourseBodyRows(panel: ExaminerPanel): any[][] {
@@ -1292,18 +1290,18 @@ function buildCourseBodyRows(panel: ExaminerPanel): any[][] {
         { content: panel.course_title || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: 8 } },
         { content: panel.course_code || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: 8 } },
         { content: String(panel.credits || '-'), rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: 8 } },
-        { content: panel.course_nature || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: 7.5 } },
-        { content: panel.programme || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: 7.5 } },
-        { content: panel.regular_backlog || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: 7.5 } },
-        { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: 8 } },
-        { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: 8 } },
-        { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: 8 } },
+        { content: panel.course_nature || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: 7.2 } },
+        { content: panel.programme || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'left', fontSize: 7.2 } },
+        { content: panel.regular_backlog || '-', rowSpan: rowCount, styles: { valign: 'middle', halign: 'center', fontSize: 7.2 } },
+        { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
+        { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
+        { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
       ]);
     } else {
       rows.push([
-        { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: 8 } },
-        { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: 8 } },
-        { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: 8 } },
+        { content: String(r + 1), styles: { halign: 'center', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
+        { content: particulars, styles: { halign: 'left', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
+        { content: contact, styles: { halign: 'left', valign: 'middle', fontSize: 8, minCellHeight: 23 } },
       ]);
     }
   }
@@ -1364,19 +1362,19 @@ function drawCertificate(
 
 function drawSinglePanelDocument(doc: jsPDF, panel: ExaminerPanel) {
   const width = doc.internal.pageSize.getWidth();
-  const leftMargin = 28;
-  const tableWidth = width - leftMargin * 2;
+  const leftMargin = 24;
+  const tableWidth = 792;
 
   // Title
   doc.setFont('times', 'bold');
-  doc.setFontSize(14);
-  doc.text('PANEL OF EXAMINERS (CONFIDENTIAL)', width / 2, 32, { align: 'center' });
+  doc.setFontSize(13);
+  doc.text('PANEL OF EXAMINERS (CONFIDENTIAL)', width / 2, 28, { align: 'center' });
 
   // Metadata block
-  drawHeaderMetadata(doc, panel, 44);
+  drawHeaderMetadata(doc, panel, 38, leftMargin, tableWidth);
 
   // Main unified table
-  const tableStartY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : 110;
+  const tableStartY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : 105;
   const body = buildCourseBodyRows(panel);
 
   autoTable(doc, {
@@ -1389,13 +1387,13 @@ function drawSinglePanelDocument(doc: jsPDF, panel: ExaminerPanel) {
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       lineColor: [120, 120, 120],
-      lineWidth: 0.6,
+      lineWidth: 0.5,
     },
     styles: {
       font: 'times',
       lineColor: [150, 150, 150],
       lineWidth: 0.5,
-      cellPadding: 3.5,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
       textColor: [0, 0, 0],
     },
     columnStyles: COLUMN_STYLES,
@@ -1416,7 +1414,7 @@ function drawCombinedSemesterDocument(doc: jsPDF, panels: ExaminerPanel[]) {
   if (panels.length === 0) return;
   const pageWidth = doc.internal.pageSize.getWidth();
   const leftMargin = 24;
-  const tableWidth = pageWidth - leftMargin * 2;
+  const tableWidth = 792;
   const p0 = panels[0];
 
   // Document Title
@@ -1469,8 +1467,8 @@ function drawCombinedSemesterDocument(doc: jsPDF, panels: ExaminerPanel[]) {
       lineWidth: 0.5,
     },
     columnStyles: {
-      0: { cellWidth: 540 },
-      1: { cellWidth: tableWidth - 540 },
+      0: { cellWidth: 552 },
+      1: { cellWidth: 240 },
     },
     margin: { left: leftMargin, right: leftMargin },
     tableWidth,
@@ -1565,15 +1563,15 @@ function drawCombinedSemesterDocument(doc: jsPDF, panels: ExaminerPanel[]) {
       textColor: [0, 0, 0],
     },
     columnStyles: {
-      0: { cellWidth: 104, halign: 'left' },
-      1: { cellWidth: 54, halign: 'center' },
-      2: { cellWidth: 34, halign: 'center' },
-      3: { cellWidth: 90, halign: 'left' },
-      4: { cellWidth: 80, halign: 'left' },
-      5: { cellWidth: 55, halign: 'center' },
-      6: { cellWidth: 26, halign: 'center' },
-      7: { cellWidth: 195, halign: 'left' },
-      8: { cellWidth: 154, halign: 'left' },
+      0: { cellWidth: 85, halign: 'left' },
+      1: { cellWidth: 48, halign: 'center' },
+      2: { cellWidth: 25, halign: 'center' },
+      3: { cellWidth: 70, halign: 'left' },
+      4: { cellWidth: 62, halign: 'left' },
+      5: { cellWidth: 48, halign: 'center' },
+      6: { cellWidth: 22, halign: 'center' },
+      7: { cellWidth: 248, halign: 'left' },
+      8: { cellWidth: 184, halign: 'left' },
     },
     margin: { left: leftMargin, right: leftMargin },
     tableWidth,

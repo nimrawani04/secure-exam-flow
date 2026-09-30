@@ -2094,7 +2094,7 @@ function OfficialPanelCard({
                       (Name/Designation/Department)
                     </div>
                   </th>
-                  <th rowSpan={2} className="px-3 py-1 text-center font-bold">
+                  <th rowSpan={2} className="w-[260px] px-3 py-1 text-center font-bold">
                     <div>Contact Details</div>
                     <div className="text-[10px] font-normal text-[#64748b] dark:text-[#889cb0] italic leading-tight">
                       (Email ID/Mobile No.)
