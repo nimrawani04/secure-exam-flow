@@ -388,17 +388,48 @@ export default function Department() {
   const handleRemoveTeacher = async (teacher: Teacher) => {
     setRemovingTeacherId(teacher.id);
     try {
-      const { error } = await supabase.functions.invoke('hod-teachers', {
-        body: {
-          action: 'remove',
-          teacherId: teacher.id,
-        },
+      let removedViaFunction = false;
+      try {
+        const { data, error } = await supabase.functions.invoke('hod-teachers', {
+          body: {
+            action: 'remove',
+            teacherId: teacher.id,
+          },
+        });
+        if (!error && (data?.success || !data?.error)) {
+          removedViaFunction = true;
+        } else if (error) {
+          console.warn('Edge function returned error, trying direct DB update:', error);
+        }
+      } catch (fnErr) {
+        console.warn('Edge function invoke failed, trying direct DB update:', fnErr);
+      }
+
+      if (!removedViaFunction) {
+        // Direct DB fallback: detach department and clear teacher_subjects
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ department_id: null })
+          .eq('id', teacher.id);
+        if (profileError) throw profileError;
+
+        await supabase
+          .from('teacher_subjects')
+          .delete()
+          .eq('teacher_id', teacher.id);
+      }
+
+      toast({
+        title: 'Teacher removed',
+        description: `${teacher.full_name || teacher.email} has been removed from ${departmentName}.`,
       });
-      if (error) throw error;
-      toast({ title: 'Teacher removed', description: 'Teacher has been removed from your department.' });
       await loadData();
     } catch (error: any) {
-      toast({ title: 'Error', description: error?.message || 'Failed to remove teacher.', variant: 'destructive' });
+      toast({
+        title: 'Error removing teacher',
+        description: error?.message || 'Failed to remove teacher.',
+        variant: 'destructive',
+      });
     } finally {
       setRemovingTeacherId(null);
       setTeacherToRemove(null);
@@ -885,6 +916,50 @@ export default function Department() {
           )}
         </div>
         </div>
+
+        {/* Remove Teacher Confirmation Dialog */}
+        <Dialog open={!!teacherToRemove} onOpenChange={(open) => !open && !removingTeacherId && setTeacherToRemove(null)}>
+          <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-[14px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">
+                Remove Teacher from Department
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-[13px] text-[#475569] dark:text-[#94a3b8] leading-relaxed">
+                Are you sure you want to remove <strong className="text-[#18202e] dark:text-[#e2eaf4]">{teacherToRemove?.full_name}</strong> {teacherToRemove?.email ? `(${teacherToRemove.email})` : ''} from <span className="font-medium text-[#0d7a6b] dark:text-[#2dd4bf]">{departmentName}</span>?
+              </p>
+              <p className="text-[12px] text-[#64748b] dark:text-[#6b8299] bg-[#f8fafc] dark:bg-[#0a1019] p-3 rounded-lg border border-[#e8e2da] dark:border-[#1c2d3d]">
+                This will unassign all their subjects and detach their account from your department.
+              </p>
+            </div>
+            <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end pt-2">
+              <Button
+                variant="outline"
+                disabled={!!removingTeacherId}
+                onClick={() => setTeacherToRemove(null)}
+                className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!!removingTeacherId}
+                onClick={() => teacherToRemove && handleRemoveTeacher(teacherToRemove)}
+                className="rounded-lg bg-[#e11d48] text-white hover:bg-[#be123c]"
+              >
+                {removingTeacherId ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  'Remove Teacher'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </HodPageShell>
     </DashboardLayout>
   );

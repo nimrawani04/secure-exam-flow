@@ -38,6 +38,15 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -60,6 +69,8 @@ import {
   FilterX,
   ArrowUpDown,
   Shuffle,
+  X,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -132,17 +143,43 @@ export default function ExaminerPanels() {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Teacher Directory management states
+  const [teacherToDeleteFromPool, setTeacherToDeleteFromPool] = useState<PoolTeacher | null>(null);
+  const [addTeacherModalOpen, setAddTeacherModalOpen] = useState(false);
+  const [newPoolTeacher, setNewPoolTeacher] = useState({
+    name: '',
+    designation: 'Assistant Professor',
+    specialization: '',
+    contact_details: '',
+    postal_address: '',
+  });
+  const [savingNewPoolTeacher, setSavingNewPoolTeacher] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const archiveRef = useRef<HTMLDivElement>(null);
 
   const loadPool = async () => {
     try {
+      const excludedKey = 'cuk_excluded_examiner_teachers';
+      let excludedNames = new Set<string>();
+      try {
+        const raw = localStorage.getItem(excludedKey);
+        if (raw) {
+          const arr: string[] = JSON.parse(raw);
+          excludedNames = new Set(arr.map((n) => n.trim().toLowerCase()));
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+
       const { data } = await supabase.from('panel_examiner_pool').select('*').order('created_at');
-      const dbPool = (data as PoolTeacher[]) || [];
+      const dbPool = ((data as PoolTeacher[]) || []).filter(
+        (t) => !excludedNames.has(t.name.trim().toLowerCase())
+      );
       const dbNames = new Set(dbPool.map((t) => t.name.trim().toLowerCase()));
 
       const defaultsToAdd: PoolTeacher[] = DEFAULT_TEACHER_POOL.filter(
-        (dt) => !dbNames.has(dt.name.trim().toLowerCase())
+        (dt) => !dbNames.has(dt.name.trim().toLowerCase()) && !excludedNames.has(dt.name.trim().toLowerCase())
       ).map((dt, idx) => ({
         id: `default-${idx}`,
         name: dt.name,
@@ -163,7 +200,21 @@ export default function ExaminerPanels() {
       setPool(fullPool);
     } catch (e) {
       console.warn('Using default teacher list:', e);
-      const sortedDefaults = DEFAULT_TEACHER_POOL.map((dt, idx) => ({
+      const excludedKey = 'cuk_excluded_examiner_teachers';
+      let excludedNames = new Set<string>();
+      try {
+        const raw = localStorage.getItem(excludedKey);
+        if (raw) {
+          const arr: string[] = JSON.parse(raw);
+          excludedNames = new Set(arr.map((n) => n.trim().toLowerCase()));
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+
+      const sortedDefaults = DEFAULT_TEACHER_POOL.filter(
+        (dt) => !excludedNames.has(dt.name.trim().toLowerCase())
+      ).map((dt, idx) => ({
         id: `default-${idx}`,
         name: dt.name,
         designation: dt.designation,
@@ -445,6 +496,15 @@ export default function ExaminerPanels() {
       toast.info('Already in your teacher list');
       return;
     }
+
+    // Un-exclude if it was previously removed
+    const excludedKey = 'cuk_excluded_examiner_teachers';
+    try {
+      const existing: string[] = JSON.parse(localStorage.getItem(excludedKey) || '[]');
+      const filtered = existing.filter((n) => n !== m.name.trim().toLowerCase());
+      localStorage.setItem(excludedKey, JSON.stringify(filtered));
+    } catch (e) {}
+
     const { error } = await supabase.from('panel_examiner_pool').insert({
       department_id: profile.department_id,
       created_by: user?.id,
@@ -461,6 +521,110 @@ export default function ExaminerPanels() {
       loadPool();
     }
   };
+
+  const removeTeacherFromPool = async (t: PoolTeacher) => {
+    try {
+      // 1. If stored in Supabase DB, delete it
+      if (!t.id.startsWith('default-')) {
+        const { error } = await supabase.from('panel_examiner_pool').delete().eq('id', t.id);
+        if (error) {
+          console.warn('DB delete warning:', error);
+        }
+      }
+
+      // 2. Persist in excluded localStorage so default or cached entries stay excluded
+      const excludedKey = 'cuk_excluded_examiner_teachers';
+      try {
+        const existing: string[] = JSON.parse(localStorage.getItem(excludedKey) || '[]');
+        const norm = t.name.trim().toLowerCase();
+        if (!existing.includes(norm)) {
+          existing.push(norm);
+          localStorage.setItem(excludedKey, JSON.stringify(existing));
+        }
+      } catch (err) {
+        console.warn('LocalStorage error:', err);
+      }
+
+      // 3. Remove from local state
+      setPool((prev) =>
+        prev.filter((p) => p.id !== t.id && p.name.trim().toLowerCase() !== t.name.trim().toLowerCase())
+      );
+      toast.success(`Removed "${t.name}" from teacher directory`);
+    } catch (e: any) {
+      toast.error('Could not remove teacher');
+    } finally {
+      setTeacherToDeleteFromPool(null);
+    }
+  };
+
+  const handleAddDirectPoolTeacher = async () => {
+    const name = newPoolTeacher.name.trim();
+    if (!name) {
+      toast.error('Please enter teacher name');
+      return;
+    }
+    if (pool.some((t) => t.name.trim().toLowerCase() === name.toLowerCase())) {
+      toast.info('Teacher already in directory');
+      return;
+    }
+
+    setSavingNewPoolTeacher(true);
+    try {
+      const excludedKey = 'cuk_excluded_examiner_teachers';
+      try {
+        const existing: string[] = JSON.parse(localStorage.getItem(excludedKey) || '[]');
+        const filtered = existing.filter((n) => n !== name.toLowerCase());
+        localStorage.setItem(excludedKey, JSON.stringify(filtered));
+      } catch (e) {}
+
+      if (profile?.department_id) {
+        const { error } = await supabase.from('panel_examiner_pool').insert({
+          department_id: profile.department_id,
+          created_by: user?.id,
+          name,
+          designation: newPoolTeacher.designation.trim() || 'Assistant Professor',
+          specialization: newPoolTeacher.specialization.trim() || null,
+          postal_address: newPoolTeacher.postal_address.trim() || null,
+          contact_details: newPoolTeacher.contact_details.trim() || null,
+        });
+        if (error) throw error;
+      }
+
+      toast.success(`Added "${name}" to teacher directory`);
+      setNewPoolTeacher({
+        name: '',
+        designation: 'Assistant Professor',
+        specialization: '',
+        contact_details: '',
+        postal_address: '',
+      });
+      setAddTeacherModalOpen(false);
+      await loadPool();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to add teacher');
+    } finally {
+      setSavingNewPoolTeacher(false);
+    }
+  };
+
+  const handleResetPoolDefaults = async () => {
+    try {
+      localStorage.removeItem('cuk_excluded_examiner_teachers');
+      await loadPool();
+      toast.success('Restored default teacher directory');
+    } catch (e) {
+      toast.error('Failed to reset directory');
+    }
+  };
+
+  const hasExcludedTeachers = useMemo(() => {
+    try {
+      const existing: string[] = JSON.parse(localStorage.getItem('cuk_excluded_examiner_teachers') || '[]');
+      return existing.length > 0;
+    } catch {
+      return false;
+    }
+  }, [pool]);
 
   const setField = (key: keyof PanelHeaderInput, value: string) =>
     setHeader((h) => ({ ...h, [key]: value }));
@@ -485,11 +649,12 @@ export default function ExaminerPanels() {
 
   const clearOrRemoveMember = (index: number) => {
     setMembers((current) => {
-      if (current.length > 1) {
+      if (current.length > 5) {
         return current.filter((_, i) => i !== index).map((r, i) => ({ ...r, position: i + 1 }));
       }
-      return [emptyMember(1)];
+      return current.map((r, i) => (i === index ? emptyMember(i + 1) : r));
     });
+    toast.success('Preference slot cleared');
   };
 
   const resetForm = () => {
@@ -1095,9 +1260,9 @@ export default function ExaminerPanels() {
                   </div>
                 </div>
 
-                {/* 2. Quick-assign Teacher Chips with Drag & Drop capability */}
+                {/* 2. Quick-assign Teacher Chips with Drag & Drop capability and Removal/Add controls */}
                 <div>
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3] flex items-center gap-1.5">
                         <span>Teacher Directory · Drag or Click to Swap</span>
@@ -1106,41 +1271,87 @@ export default function ExaminerPanels() {
                         </span>
                       </p>
                       <p className="text-[10.5px] text-[#a0aec0] dark:text-[#3d5166]">
-                        Drag any teacher chip directly onto a preference row to swap or assign them.
+                        Drag any teacher onto a row to assign/swap. Click <X className="inline h-2.5 w-2.5 text-rose-500" /> on any chip to remove them from directory.
                       </p>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {sortedPool.map((t) => {
-                      const isAssigned = members.some(
-                        (m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase()
-                      );
-                      return (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {hasExcludedTeachers && (
                         <button
-                          key={t.id}
                           type="button"
-                          draggable
-                          onDragStart={(e) => handleDragStartPool(e, t)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => addFromPool(t)}
-                          disabled={isAssigned}
-                          className={cn(
-                            'h-7 px-2.5 flex items-center gap-1.5 rounded-md border text-[11px] transition-all cursor-grab active:cursor-grabbing',
-                            isAssigned
-                              ? 'border-[#2dd4bf]/40 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.1)] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] opacity-60 cursor-default'
-                              : 'border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#475569] dark:text-[#94a3b8] hover:border-[var(--accent-color,#0d7a6b)] dark:hover:border-[#2dd4bf]'
-                          )}
+                          onClick={handleResetPoolDefaults}
+                          title="Restore default teachers"
+                          className="h-6 px-2 text-[10.5px] text-[#64748b] dark:text-[#8fa1b5] hover:text-[#0d7a6b] dark:hover:text-[#2dd4bf] inline-flex items-center gap-1 rounded border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
                         >
-                          <GripVertical className="h-3 w-3 text-[#a0aec0] shrink-0" />
-                          {isAssigned ? (
-                            <Check className="h-3 w-3 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                          {t.name}
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Reset</span>
                         </button>
-                      );
-                    })}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setAddTeacherModalOpen(true)}
+                        className="h-6 px-2 text-[10.5px] font-medium text-white inline-flex items-center gap-1 rounded bg-[#0d7a6b] hover:bg-[#0fa88f] transition-colors shadow-xs"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Add Teacher</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    {sortedPool.length === 0 ? (
+                      <p className="text-[11px] text-[#a0aec0] dark:text-[#3d5166] py-2">
+                        No teachers in directory. Click &quot;Add Teacher&quot; above to add examiners.
+                      </p>
+                    ) : (
+                      sortedPool.map((t) => {
+                        const isAssigned = members.some(
+                          (m) => m.name.trim().toLowerCase() === t.name.trim().toLowerCase()
+                        );
+                        return (
+                          <div
+                            key={t.id}
+                            className={cn(
+                              'group/chip h-7 pl-2 pr-1 inline-flex items-center gap-1 rounded-md border text-[11px] transition-all select-none',
+                              isAssigned
+                                ? 'border-[#2dd4bf]/40 bg-[#eaf6f4] dark:bg-[rgba(45,212,191,0.1)] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] opacity-80'
+                                : 'border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#475569] dark:text-[#94a3b8] hover:border-[var(--accent-color,#0d7a6b)] dark:hover:border-[#2dd4bf]'
+                            )}
+                          >
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={(e) => handleDragStartPool(e, t)}
+                              onDragEnd={handleDragEnd}
+                              onClick={() => addFromPool(t)}
+                              disabled={isAssigned}
+                              title={isAssigned ? `${t.name} is already assigned` : 'Click to assign or drag to slot'}
+                              className={cn(
+                                'flex items-center gap-1.5 cursor-grab active:cursor-grabbing disabled:cursor-default truncate',
+                                isAssigned ? 'cursor-default' : ''
+                              )}
+                            >
+                              <GripVertical className="h-3 w-3 text-[#a0aec0] shrink-0" />
+                              {isAssigned ? (
+                                <Check className="h-3 w-3 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] shrink-0" />
+                              ) : (
+                                <Plus className="h-3 w-3 shrink-0" />
+                              )}
+                              <span className="truncate max-w-[130px] sm:max-w-[200px] font-medium">{t.name}</span>
+                            </button>
+                            <button
+                              type="button"
+                              title={`Remove ${t.name} from directory`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTeacherToDeleteFromPool(t);
+                              }}
+                              className="p-0.5 rounded text-[#a0aec0] hover:text-[#e11d48] hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -1633,6 +1844,133 @@ export default function ExaminerPanels() {
           </div>
         </div>
       </div>
+
+      {/* Delete Teacher from Pool Confirmation Dialog */}
+      <Dialog
+        open={!!teacherToDeleteFromPool}
+        onOpenChange={(open) => !open && setTeacherToDeleteFromPool(null)}
+      >
+        <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[14px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">
+              Remove Teacher from Directory
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <p className="text-[13px] text-[#475569] dark:text-[#94a3b8] leading-relaxed">
+              Are you sure you want to remove <strong className="text-[#18202e] dark:text-[#e2eaf4]">{teacherToDeleteFromPool?.name}</strong> from the teacher directory?
+            </p>
+            <p className="text-[11.5px] text-[#a0aec0] dark:text-[#64748b]">
+              They will no longer appear in the quick-assign directory chips.
+            </p>
+          </div>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTeacherToDeleteFromPool(null)}
+              className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d]"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => teacherToDeleteFromPool && removeTeacherFromPool(teacherToDeleteFromPool)}
+              className="rounded-lg bg-[#e11d48] text-white hover:bg-[#be123c]"
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Teacher to Pool Dialog */}
+      <Dialog open={addTeacherModalOpen} onOpenChange={setAddTeacherModalOpen}>
+        <DialogContent className="bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[14px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">
+              Add Teacher to Directory
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#8fa1b5]">
+                Full Name *
+              </Label>
+              <Input
+                placeholder="e.g. Dr. John Doe or Nimra"
+                value={newPoolTeacher.name}
+                onChange={(e) => setNewPoolTeacher((p) => ({ ...p, name: e.target.value }))}
+                className="mt-1 h-9 text-[13px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#8fa1b5]">
+                Designation
+              </Label>
+              <Input
+                placeholder="e.g. Assistant Professor, Professor, Expert"
+                value={newPoolTeacher.designation}
+                onChange={(e) => setNewPoolTeacher((p) => ({ ...p, designation: e.target.value }))}
+                className="mt-1 h-9 text-[13px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#8fa1b5]">
+                Specialization / Field
+              </Label>
+              <Input
+                placeholder="e.g. Machine Learning, Cloud Computing, Networks"
+                value={newPoolTeacher.specialization}
+                onChange={(e) => setNewPoolTeacher((p) => ({ ...p, specialization: e.target.value }))}
+                className="mt-1 h-9 text-[13px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#8fa1b5]">
+                Contact / Phone / Email
+              </Label>
+              <Input
+                placeholder="e.g. 9876543210 / teacher@univ.edu"
+                value={newPoolTeacher.contact_details}
+                onChange={(e) => setNewPoolTeacher((p) => ({ ...p, contact_details: e.target.value }))}
+                className="mt-1 h-9 text-[13px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#8fa1b5]">
+                Postal Address / University
+              </Label>
+              <Input
+                placeholder="e.g. Dept of IT, Central University of Kashmir"
+                value={newPoolTeacher.postal_address}
+                onChange={(e) => setNewPoolTeacher((p) => ({ ...p, postal_address: e.target.value }))}
+                className="mt-1 h-9 text-[13px]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={savingNewPoolTeacher}
+              onClick={() => setAddTeacherModalOpen(false)}
+              className="rounded-lg border-[#e8e2da] dark:border-[#1c2d3d]"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={savingNewPoolTeacher || !newPoolTeacher.name.trim()}
+              onClick={handleAddDirectPoolTeacher}
+              className="rounded-lg bg-[#0d7a6b] hover:bg-[#0fa88f] text-white"
+            >
+              {savingNewPoolTeacher ? 'Adding...' : 'Save to Directory'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
