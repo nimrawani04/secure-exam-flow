@@ -249,7 +249,7 @@ export default function Profile() {
           }
           description="Manage your personal details, security settings, and theme preferences."
         >
-          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
             {/* ── Left Sidebar Cards ── */}
             <div className="space-y-6">
               {/* User Overview Card */}
@@ -276,10 +276,10 @@ export default function Profile() {
                     {email || profile?.email || 'No email set'}
                   </p>
 
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 max-w-full">
                     <Badge
                       variant="outline"
-                      className="font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2.5 py-0.5 border"
+                      className="font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2.5 py-0.5 border shrink-0"
                       style={{
                         backgroundColor: 'var(--accent-soft)',
                         borderColor: 'var(--accent-ring)',
@@ -292,10 +292,10 @@ export default function Profile() {
                     {(profile?.department_name || profile?.department_id) && (
                       <Badge
                         variant="outline"
-                        className="font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2.5 py-0.5 border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#ede9e2]/50 dark:bg-[#131c27]/50 text-[#64748b] dark:text-[#6b8299]"
+                        className="font-mono text-[10px] uppercase tracking-[0.06em] rounded-full px-2.5 py-0.5 border border-[#e8e2da] dark:border-[#1c2d3d] bg-[#ede9e2]/50 dark:bg-[#131c27]/50 text-[#64748b] dark:text-[#6b8299] max-w-full text-center whitespace-normal"
                       >
-                        <Building2 className="w-3 h-3 mr-1 inline" />
-                        {profile?.department_name || profile?.department_id}
+                        <Building2 className="w-3 h-3 mr-1 inline shrink-0" />
+                        <span className="break-words">{profile?.department_name || profile?.department_id}</span>
                       </Badge>
                     )}
                   </div>
@@ -405,7 +405,7 @@ export default function Profile() {
                 </div>
 
                 <div className="p-5 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="fullName" className={eyebrowWarm}>
                         Full Name
@@ -541,7 +541,7 @@ export default function Profile() {
                     </AlertDialog>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="newPassword" className={eyebrowWarm}>
                         New Password

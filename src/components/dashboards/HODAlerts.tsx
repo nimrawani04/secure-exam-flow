@@ -299,7 +299,7 @@ export function HODAlerts() {
       title={<>Teacher <em className="not-italic text-[#0d7a6b] dark:text-[#2dd4bf]">Alerts</em></>}
       description="Send department or subject-based notifications to teachers."
     >
-      <div className="grid gap-5 lg:grid-cols-[2.2fr_1fr] items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2.2fr_1fr] items-start">
         {/* ── Compose card ── */}
         <div className="bg-white dark:bg-[#101820] border border-[#e8e2da] dark:border-[#1c2d3d] rounded-[14px] overflow-hidden">
           <div className="px-5 pt-5 pb-4 border-b border-[#e8e2da] dark:border-[#1c2d3d] flex items-start justify-between gap-3">
@@ -352,7 +352,7 @@ export function HODAlerts() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className={eyebrowWarm}>Alert type</Label>
                 <Select value={alertType} onValueChange={(value) => setAlertType(value as typeof alertType)}>

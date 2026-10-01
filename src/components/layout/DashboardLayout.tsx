@@ -53,8 +53,11 @@ const routeTitles: Record<string, { section: string; page: string }> = {
   '/admin/departments': { section: 'Admin', page: 'Departments' },
   '/admin/audit': { section: 'Admin', page: 'Audit Logs' },
   '/admin/broadcasts': { section: 'Admin', page: 'Broadcasts' },
-  '/admin/security': { section: 'Admin', page: 'Security' },
+  '/hod/panels': { section: 'HOD', page: 'Examiner Panels' },
+  '/exam-cell/panels': { section: 'Exam Cell', page: 'Examiner Panels' },
+  '/exam-cell/datesheets': { section: 'Exam Cell', page: 'Datesheets' },
   '/profile': { section: 'Account', page: 'Profile' },
+  '/settings': { section: 'Account', page: 'Settings' },
 };
 
 const shortcuts = [
@@ -412,7 +415,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="p-3.5 sm:p-6 lg:p-8 pb-24 sm:pb-8">
           {children}
         </div>
       </main>

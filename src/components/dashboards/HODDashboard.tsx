@@ -344,14 +344,14 @@ export function HODDashboard() {
   };
 
   return (
-    <div className="-m-4 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-9 pb-16">
+    <div className="-m-3.5 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)] overflow-x-hidden">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-10 py-6 sm:py-9 pb-20 sm:pb-16">
         {/* Heading — Fraunces serif */}
-        <div className="mb-8">
-          <p className="text-[11px] font-semibold text-[#a0aec0] dark:text-[#3d5166] tracking-[0.08em] uppercase mb-2">
+        <div className="mb-6 sm:mb-8">
+          <p className="text-[11px] font-semibold text-[#a0aec0] dark:text-[#3d5166] tracking-[0.08em] uppercase mb-1.5 sm:mb-2">
             Good {greeting()}, {shortName(profile?.full_name)}
           </p>
-          <h1 className="font-serif italic font-light text-[34px] sm:text-[46px] leading-[1.1] tracking-[-0.025em] mb-[14px]">
+          <h1 className="font-serif italic font-light text-[28px] sm:text-[46px] leading-[1.15] tracking-[-0.025em] mb-[12px] sm:mb-[14px] break-words">
             {pendingReviewCount > 0 ? (
               <>
                 {pendingReviewCount} paper{pendingReviewCount !== 1 ? 's' : ''} need{' '}
@@ -363,9 +363,9 @@ export function HODDashboard() {
               </>
             )}
           </h1>
-          <div className="flex items-center gap-3">
-            <div className="h-px w-8 bg-[#e8e2da] dark:bg-[#1c2d3d]" />
-            <p className="text-[13px] text-[#64748b] dark:text-[#6b8299]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-px w-6 sm:w-8 bg-[#e8e2da] dark:bg-[#1c2d3d] shrink-0" />
+            <p className="text-[12.5px] sm:text-[13px] text-[#64748b] dark:text-[#6b8299]">
               {subjectsNeedingReview.length} subject{subjectsNeedingReview.length !== 1 ? 's' : ''} pending ·{' '}
               {departmentName}
             </p>
@@ -394,7 +394,7 @@ export function HODDashboard() {
                 className="rounded-[12px] overflow-hidden border border-[#f43f5e]/30 bg-[#fef2f5] dark:bg-[rgba(251,113,133,0.08)] relative"
               >
                 <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#f43f5e]" />
-                <div className="pl-5 pr-[18px] py-[14px] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="pl-4 sm:pl-5 pr-3 sm:pr-[18px] py-3 sm:py-[14px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex-1 flex items-center gap-2.5 min-w-0">
                     <Pulse color="#f43f5e" />
                     <div className="min-w-0">
@@ -414,7 +414,7 @@ export function HODDashboard() {
                     variant="outline"
                     disabled={acknowledgingId === req.id}
                     onClick={() => handleAcknowledgeRequest(req)}
-                    className="shrink-0 gap-1.5 rounded-lg bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] text-[12.5px] font-medium h-8"
+                    className="shrink-0 gap-1.5 rounded-lg bg-white dark:bg-[#101820] border-[#e8e2da] dark:border-[#1c2d3d] text-[12.5px] font-medium h-8 w-full sm:w-auto justify-center"
                   >
                     {acknowledgingId === req.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -436,7 +436,7 @@ export function HODDashboard() {
         )}
 
         {/* Two-column */}
-        <div className="grid gap-5 lg:grid-cols-[210px_1fr] items-start">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[210px_1fr] items-start">
           <SubjectNav
             subjects={subjectsNeedingReview}
             active={selectedSubject}

@@ -172,7 +172,7 @@ export default function HODExamSessions() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activeSessions.map((session) => (
                 <SessionCard key={session.id} session={session} onDelete={deleteSession} />
               ))}
@@ -200,7 +200,7 @@ export default function HODExamSessions() {
                 {pastSessions.length}
               </span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastSessions.map((session) => (
                 <SessionCard key={session.id} session={session} onDelete={deleteSession} isPastSession />
               ))}

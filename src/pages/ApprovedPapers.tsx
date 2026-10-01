@@ -84,26 +84,28 @@ export default function ApprovedPapers() {
                 {resubCount} resubmission
               </span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {approvedPapers.map((paper) => {
                 const st = statusStyles[paper.status] ?? statusStyles.locked;
                 const Icon = st.icon;
                 return (
                   <div
                     key={paper.id}
-                    className="rounded-[14px] border border-[#e8e2da] bg-white p-4 transition-all hover:border-[#0d7a6b]/40 hover:shadow-sm dark:border-[#1c2d3d] dark:bg-[#101820] dark:hover:border-[#2dd4bf]/40"
+                    className="min-w-0 rounded-[14px] border border-[#e8e2da] bg-white p-3.5 sm:p-4 transition-all hover:border-[#0d7a6b]/40 hover:shadow-sm dark:border-[#1c2d3d] dark:bg-[#101820] dark:hover:border-[#2dd4bf]/40"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${st.tile}`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-[15px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">
-                          {paper.subjectName}
-                        </h3>
-                        <p className="mt-0.5 truncate font-mono text-[12px] text-[#a0aec0] dark:text-[#3d5166]">
-                          {paper.subjectCode}
-                        </p>
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${st.tile}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-[14px] sm:text-[15px] font-semibold text-[#18202e] dark:text-[#e2eaf4] leading-snug break-words">
+                            {paper.subjectName}
+                          </h3>
+                          <p className="mt-0.5 truncate font-mono text-[12px] text-[#a0aec0] dark:text-[#3d5166]">
+                            {paper.subjectCode}
+                          </p>
+                        </div>
                       </div>
                       <span
                         className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${st.badge}`}
@@ -111,7 +113,7 @@ export default function ApprovedPapers() {
                         {st.label}
                       </span>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2.5 border-t border-[#f1ede6] dark:border-[#182332]">
                       <span className="rounded-full bg-[#eaf6f4] px-2.5 py-0.5 font-mono text-[11px] text-[#0d7a6b] dark:bg-[rgba(45,212,191,0.08)] dark:text-[#2dd4bf]">
                         {EXAM_TYPE_LABELS[paper.examType]}
                       </span>

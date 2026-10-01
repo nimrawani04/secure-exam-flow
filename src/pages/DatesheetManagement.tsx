@@ -272,7 +272,7 @@ export default function DatesheetManagement() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {datesheets.map((ds) => {
               const hasAnnotations = Object.values(ds.annotations || {}).some(
                 (strokes) => strokes && strokes.length > 0

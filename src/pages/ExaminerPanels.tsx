@@ -658,10 +658,10 @@ export default function ExaminerPanels() {
       searchQuery.trim() !== '';
 
     return (
-      <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-4 shadow-xs mb-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] p-3.5 sm:p-4 shadow-xs mb-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[240px]">
+          <div className="relative flex-1 w-full min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a0aec0] dark:text-[#3d5166]" />
             <input
               type="text"
@@ -680,32 +680,34 @@ export default function ExaminerPanels() {
             )}
           </div>
 
-          {/* Programme Filter */}
-          {availableProgrammesList.length > 0 && (
-            <select
-              value={selectedProgrammeFilter}
-              onChange={(e) => setSelectedProgrammeFilter(e.target.value)}
-              className="h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
-            >
-              <option value="all">All Programmes ({panels.length})</option>
-              {availableProgrammesList.map((prog) => (
-                <option key={prog} value={prog}>
-                  {prog}
-                </option>
-              ))}
-            </select>
-          )}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Programme Filter */}
+            {availableProgrammesList.length > 0 && (
+              <select
+                value={selectedProgrammeFilter}
+                onChange={(e) => setSelectedProgrammeFilter(e.target.value)}
+                className="h-9 px-3 flex-1 sm:flex-initial rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
+              >
+                <option value="all">All Programmes ({panels.length})</option>
+                {availableProgrammesList.map((prog) => (
+                  <option key={prog} value={prog}>
+                    {prog}
+                  </option>
+                ))}
+              </select>
+            )}
 
-          {/* Status Filter */}
-          <select
-            value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent to Exam Cell</option>
-          </select>
+            {/* Status Filter */}
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              className="h-9 px-3 flex-1 sm:flex-initial rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0c1118] text-[#1c2430] dark:text-[#e6edf3] text-[12px] font-medium outline-none focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent to Exam Cell</option>
+            </select>
+          </div>
 
           {hasActiveFilters && (
             <Button
@@ -717,7 +719,7 @@ export default function ExaminerPanels() {
                 setSelectedStatusFilter('all');
                 setSearchQuery('');
               }}
-              className="h-9 px-3 text-[11.5px] text-[#64748b] dark:text-[#889cb0] hover:text-[#18202e] dark:hover:text-[#e2eaf4]"
+              className="h-9 px-3 text-[11.5px] text-[#64748b] dark:text-[#889cb0] hover:text-[#18202e] dark:hover:text-[#e2eaf4] w-full sm:w-auto justify-center"
             >
               <FilterX className="w-3.5 h-3.5 mr-1 text-[#9f1239] dark:text-[#fb7185]" />
               Clear Filters
@@ -793,23 +795,23 @@ export default function ExaminerPanels() {
   if (!isHod) {
     return (
       <DashboardLayout>
-        <div className="-m-4 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)]">
-          <main className="px-4 sm:px-10 pt-[34px] pb-16">
+        <div className="-m-3.5 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)] overflow-x-hidden">
+          <div className="w-full px-3.5 sm:px-10 pt-6 sm:pt-[34px] pb-20 sm:pb-16">
             <div className="w-full max-w-[1280px] mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-                <div>
+                <div className="min-w-0">
                   <p className="mb-[7px] text-[#a0aec0] dark:text-[#3d5166] text-[10.5px] font-semibold tracking-[0.09em] uppercase">
                     Examination Cell · Confidential Panel Records
                   </p>
-                  <h1 className="m-0 font-serif italic font-light text-[32px] sm:text-[43px] leading-[1.1] tracking-[-0.025em]">
+                  <h1 className="m-0 font-serif italic font-light text-[28px] sm:text-[43px] leading-[1.15] tracking-[-0.025em] break-words">
                     Panel of <em className="not-italic text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]">Examiners</em>
                   </h1>
-                  <p className="mt-[10px] text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
+                  <p className="mt-[10px] text-[12px] sm:text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
                     Confidential examiner panels submitted by academic departments. Filter semester-wise below.
                   </p>
                 </div>
                 {panels.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                     <ExportAllDropdown
                       panels={selectedSemesterFilter === 'all' ? panels : filteredPanels}
                       label={selectedSemesterFilter !== 'all' ? `Export Sem ${selectedSemesterFilter}` : undefined}
@@ -858,7 +860,7 @@ export default function ExaminerPanels() {
                 )}
               </div>
             </div>
-          </main>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -867,32 +869,32 @@ export default function ExaminerPanels() {
   // HOD View
   return (
     <DashboardLayout>
-      <div className="-m-4 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)] overflow-x-hidden">
-        <main className="w-full px-4 sm:px-10 pt-[34px] pb-16">
+      <div className="-m-3.5 sm:-m-6 lg:-m-8 bg-[#f7f4ef] dark:bg-[#0c1118] text-[#18202e] dark:text-[#e2eaf4] min-h-[calc(100vh-57px)] overflow-x-hidden">
+        <div className="w-full px-3.5 sm:px-10 pt-6 sm:pt-[34px] pb-20 sm:pb-16">
           <div className="w-full max-w-[1280px] mx-auto">
             {/* Hero Header */}
-            <div className="mb-[26px] flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-              <div>
+            <div className="mb-[26px] flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+              <div className="min-w-0">
                 <p className="mb-[7px] text-[#a0aec0] dark:text-[#3d5166] text-[10.5px] font-semibold tracking-[0.09em] uppercase">
                   Confidential · Examination Cycle 2025
                 </p>
-                <h1 className="m-0 font-serif italic font-light text-[32px] sm:text-[43px] leading-[1.1] tracking-[-0.025em]">
+                <h1 className="m-0 font-serif italic font-light text-[28px] sm:text-[43px] leading-[1.15] tracking-[-0.025em] break-words">
                   Panel of <em className="not-italic text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]">Examiners</em>
                 </h1>
-                <p className="mt-[10px] text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
+                <p className="mt-[10px] text-[12px] sm:text-[12.5px] text-[#64748b] dark:text-[#6b8299]">
                   Official format for submitting expert examiner preferences. Drag & drop teachers to swap order.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto shrink-0">
                 <button
                   onClick={downloadPanelTemplate}
-                  className="h-9 px-[13px] flex items-center gap-[7px] rounded-[8px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#64748b] dark:text-[#6b8299] text-[11.5px] font-medium hover:opacity-90"
+                  className="h-9 px-[13px] flex items-center justify-center gap-[7px] rounded-[8px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#64748b] dark:text-[#6b8299] text-[11.5px] font-medium hover:opacity-90 w-full sm:w-auto"
                 >
                   <Download className="h-3.5 w-3.5" /> Official Excel format
                 </button>
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="h-9 px-[13px] flex items-center gap-[7px] rounded-[8px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#64748b] dark:text-[#6b8299] text-[11.5px] font-medium hover:opacity-90"
+                  className="h-9 px-[13px] flex items-center justify-center gap-[7px] rounded-[8px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#64748b] dark:text-[#6b8299] text-[11.5px] font-medium hover:opacity-90 w-full sm:w-auto"
                 >
                   <Upload className="h-3.5 w-3.5" /> Bulk upload Excel
                 </button>
@@ -913,9 +915,9 @@ export default function ExaminerPanels() {
             {/* Official Panel Form Card */}
             <section className="w-full rounded-[14px] border border-[#d0d7de] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] shadow-sm overflow-hidden mb-8">
               {/* Card top toolbar */}
-              <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-[#e8e2da] dark:border-[#1c2d3d] bg-[#fbf9f6] dark:bg-[#0c1118]">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="px-4 sm:px-5 py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e8e2da] dark:border-[#1c2d3d] bg-[#fbf9f6] dark:bg-[#0c1118]">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-serif italic text-[16px] font-medium">
                       {editingId ? 'Edit Panel of Examiners' : 'New Panel of Examiners'}
                     </span>
@@ -927,7 +929,7 @@ export default function ExaminerPanels() {
                     Official unified format. Drag teacher rows or pool chips to swap examiner preference order.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
                   <span
                     className="px-2.5 py-1 rounded-full font-mono text-[10px] font-medium"
                     style={{
@@ -1560,8 +1562,8 @@ export default function ExaminerPanels() {
 
             {/* Saved Panels Section */}
             <section ref={archiveRef} className="space-y-4">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div className="min-w-0">
                   <h2 className="text-[14px] font-semibold text-[#18202e] dark:text-[#e2eaf4]">
                     Submitted & Saved Panels
                   </h2>
@@ -1570,7 +1572,7 @@ export default function ExaminerPanels() {
                   </p>
                 </div>
                 {panels.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                     <ExportAllDropdown
                       panels={selectedSemesterFilter === 'all' ? panels : filteredPanels}
                       label={selectedSemesterFilter !== 'all' ? `Export Sem ${selectedSemesterFilter}` : undefined}
@@ -1629,7 +1631,7 @@ export default function ExaminerPanels() {
               )}
             </section>
           </div>
-        </main>
+        </div>
       </div>
     </DashboardLayout>
   );
@@ -1653,14 +1655,16 @@ function SemesterDownloadMenu({
         <Button
           variant="outline"
           size="sm"
-          className="rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#f8fafc] dark:hover:bg-[#16202c] shadow-xs"
+          className="w-full sm:w-auto max-w-full rounded-lg border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center justify-between sm:justify-start gap-1.5 hover:bg-[#f8fafc] dark:hover:bg-[#16202c] shadow-xs"
         >
-          <FileDown className="w-3.5 h-3.5 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
-          <span>Whole Semester: {group.label} ({group.panels.length})</span>
-          <ChevronDown className="w-3 h-3 text-[#64748b] ml-0.5" />
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+            <FileDown className="w-3.5 h-3.5 shrink-0 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
+            <span className="truncate">Whole Semester: {group.label} ({group.panels.length})</span>
+          </div>
+          <ChevronDown className="w-3 h-3 shrink-0 text-[#64748b] ml-0.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
+      <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
         <DropdownMenuLabel className="text-[11px] font-semibold text-[#64748b] dark:text-[#889cb0] px-2.5 py-1">
           {group.label} ({group.panels.length} panel{group.panels.length !== 1 ? 's' : ''})
         </DropdownMenuLabel>
@@ -1742,14 +1746,16 @@ function ExportAllDropdown({ panels, label }: { panels: ExaminerPanel[]; label?:
         <Button
           variant="outline"
           size="sm"
-          className="rounded-lg border-[var(--accent-color,#0d7a6b)] dark:border-[#2dd4bf] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
+          className="w-full sm:w-auto max-w-full rounded-lg border-[var(--accent-color,#0d7a6b)] dark:border-[#2dd4bf] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] bg-white dark:bg-[#101820] text-[11.5px] font-medium flex items-center justify-between sm:justify-start gap-1.5 hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] shadow-xs"
         >
-          <Download className="w-3.5 h-3.5" />
-          <span>{buttonText}</span>
-          <ChevronDown className="w-3 h-3 ml-0.5" />
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{buttonText}</span>
+          </div>
+          <ChevronDown className="w-3 h-3 shrink-0 ml-0.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-88 bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
+      <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] max-w-sm bg-white dark:bg-[#101820] border border-[#d0d7de] dark:border-[#2a3847] shadow-xl rounded-xl p-1.5 z-50">
         <DropdownMenuLabel className="text-[11px] font-semibold text-[#64748b] dark:text-[#889cb0] px-2.5 py-1">
           Master Export ({panels.length} course{panels.length !== 1 ? 's' : ''})
         </DropdownMenuLabel>
@@ -1843,28 +1849,28 @@ function OfficialPanelCard({
   return (
     <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] shadow-sm overflow-hidden transition-all">
       {/* Panel Card Header Strip */}
-      <div className="px-4 py-3 bg-[#f8fafc] dark:bg-[#0d1520] border-b border-[#e2e8f0] dark:border-[#1e2a38] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="px-3.5 sm:px-4 py-3 bg-[#f8fafc] dark:bg-[#0d1520] border-b border-[#e2e8f0] dark:border-[#1e2a38] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {onToggleExpand && (
             <button
               onClick={onToggleExpand}
-              className="text-[#64748b] dark:text-[#889cb0] hover:text-[#18202e] dark:hover:text-[#e2eaf4]"
+              className="text-[#64748b] dark:text-[#889cb0] hover:text-[#18202e] dark:hover:text-[#e2eaf4] shrink-0"
             >
               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
           )}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-[13px] text-[#1c2430] dark:text-[#e6edf3]">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="font-semibold text-[13px] text-[#1c2430] dark:text-[#e6edf3] truncate max-w-full">
                 {panel.course_title || 'Untitled Course'}
               </span>
               {panel.course_code && (
-                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#e2e8f0] dark:bg-[#1e2a38] text-[#475569] dark:text-[#94a3b8]">
+                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#e2e8f0] dark:bg-[#1e2a38] text-[#475569] dark:text-[#94a3b8] shrink-0">
                   {panel.course_code}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#64748b] dark:text-[#889cb0]">
+            <p className="text-[11px] text-[#64748b] dark:text-[#889cb0] truncate mt-0.5">
               {[
                 panel.programme,
                 panel.semester && `Sem ${panel.semester}`,
@@ -1877,10 +1883,10 @@ function OfficialPanelCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
           <Badge
             variant={panel.status === 'sent' ? 'default' : 'secondary'}
-            className="text-[10px] font-mono uppercase tracking-wide"
+            className="text-[10px] font-mono uppercase tracking-wide shrink-0"
           >
             {panel.status === 'sent' ? 'Sent to Exam Cell' : 'Draft'}
           </Badge>
@@ -1888,7 +1894,7 @@ function OfficialPanelCard({
             variant="outline"
             size="sm"
             onClick={onDownloadPdf}
-            className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
+            className="h-7 px-2 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820]"
             title="Download PDF"
           >
             <FileDown className="w-3.5 h-3.5 mr-1 text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf]" />
@@ -1898,7 +1904,7 @@ function OfficialPanelCard({
             variant="outline"
             size="sm"
             onClick={onDownloadExcel || (() => exportPanelExcel(panel))}
-            className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#166534] dark:text-[#4ade80] hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)]"
+            className="h-7 px-2 text-[11px] border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#166534] dark:text-[#4ade80] hover:bg-[#f0fdf4] dark:hover:bg-[rgba(74,222,128,0.08)]"
             title="Download Excel (.xlsx)"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
@@ -1909,7 +1915,7 @@ function OfficialPanelCard({
               variant="outline"
               size="sm"
               onClick={onEdit}
-              className="h-7 text-[11px] border-[#d0d7de] dark:border-[#2a3847]"
+              className="h-7 px-2.5 text-[11px] border-[#d0d7de] dark:border-[#2a3847]"
             >
               Edit
             </Button>
@@ -1918,7 +1924,7 @@ function OfficialPanelCard({
             <Button
               size="sm"
               onClick={onSend}
-              className="h-7 text-[11px] text-white"
+              className="h-7 px-2.5 text-[11px] text-white"
               style={{ background: 'linear-gradient(135deg, #0fa88f, #0d7a6b)' }}
             >
               <Send className="w-3 h-3 mr-1" /> Send
@@ -1929,7 +1935,7 @@ function OfficialPanelCard({
               variant="ghost"
               size="sm"
               onClick={onDelete}
-              className="h-7 text-[11px] text-[#9f1239] dark:text-[#fb7185] hover:bg-[#fef2f5] dark:hover:bg-[rgba(251,113,133,0.08)]"
+              className="h-7 w-7 p-0 text-[#9f1239] dark:text-[#fb7185] hover:bg-[#fef2f5] dark:hover:bg-[rgba(251,113,133,0.08)]"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </Button>

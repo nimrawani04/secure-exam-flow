@@ -1005,7 +1005,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
 
   const alertsSection = (
     <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-[1.65fr_1fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.65fr_1fr]">
         <div className="space-y-4">
           <div className="bg-white/70 dark:bg-card/70 backdrop-blur-md rounded-lg border p-4 sm:p-6 space-y-5">
             <div>
@@ -1220,7 +1220,7 @@ export function ExamCellDashboard({ view = 'overview' }: { view?: ExamCellView }
   );
 
   const calendarSection = (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <div className="rounded-2xl border bg-white/70 dark:bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-lg">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -491,7 +491,7 @@ export default function Department() {
                       {filteredTeachers.length} of {teachers.length}
                     </span>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end md:gap-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end md:gap-6">
                     <div className="w-full md:max-w-xl">
                     <Label htmlFor="teacher-search" className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#a0aec0] dark:text-[#3d5166]">Search teachers</Label>
                     <Input
@@ -802,7 +802,7 @@ export default function Department() {
                     <Badge className="rounded-full bg-[#ede9e2] dark:bg-[#131c27] px-2.5 py-1 font-mono text-[10px] font-medium text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] border-0">{semesterSubjects.length} subjects</Badge>
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {semesterSubjects.map((subject) => {
                       const assignedTeachers = (subjectAssignments.get(subject.id) || [])
                         .map((teacherId) => teachers.find((t) => t.id === teacherId))

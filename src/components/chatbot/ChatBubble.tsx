@@ -592,11 +592,11 @@ export function ChatBubble() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center"
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center"
           aria-label={messages.length > 0 ? 'Resume chat with university assistant' : 'Open chat assistant'}
           aria-haspopup="dialog"
         >
-          <MessageCircle className="h-6 w-6" />
+          <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
           {messages.length > 0 && (
             <span
               className="absolute top-1 right-1 h-3 w-3 rounded-full bg-success ring-2 ring-background"
@@ -610,7 +610,7 @@ export function ChatBubble() {
         <div
           role="dialog"
           aria-label="University Assistant chat"
-          className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200"
+          className="fixed bottom-4 right-2 sm:bottom-6 sm:right-6 z-50 w-[380px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-4rem)] rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-primary/5">

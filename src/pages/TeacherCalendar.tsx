@@ -199,9 +199,9 @@ export default function TeacherCalendar() {
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
           {/* Calendar */}
-          <Card className="w-fit">
+          <Card className="w-full sm:w-fit max-w-full">
             <CardContent className="p-3">
               <Calendar
                 mode="single"
@@ -386,7 +386,7 @@ export default function TeacherCalendar() {
                 No entries yet. Add a custom entry or wait for your HOD to create exam sessions.
               </p>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {allEvents
                   .sort((a, b) => a.submissionDeadline.getTime() - b.submissionDeadline.getTime())
                   .map((ev) => {
