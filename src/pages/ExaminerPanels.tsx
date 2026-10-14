@@ -1164,7 +1164,7 @@ export default function ExaminerPanels() {
               <div className="p-5 sm:p-6 space-y-6">
                 {/* 1. Header Information Block */}
                 <div className="rounded-[12px] border border-[#d0d7de] dark:border-[#2a3847] bg-[#fafbfc] dark:bg-[#0e1622] p-4 sm:p-5 shadow-xs">
-                  <div className="mb-3 flex items-center justify-between border-b border-[#e2e8f0] dark:border-[#1e2a38] pb-2.5">
+                  <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#e2e8f0] dark:border-[#1e2a38] pb-2.5">
                     <div>
                       <h3 className="text-[13px] font-bold text-[#1c2430] dark:text-[#e6edf3]">
                         Panel Course & Academic Particulars
@@ -1175,7 +1175,7 @@ export default function ExaminerPanels() {
                     </div>
 
                     {isHod && (
-                      <Link to="/hod/subjects">
+                      <Link to="/hod/subjects" className="self-start sm:self-auto">
                         <Button
                           type="button"
                           variant="outline"
@@ -1416,7 +1416,7 @@ export default function ExaminerPanels() {
 
                 {/* 3. Official Unified Table (Draggable rows for teacher swapping) */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <div>
                       <p className="text-[12px] font-semibold text-[#1c2430] dark:text-[#e6edf3]">
                         Official Course & Expert Preferences Table
@@ -1428,13 +1428,16 @@ export default function ExaminerPanels() {
                     <button
                       type="button"
                       onClick={() => setMembers((m) => [...m, emptyMember(m.length + 1)])}
-                      className="text-[11px] font-medium text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] hover:underline flex items-center gap-1"
+                      className="self-start sm:self-auto text-[11px] font-medium text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] hover:underline flex items-center gap-1"
                     >
                       <Plus className="h-3.5 w-3.5" /> Add preference slot ({members.length + 1})
                     </button>
                   </div>
 
                   <div className="w-full overflow-x-auto rounded-[10px] border border-[#d0d7de] dark:border-[#2a3847] shadow-sm">
+                    <div className="sm:hidden px-3 py-1.5 text-[10.5px] font-medium text-[#64748b] dark:text-[#889cb0] bg-slate-50 dark:bg-slate-900 border-b border-[#e2e8f0] dark:border-[#1e2a38]">
+                      ← Swipe table sideways to view and edit all columns →
+                    </div>
                     <table
                       className="border-collapse text-[11.5px] bg-white dark:bg-[#101820]"
                       style={{ minWidth: '1940px', width: '100%', tableLayout: 'fixed' }}
@@ -1805,13 +1808,13 @@ export default function ExaminerPanels() {
                 </div>
 
                 {/* 6. Form Action Buttons */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#e8e2da] dark:border-[#1c2d3d]">
-                  <div className="flex flex-wrap gap-2">
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-[#e8e2da] dark:border-[#1c2d3d]">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={handleSave}
                       disabled={saving || sending}
-                      className="h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] font-medium hover:bg-[#f8fafc] disabled:opacity-50 inline-flex items-center gap-1.5"
+                      className="flex-1 sm:flex-initial h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[11.5px] font-medium hover:bg-[#f8fafc] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                     >
                       <Save className="h-3.5 w-3.5" />
                       {saving ? 'Saving…' : editingId ? 'Update Draft' : 'Save Draft'}
@@ -1828,7 +1831,7 @@ export default function ExaminerPanels() {
                     <button
                       type="button"
                       onClick={handleDownloadPreviewPdf}
-                      className="h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] text-[11.5px] font-medium hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] inline-flex items-center gap-1.5"
+                      className="flex-1 sm:flex-initial h-9 px-4 rounded-[8px] border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[var(--accent-color,#0d7a6b)] dark:text-[#2dd4bf] text-[11.5px] font-medium hover:bg-[#eaf6f4] dark:hover:bg-[rgba(45,212,191,0.08)] inline-flex items-center justify-center gap-1.5"
                     >
                       <FileDown className="h-3.5 w-3.5" />
                       Download PDF
@@ -1839,7 +1842,7 @@ export default function ExaminerPanels() {
                     type="button"
                     onClick={handleSendCurrent}
                     disabled={saving || sending}
-                    className="h-9 px-5 flex items-center gap-2 rounded-[8px] text-white text-[11.5px] font-semibold shadow-sm disabled:opacity-50"
+                    className="w-full sm:w-auto h-9 px-5 flex items-center justify-center gap-2 rounded-[8px] text-white text-[11.5px] font-semibold shadow-sm disabled:opacity-50"
                     style={{
                       background: 'linear-gradient(135deg, #0fa88f, #0d7a6b)',
                       boxShadow: '0 2px 8px rgba(13,122,107,0.25)',
