@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useHODPapers } from '@/hooks/useHODPapers';
 import { useHODPaperRequests, type PaperRequest } from '@/hooks/useHODPaperRequests';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import {
   FileText,
   CheckCircle,
@@ -18,6 +19,8 @@ import {
   ChevronRight,
   ArrowUpDown,
   FileCheck,
+  BookOpen,
+  UserCheck,
 } from 'lucide-react';
 
 /* ── helpers ── */
@@ -363,12 +366,37 @@ export function HODDashboard() {
               </>
             )}
           </h1>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="h-px w-6 sm:w-8 bg-[#e8e2da] dark:bg-[#1c2d3d] shrink-0" />
-            <p className="text-[12.5px] sm:text-[13px] text-[#64748b] dark:text-[#6b8299]">
-              {subjectsNeedingReview.length} subject{subjectsNeedingReview.length !== 1 ? 's' : ''} pending ·{' '}
-              {departmentName}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="h-px w-6 sm:w-8 bg-[#e8e2da] dark:bg-[#1c2d3d] shrink-0" />
+              <p className="text-[12.5px] sm:text-[13px] text-[#64748b] dark:text-[#6b8299]">
+                {subjectsNeedingReview.length} subject{subjectsNeedingReview.length !== 1 ? 's' : ''} pending ·{' '}
+                {departmentName}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Link to="/hod/subjects">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-[12px] rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#0d7a6b] dark:text-[#2dd4bf] hover:bg-[#ede9e2] dark:hover:bg-[#15202e]"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>Add Subjects</span>
+                </Button>
+              </Link>
+              <Link to="/hod/panels">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-[12px] rounded-lg border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e2eaf4] hover:bg-[#ede9e2] dark:hover:bg-[#15202e]"
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>Examiner Panels</span>
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 

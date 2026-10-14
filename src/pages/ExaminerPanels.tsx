@@ -20,6 +20,7 @@ import {
   exportPanelsExcel,
   formatSemesterSheetName,
 } from '@/lib/panelExport';
+import { Link } from 'react-router-dom';
 import {
   IT_DEPARTMENT,
   IT_PROGRAMMES,
@@ -29,6 +30,11 @@ import {
   isSemesterMatchingSession,
   courseKey,
 } from '@/lib/itCatalog';
+import {
+  getCoursesForSemester,
+  getAllAvailableProgrammes,
+  SEMESTER_OPTIONS as CATALOG_SEMESTER_OPTIONS,
+} from '@/lib/subjectCatalogStorage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -71,6 +77,7 @@ import {
   Shuffle,
   X,
   RotateCcw,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -235,14 +242,34 @@ export default function ExaminerPanels() {
     if (isHod) loadPool();
   }, [isHod]);
 
+  const [catalogUpdateTrigger, setCatalogUpdateTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setCatalogUpdateTrigger((v) => v + 1);
+    window.addEventListener('cuk_subject_catalog_updated', handleUpdate);
+    return () => window.removeEventListener('cuk_subject_catalog_updated', handleUpdate);
+  }, []);
+
+  const allProgrammes = useMemo(() => {
+    return getAllAvailableProgrammes();
+  }, [catalogUpdateTrigger]);
+
   const programme = IT_PROGRAMMES.find((p) => p.name === header.programme);
 
   const availableSemesters = useMemo(() => {
-    if (!programme || programme.manual) return [];
-    return programme.semesters.filter((s) =>
-      isSemesterMatchingSession(s.label, header.session_label)
-    );
-  }, [programme, header.session_label]);
+    if (programme && !programme.manual) {
+      return programme.semesters.filter((s) =>
+        isSemesterMatchingSession(s.label, header.session_label)
+      );
+    }
+    // If custom programme or manual, provide standard filtered semester choices
+    return CATALOG_SEMESTER_OPTIONS.filter((s) =>
+      isSemesterMatchingSession(s, header.session_label)
+    ).map((label) => ({
+      label,
+      courses: getCoursesForSemester(header.programme, label, header.session_label, header.batch),
+    }));
+  }, [programme, header.session_label, header.programme, header.batch, catalogUpdateTrigger]);
 
   useEffect(() => {
     if (header.semester && !programme?.manual && availableSemesters.length > 0) {
@@ -264,10 +291,17 @@ export default function ExaminerPanels() {
   }, [panels, header.session_label, header.programme, editingId]);
 
   const semesterInfo = useMemo(() => {
-    if (!programme) return [];
+    if (!header.programme) return [];
     const stats = availableSemesters.map((s) => {
-      const totalCourses = s.courses.length;
-      const doneCourses = s.courses.filter((x) =>
+      const dynamicList = getCoursesForSemester(
+        header.programme,
+        s.label,
+        header.session_label,
+        header.batch
+      );
+      const activeList = dynamicList.length > 0 ? dynamicList : s.courses;
+      const totalCourses = activeList.length;
+      const doneCourses = activeList.filter((x) =>
         doneKeys.has(`${s.label}|${courseKey(x.code, x.title)}`)
       ).length;
       const complete = totalCourses > 0 && doneCourses === totalCourses;
@@ -280,15 +314,26 @@ export default function ExaminerPanels() {
       if (editingId && header.semester === st.label) unlocked = true;
       return { label: st.label, complete: st.complete, inProgress: st.inProgress, unlocked };
     });
-  }, [programme, availableSemesters, doneKeys, editingId, header.semester]);
+  }, [header.programme, availableSemesters, doneKeys, editingId, header.semester, header.session_label, header.batch, catalogUpdateTrigger]);
 
   const remainingCourses = useMemo(() => {
+    // 1. Check custom configured courses for this specific semester and session
+    const dynamicList = getCoursesForSemester(
+      header.programme,
+      header.semester,
+      header.session_label,
+      header.batch
+    );
+    if (dynamicList && dynamicList.length > 0) {
+      return dynamicList.filter((x) => !doneKeys.has(`${header.semester}|${courseKey(x.code, x.title)}`));
+    }
+
     const sem =
       availableSemesters.find((s) => s.label === header.semester) ||
       programme?.semesters.find((s) => s.label === header.semester);
     if (!sem) return [];
     return sem.courses.filter((x) => !doneKeys.has(`${sem.label}|${courseKey(x.code, x.title)}`));
-  }, [availableSemesters, programme, header.semester, doneKeys]);
+  }, [availableSemesters, programme, header.semester, header.programme, header.session_label, header.batch, doneKeys, catalogUpdateTrigger]);
 
   // Unique lists for Filtering Saved Panels
   const availableSemestersList = useMemo(() => {
@@ -1128,6 +1173,20 @@ export default function ExaminerPanels() {
                         Select academic session, programme, and semester in sequential order to populate catalog courses.
                       </p>
                     </div>
+
+                    {isHod && (
+                      <Link to="/hod/subjects">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2.5 text-[11px] font-medium text-[#0d7a6b] dark:text-[#2dd4bf] border-[#0d7a6b]/30 hover:bg-[#0d7a6b]/10 gap-1 rounded-md"
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          <span>Add / Manage Subjects</span>
+                        </Button>
+                      </Link>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1205,9 +1264,9 @@ export default function ExaminerPanels() {
                         className="w-full h-9 px-3 rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[#1c2430] dark:text-[#e6edf3] text-[12px] disabled:opacity-50 focus:ring-1 focus:ring-[var(--accent-color,#0d7a6b)] outline-none"
                       >
                         <option value="">Choose programme</option>
-                        {IT_PROGRAMMES.map((p) => (
-                          <option key={p.name} value={p.name}>
-                            {p.name}
+                        {allProgrammes.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
                           </option>
                         ))}
                       </select>
@@ -1481,11 +1540,21 @@ export default function ExaminerPanels() {
                                       onChange={(e) => setField('course_title', e.target.value)}
                                       className="w-full h-9 px-3 font-semibold rounded-lg border border-[#d0d7de] dark:border-[#2a3847] bg-white dark:bg-[#101820] text-[12.5px] outline-none focus:border-[var(--accent-color,#0d7a6b)] dark:focus:border-[#2dd4bf]"
                                     />
-                                    {remainingCourses.length > 0 && (
+                                    {remainingCourses.length > 0 ? (
                                       <div className="mt-2 text-[10.5px]">
-                                        <span className="text-[#64748b] dark:text-[#889cb0] block mb-1">
-                                          Quick Catalog Pick ({remainingCourses.length}):
-                                        </span>
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[#64748b] dark:text-[#889cb0]">
+                                            Quick Catalog Pick ({remainingCourses.length}):
+                                          </span>
+                                          {isHod && (
+                                            <Link
+                                              to="/hod/subjects"
+                                              className="text-[10px] text-[#0d7a6b] dark:text-[#2dd4bf] hover:underline font-medium"
+                                            >
+                                              + Add / Manage
+                                            </Link>
+                                          )}
+                                        </div>
                                         <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
                                           {remainingCourses.map((c) => (
                                             <button
@@ -1505,6 +1574,18 @@ export default function ExaminerPanels() {
                                           ))}
                                         </div>
                                       </div>
+                                    ) : (
+                                      isHod && (
+                                        <div className="mt-1.5 flex items-center justify-between text-[10.5px]">
+                                          <span className="text-[#94a3b8] dark:text-[#64748b]">No catalog courses left</span>
+                                          <Link
+                                            to="/hod/subjects"
+                                            className="text-[10px] text-[#0d7a6b] dark:text-[#2dd4bf] hover:underline"
+                                          >
+                                            + Add Subjects for Sem {header.semester}
+                                          </Link>
+                                        </div>
+                                      )
                                     )}
                                   </td>
 

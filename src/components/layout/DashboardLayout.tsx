@@ -54,6 +54,7 @@ const routeTitles: Record<string, { section: string; page: string }> = {
   '/admin/audit': { section: 'Admin', page: 'Audit Logs' },
   '/admin/broadcasts': { section: 'Admin', page: 'Broadcasts' },
   '/hod/panels': { section: 'HOD', page: 'Examiner Panels' },
+  '/hod/subjects': { section: 'HOD', page: 'Add Subjects' },
   '/exam-cell/panels': { section: 'Exam Cell', page: 'Examiner Panels' },
   '/exam-cell/datesheets': { section: 'Exam Cell', page: 'Datesheets' },
   '/profile': { section: 'Account', page: 'Profile' },

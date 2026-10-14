@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,6 +42,7 @@ const roleNavItems = {
     { icon: Users, label: 'Department', path: '/department' },
     { icon: Bell, label: 'Teacher Alerts', path: '/hod/alerts' },
     { icon: Archive, label: 'Approved Papers', path: '/approved' },
+    { icon: BookOpen, label: 'Add Subjects', path: '/hod/subjects' },
     { icon: UserCheck, label: 'Choose Panel', path: '/hod/panels' },
   ],
   exam_cell: [
