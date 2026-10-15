@@ -47,7 +47,10 @@ export function getLocalCatalogs(): SubjectCatalogEntry[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const list: SubjectCatalogEntry[] = JSON.parse(raw);
+    return Array.isArray(list)
+      ? list.filter((item) => !item.programme?.toLowerCase().includes('mechanical'))
+      : [];
   } catch (err) {
     console.error('Error reading local subject catalogs:', err);
     return [];
@@ -304,21 +307,18 @@ export function getCoursesForSemester(
   }));
 }
 
+export const ALLOWED_PROGRAMMES = [
+  'B.Tech CSE',
+  'M.Tech CSE',
+  'M.Tech AI & ML',
+  'PhD',
+] as const;
+
 /**
- * Get all available programme names including static IT_PROGRAMMES and any custom added ones.
+ * Get all available programme names: strictly B.Tech CSE, M.Tech CSE, M.Tech AI & ML, PhD
  */
 export function getAllAvailableProgrammes(): string[] {
-  const localList = getLocalCatalogs();
-  const set = new Set<string>();
-
-  IT_PROGRAMMES.forEach((p) => set.add(p.name));
-  localList.forEach((c) => {
-    if (c.programme && c.programme.trim()) {
-      set.add(c.programme.trim());
-    }
-  });
-
-  return Array.from(set);
+  return [...ALLOWED_PROGRAMMES];
 }
 
 /**

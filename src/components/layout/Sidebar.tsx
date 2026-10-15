@@ -22,6 +22,8 @@ import {
   ChevronRight,
   UserCheck,
   BookOpen,
+  Settings,
+  Command,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -423,6 +425,34 @@ export function Sidebar({
               <User className="w-[14px] h-[14px]" />
               <span className="tracking-[-0.01em]">Profile</span>
             </Link>
+
+            <Link
+              to="/settings"
+              className={cn(
+                'w-full flex items-center gap-[9px] px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-[13px] transition-colors',
+                location.pathname === '/settings'
+                  ? 'font-medium'
+                  : 'text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4]'
+              )}
+              style={location.pathname === '/settings' ? { color: 'var(--accent-color, #0d7a6b)' } : undefined}
+            >
+              <Settings className="w-[14px] h-[14px]" />
+              <span className="tracking-[-0.01em]">Settings</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-shortcuts'))}
+              className="w-full flex items-center justify-between px-[10px] py-[8.5px] rounded-[8px] mb-[1px] text-[13px] text-[#64748b] dark:text-[#6b8299] hover:bg-[#ede9e2] dark:hover:bg-[#131c27] hover:text-[#18202e] dark:hover:text-[#e2eaf4] transition-colors text-left"
+            >
+              <span className="flex items-center gap-[9px]">
+                <Command className="w-[14px] h-[14px]" />
+                <span className="tracking-[-0.01em]">Shortcuts</span>
+              </span>
+              <kbd className="px-1.5 py-0.5 rounded border border-[#e8e2da] dark:border-[#1c2d3d] bg-white dark:bg-[#101820] font-mono text-[10px] text-[#64748b] dark:text-[#6b8299]">
+                ?
+              </kbd>
+            </button>
           </>
         )}
       </nav>

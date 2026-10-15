@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import { Cookie, ShieldCheck, SlidersHorizontal, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'secure_exam_cookie_consent';
@@ -40,8 +37,20 @@ export function CookieConsent() {
 
   useEffect(() => {
     const handleOpenModal = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.preferences) {
+            setPreferences(parsed.preferences);
+          }
+        }
+      } catch {
+        // Fall back to current state
+      }
       setShowCustomize(true);
     };
+
     window.addEventListener('open-cookie-preferences', handleOpenModal);
 
     try {
@@ -51,8 +60,7 @@ export function CookieConsent() {
         setPreferences(parsed.preferences || defaultPreferences);
         setIsOpen(false);
       } else {
-        // Show after a brief delay for a smooth initial page load
-        const timer = setTimeout(() => setIsOpen(true), 600);
+        const timer = setTimeout(() => setIsOpen(true), 500);
         return () => clearTimeout(timer);
       }
     } catch {
@@ -83,9 +91,9 @@ export function CookieConsent() {
     if (status === 'all') {
       toast.success('All cookies accepted');
     } else if (status === 'rejected') {
-      toast.info('Non-essential cookies rejected');
+      toast.info('Optional cookies declined');
     } else {
-      toast.success('Cookie preferences saved');
+      toast.success('Cookie preferences updated');
     }
   };
 
@@ -104,187 +112,214 @@ export function CookieConsent() {
       necessary: true,
       functional: false,
       analytics: false,
-      security: true,
+      security: false,
     };
     saveConsent(onlyEssential, 'rejected');
   };
 
   const handleSaveCustom = () => {
-    saveConsent(preferences, 'customized');
+    saveConsent(
+      {
+        ...preferences,
+        necessary: true,
+      },
+      'customized'
+    );
   };
 
   return (
     <>
-      {/* Floating Bottom Cookie Box */}
+      {/* Floating Cookie Consent Notice */}
       {isOpen && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-xl z-50 animate-in fade-in slide-in-from-bottom-6 duration-300">
-          <div className="bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl p-5 md:p-6 space-y-4 text-card-foreground">
-            <div className="flex items-start gap-3.5">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
-                <Cookie className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-base leading-none">We value your privacy</h3>
-                <p className="text-xs md:text-sm text-muted-foreground leading-relaxed pt-1">
-                  We use cookies and similar secure storage technologies to ensure authenticated access,
-                  protect examination confidentiality, remember your preferences, and maintain seamless platform performance.
-                </p>
+        <aside
+          role="region"
+          aria-label="Cookie consent banner"
+          className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:right-6 sm:left-auto sm:max-w-[440px] z-50 animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
+          <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-[12px] p-5 shadow-lg dark:shadow-2xl text-slate-900 dark:text-slate-100 font-sans">
+            <h2 className="text-[14.5px] font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+              Cookie settings
+            </h2>
+            <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400 mt-1.5">
+              We use cookies and browser storage to maintain secure authentication, preserve your display preferences, and ensure dependable platform operations.
+            </p>
+
+            <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCustomize(true)}
+                className="text-[12.5px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f172a] dark:focus-visible:ring-slate-400 rounded-[6px] py-1 px-1 transition-colors"
+              >
+                Preferences
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRejectAll}
+                  className="h-8 px-3 text-[12.5px] font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-[6px] transition-colors focus-visible:ring-[#0f172a]"
+                >
+                  Reject optional
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAcceptAll}
+                  className="h-8 px-3.5 text-[12.5px] font-medium text-white bg-[#0f172a] hover:bg-[#1e293b] dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white rounded-[6px] transition-colors shadow-xs focus-visible:ring-[#0f172a]"
+                >
+                  Accept all
+                </Button>
               </div>
             </div>
+          </div>
+        </aside>
+      )}
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-1 border-t border-border/40">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCustomize(true)}
-                className="text-xs font-medium justify-center"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
-                Customize
-              </Button>
+      {/* Cookie Preferences Dialog */}
+      <Dialog open={showCustomize} onOpenChange={setShowCustomize}>
+        <DialogContent
+          className="sm:max-w-[560px] p-0 gap-0 rounded-[12px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xl overflow-hidden font-sans"
+          aria-describedby="cookie-preferences-description"
+        >
+          <DialogHeader className="px-6 pt-6 pb-5 text-left border-b border-slate-100 dark:border-slate-800">
+            <DialogTitle className="text-[24px] sm:text-[26px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              Cookie preferences
+            </DialogTitle>
+            <DialogDescription
+              id="cookie-preferences-description"
+              className="text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-400 mt-2"
+            >
+              Configure your consent preferences below. Strictly necessary storage ensures essential platform functionality and authentication sessions. Optional categories help optimize performance and remember your settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Compact Single-Column Preferences List */}
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/80 px-6 max-h-[58vh] overflow-y-auto">
+            {/* 1. Strictly Necessary */}
+            <div className="py-4 first:pt-4 last:pb-4 flex items-start justify-between gap-4">
+              <div className="space-y-1 pr-2 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-[14.5px] font-medium text-slate-900 dark:text-slate-100 leading-snug">
+                    Strictly necessary
+                  </h3>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-[4px]">
+                    Always active
+                  </span>
+                </div>
+                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  Required for user authentication, encrypted session state, and navigation across secure examination workflows. These cannot be disabled.
+                </p>
+              </div>
+              <Switch
+                id="cookie-necessary"
+                checked={true}
+                disabled={true}
+                aria-label="Strictly necessary cookies (Always active)"
+                className="mt-0.5 shrink-0 data-[state=checked]:bg-[#0f172a] dark:data-[state=checked]:bg-slate-300 disabled:opacity-50"
+              />
+            </div>
+
+            {/* 2. Security & Integrity */}
+            <div className="py-4 flex items-start justify-between gap-4">
+              <div className="space-y-1 pr-2 min-w-0">
+                <label
+                  htmlFor="cookie-security"
+                  className="text-[14.5px] font-medium text-slate-900 dark:text-slate-100 block cursor-pointer leading-snug"
+                >
+                  Security &amp; protection
+                </label>
+                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  Validates session tokens and guards requests against tampering to protect user accounts and confidential exam data.
+                </p>
+              </div>
+              <Switch
+                id="cookie-security"
+                checked={preferences.security}
+                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, security: checked }))}
+                aria-label="Security and protection cookies"
+                className="mt-0.5 shrink-0 data-[state=checked]:bg-[#0f172a] dark:data-[state=checked]:bg-slate-100 focus-visible:ring-[#0f172a]"
+              />
+            </div>
+
+            {/* 3. Functional */}
+            <div className="py-4 flex items-start justify-between gap-4">
+              <div className="space-y-1 pr-2 min-w-0">
+                <label
+                  htmlFor="cookie-functional"
+                  className="text-[14.5px] font-medium text-slate-900 dark:text-slate-100 block cursor-pointer leading-snug"
+                >
+                  Functional &amp; preferences
+                </label>
+                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  Remembers your interface choices such as display themes, active academic sessions, and table pagination settings.
+                </p>
+              </div>
+              <Switch
+                id="cookie-functional"
+                checked={preferences.functional}
+                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, functional: checked }))}
+                aria-label="Functional and preferences cookies"
+                className="mt-0.5 shrink-0 data-[state=checked]:bg-[#0f172a] dark:data-[state=checked]:bg-slate-100 focus-visible:ring-[#0f172a]"
+              />
+            </div>
+
+            {/* 4. Analytics */}
+            <div className="py-4 flex items-start justify-between gap-4">
+              <div className="space-y-1 pr-2 min-w-0">
+                <label
+                  htmlFor="cookie-analytics"
+                  className="text-[14.5px] font-medium text-slate-900 dark:text-slate-100 block cursor-pointer leading-snug"
+                >
+                  Analytics &amp; performance
+                </label>
+                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  Measures anonymous traffic and user interactions to help diagnose latency issues and improve system responsiveness.
+                </p>
+              </div>
+              <Switch
+                id="cookie-analytics"
+                checked={preferences.analytics}
+                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, analytics: checked }))}
+                aria-label="Analytics and performance cookies"
+                className="mt-0.5 shrink-0 data-[state=checked]:bg-[#0f172a] dark:data-[state=checked]:bg-slate-100 focus-visible:ring-[#0f172a]"
+              />
+            </div>
+          </div>
+
+          {/* Understated Secondary / Prominent Primary Dialog Footer */}
+          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleRejectAll}
-                className="text-xs font-medium justify-center"
+                className="w-full sm:w-auto h-9 px-3.5 text-[13px] font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-[6px] transition-colors focus-visible:ring-[#0f172a]"
               >
-                <X className="w-3.5 h-3.5 mr-1" />
-                Reject All
+                Reject all
               </Button>
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
                 onClick={handleAcceptAll}
-                className="text-xs font-medium justify-center shadow-sm"
+                className="w-full sm:w-auto h-9 px-3.5 text-[13px] font-medium text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-[6px] transition-colors focus-visible:ring-[#0f172a]"
               >
-                <Check className="w-3.5 h-3.5 mr-1" />
-                Accept All
+                Accept all
               </Button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Customize Preferences Dialog */}
-      <Dialog open={showCustomize} onOpenChange={setShowCustomize}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Cookie className="w-5 h-5" />
-              </div>
-              <DialogTitle className="text-xl">Cookie Preferences</DialogTitle>
-            </div>
-            <DialogDescription className="text-xs md:text-sm">
-              Customize which cookies you want to permit. Strictly necessary and core security cookies cannot be disabled as they are required for confidential exam operations.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3">
-            {/* Strictly Necessary */}
-            <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl border bg-muted/30">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Label className="font-semibold text-sm">Strictly Necessary</Label>
-                  <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                    Always Active
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Essential for user authentication, encrypted session validation, and navigating secure exam routes.
-                </p>
-              </div>
-              <Switch checked={true} disabled className="mt-1" />
-            </div>
-
-            {/* Security & Integrity */}
-            <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl border bg-card">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="sec-cookies" className="font-semibold text-sm cursor-pointer">
-                    Security & Fraud Prevention
-                  </Label>
-                  <ShieldCheck className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Prevents session hijacking, verifies authorized devices, and guards paper submissions against tampering.
-                </p>
-              </div>
-              <Switch
-                id="sec-cookies"
-                checked={preferences.security}
-                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, security: checked }))}
-                className="mt-1"
-              />
-            </div>
-
-            {/* Functional */}
-            <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl border bg-card">
-              <div className="space-y-1">
-                <Label htmlFor="func-cookies" className="font-semibold text-sm cursor-pointer">
-                  Functional & Preferences
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Remembers your interface themes, table sorting orders, selected semesters, and layout states.
-                </p>
-              </div>
-              <Switch
-                id="func-cookies"
-                checked={preferences.functional}
-                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, functional: checked }))}
-                className="mt-1"
-              />
-            </div>
-
-            {/* Analytics */}
-            <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl border bg-card">
-              <div className="space-y-1">
-                <Label htmlFor="analytics-cookies" className="font-semibold text-sm cursor-pointer">
-                  Performance & Diagnostics
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Collects anonymous telemetry to help us diagnose slow queries, optimize PDF exports, and fix bugs.
-                </p>
-              </div>
-              <Switch
-                id="analytics-cookies"
-                checked={preferences.analytics}
-                onCheckedChange={(checked) => setPreferences((p) => ({ ...p, analytics: checked }))}
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRejectAll}
-              className="w-full sm:w-auto"
-            >
-              Reject All
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleAcceptAll}
-              className="w-full sm:w-auto"
-            >
-              Accept All
-            </Button>
             <Button
               type="button"
               size="sm"
               onClick={handleSaveCustom}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto h-9 px-4 text-[13px] font-medium text-white bg-[#0f172a] hover:bg-[#1e293b] dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white rounded-[6px] transition-colors shadow-xs focus-visible:ring-[#0f172a]"
             >
-              Save Preferences
+              Save preferences
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -162,15 +162,15 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden sm:h-screen sm:overflow-hidden">
-      <section className="relative min-h-screen sm:h-screen bg-slate-900 text-white">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/cuk.png')" }}
-        />
-        <div className="absolute inset-0 bg-black/45" />
+    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-950 text-white overflow-x-hidden">
+      {/* Full-bleed background image & dark scrim */}
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/cuk.png')" }}
+      />
+      <div className="fixed inset-0 z-0 bg-black/55 backdrop-blur-[2px]" />
 
-        <div className="relative z-10 grid min-h-screen sm:h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+      <main className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] min-h-[calc(100vh-56px)]">
           {/* Left panel */}
           <div
             className={`flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16 ${
@@ -398,19 +398,24 @@ export default function Landing() {
               )}
             </div>
           </div>
-        </div>
-      </section>
+      </main>
       
-      <footer className="w-full py-4 text-center text-xs text-muted-foreground bg-background/80 border-t backdrop-blur">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-2 px-4">
-          <p>© {new Date().getFullYear()} Central University of Kashmir. All rights reserved.</p>
-          <button
-            type="button"
-            onClick={openCookiePreferences}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            Cookie Preferences
-          </button>
+      <footer className="relative z-10 w-full py-3 sm:py-3.5 text-xs text-white/70 border-t border-white/10 bg-black/40 backdrop-blur-md">
+        <div className="w-full px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] items-center gap-2">
+          <div className="order-2 lg:order-1 flex items-center justify-center lg:justify-start">
+            <p className="text-[11px] sm:text-xs text-white/70">
+              © {new Date().getFullYear()} Central University of Kashmir. All rights reserved.
+            </p>
+          </div>
+          <div className="order-1 lg:order-2 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={openCookiePreferences}
+              className="text-[11px] sm:text-xs text-white/75 hover:text-white underline underline-offset-4 transition-colors"
+            >
+              Cookie Preferences
+            </button>
+          </div>
         </div>
       </footer>
 
