@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -171,34 +171,40 @@ export default function Landing() {
       <div className="fixed inset-0 z-0 bg-black/45 backdrop-blur-[1px]" />
 
       <main className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] min-h-0 overflow-hidden">
-        {/* Left panel - Branding */}
-        <div className="flex items-center justify-center lg:items-end lg:justify-start px-4 pt-4 pb-2 lg:p-14">
+        {/* Left panel - Branding with Fraunces serif and DM Mono eyebrow */}
+        <div className="flex items-center justify-center lg:items-end lg:justify-start px-4 pt-3 sm:pt-4 pb-1 sm:pb-2 lg:p-14">
           <div className="max-w-2xl text-center lg:text-left">
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.28em] text-white/80 font-medium mb-1 sm:mb-2 drop-shadow">
+            <p className="font-mono text-[9.5px] sm:text-xs uppercase tracking-[0.18em] text-white/80 font-medium mb-1 drop-shadow">
               {INSTITUTION_NAME}
             </p>
-            <h1 className="text-base sm:text-xl lg:text-4xl font-bold leading-tight uppercase text-white drop-shadow-md">
-              {PLATFORM_NAME}
+            <h1 className="font-serif italic font-light text-lg sm:text-2xl lg:text-5xl leading-tight tracking-[-0.02em] text-white drop-shadow-md">
+              Examination <span className="not-italic font-normal">Management</span> Platform
             </h1>
+            <div className="hidden lg:flex items-center gap-2.5 mt-3.5">
+              <div className="h-px w-8 bg-white/40 shrink-0" />
+              <p className="text-[12.5px] text-white/80 drop-shadow">
+                Confidential paper authoring, multi-tier review & verification
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Right panel - White Auth Card */}
         <div className="flex items-center justify-center p-3 sm:p-5 lg:p-8 min-h-0">
-          <div className="w-full max-w-[420px] rounded-2xl border border-slate-200/80 bg-white/95 text-slate-900 shadow-2xl backdrop-blur-md p-4 sm:p-6 lg:p-7 max-h-[calc(100vh-100px)] overflow-y-auto">
+          <div className="w-full max-w-[420px] rounded-2xl border border-slate-200/90 bg-white/95 text-slate-900 shadow-[0_24px_65px_-12px_rgba(0,0,0,0.38)] ring-1 ring-slate-900/5 backdrop-blur-md p-4 sm:p-6 lg:p-7 max-h-[calc(100vh-100px)] overflow-y-auto">
             <div className="flex flex-col items-center text-center">
               <img
                 src="/cuk-favicon.png"
                 alt="CUK Logo"
-                className="mb-1.5 h-12 w-12 sm:h-16 sm:w-16 object-contain"
+                className="mb-1.5 h-11 w-11 sm:h-14 sm:w-14 object-contain"
               />
-              <h2 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 uppercase tracking-tight leading-snug">
+              <h2 className="font-serif text-[17px] sm:text-[20px] font-medium text-slate-900 tracking-[-0.015em] leading-snug">
                 Secure Examination Paper
                 <br />
-                Management System
+                <span className="font-serif italic font-normal text-slate-700">Management System</span>
               </h2>
-              <p className="mt-1 text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                End-to-end encrypted • Activity logged • Role-based access
+              <p className="mt-1 text-[10px] sm:text-[11px] text-slate-500 font-medium tracking-wide">
+                End-to-end encrypted · Activity logged · Role-based access
               </p>
             </div>
 
@@ -218,8 +224,8 @@ export default function Landing() {
                   <AlertCircle className="w-6 h-6 text-destructive" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Link expired or invalid</h3>
-                  <p className="text-slate-500 mt-1 text-xs">{authError}</p>
+                  <h3 className="font-serif italic font-light text-lg text-slate-900">Link expired or invalid</h3>
+                  <p className="font-mono text-slate-500 mt-1 text-xs">{authError}</p>
                 </div>
                 <Button
                   className="w-full bg-slate-900 text-white hover:bg-slate-800"
@@ -267,56 +273,63 @@ export default function Landing() {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="mt-3 space-y-2.5 sm:space-y-3 text-left"
+                  className="mt-3.5 space-y-2.5 sm:space-y-3 text-left"
                 >
                   {isSignUp && (
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                      <label className="font-mono text-[10px] sm:text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-600">
                         Full Name
                       </label>
-                      <input
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={fullName}
-                        onChange={(event) => setFullName(event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
-                        required
-                      />
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Enter your full name"
+                          value={fullName}
+                          onChange={(event) => setFullName(event.target.value)}
+                          className="h-9.5 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition"
+                          required
+                        />
+                      </div>
                     </div>
                   )}
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                    <label className="font-mono text-[10px] sm:text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-600">
                       Email
                     </label>
-                    <input
-                      type="email"
-                      placeholder="Enter your email address"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
-                      required
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        className="h-9.5 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                    <label className="font-mono text-[10px] sm:text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-600">
                       Password
                     </label>
                     <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        className="h-9.5 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -327,7 +340,7 @@ export default function Landing() {
                         <button
                           type="button"
                           onClick={() => setShowForgotPassword(true)}
-                          className="text-[11px] font-medium text-slate-600 hover:text-slate-950 underline underline-offset-2 transition"
+                          className="font-sans text-[11px] font-medium text-slate-600 hover:text-slate-950 underline underline-offset-2 transition"
                         >
                           Forgot Password?
                         </button>
@@ -337,13 +350,13 @@ export default function Landing() {
 
                   {isSignUp && (
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                      <label className="font-mono text-[10px] sm:text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-600">
                         Role
                       </label>
                       <select
                         value={selectedRole}
                         onChange={(event) => setSelectedRole(event.target.value as AppRole | '')}
-                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        className="h-9.5 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition"
                       >
                         <option value="" disabled className="text-slate-900">
                           Select role
@@ -359,13 +372,13 @@ export default function Landing() {
 
                   {isSignUp && selectedRole && selectedRole !== 'exam_cell' && (
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                      <label className="font-mono text-[10px] sm:text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-600">
                         Department
                       </label>
                       <select
                         value={selectedDepartment}
                         onChange={(event) => setSelectedDepartment(event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        className="h-9.5 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition"
                         required
                       >
                         <option value="" className="text-slate-900">
@@ -381,11 +394,18 @@ export default function Landing() {
                   )}
 
                   <Button
-                    className="w-full bg-slate-900 text-white hover:bg-slate-800 font-semibold shadow-sm h-9.5 text-xs sm:text-sm mt-1 transition"
+                    className="w-full bg-slate-900 text-white hover:bg-slate-800 font-semibold shadow-md h-10 text-xs sm:text-sm mt-1 transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
                     type="submit"
                     disabled={isLoading}
                   >
-                    {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>{isSignUp ? 'Creating account...' : 'Signing in...'}</span>
+                      </>
+                    ) : (
+                      <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
+                    )}
                   </Button>
                 </form>
               </>
@@ -395,10 +415,10 @@ export default function Landing() {
       </main>
 
       {/* Footer - Extreme left copyright & Cookie Preferences centered under right card */}
-      <footer className="relative z-10 w-full py-2.5 sm:py-3 text-xs text-white/70 border-t border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0">
+      <footer className="relative z-10 w-full py-2.5 sm:py-3 text-xs text-white/70 border-t border-white/10 bg-black/35 backdrop-blur-md flex-shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] items-center gap-1.5 sm:gap-2">
           <div className="order-2 lg:order-1 flex items-center justify-center lg:justify-start">
-            <p className="text-[11px] sm:text-xs text-white/75 font-normal">
+            <p className="text-[10px] sm:text-xs text-white/75 font-normal tracking-normal whitespace-nowrap">
               © {new Date().getFullYear()} Central University of Kashmir. All rights reserved.
             </p>
           </div>
@@ -406,7 +426,7 @@ export default function Landing() {
             <button
               type="button"
               onClick={openCookiePreferences}
-              className="text-[11px] sm:text-xs text-white/80 hover:text-white underline underline-offset-4 transition-colors font-medium"
+              className="text-[10.5px] sm:text-xs text-white/80 hover:text-white underline underline-offset-4 transition-colors font-medium tracking-normal"
             >
               Cookie Preferences
             </button>
