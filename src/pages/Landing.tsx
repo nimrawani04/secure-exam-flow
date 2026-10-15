@@ -162,248 +162,243 @@ export default function Landing() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-950 text-white overflow-x-hidden">
-      {/* Full-bleed background image & dark scrim */}
+    <div className="relative h-screen max-h-screen w-full flex flex-col justify-between bg-slate-950 text-white overflow-hidden select-none">
+      {/* Full-bleed background image & scrim */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/cuk.png')" }}
       />
-      <div className="fixed inset-0 z-0 bg-black/55 backdrop-blur-[2px]" />
+      <div className="fixed inset-0 z-0 bg-black/45 backdrop-blur-[1px]" />
 
-      <main className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] min-h-[calc(100vh-56px)]">
-          {/* Left panel */}
-          <div
-            className={`flex items-start lg:items-end justify-start p-4 sm:p-6 lg:p-16 ${
-              isSignUp ? 'lg:pb-28' : ''
-            }`}
-          >
-            <div className="max-w-2xl">
-              <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/70 mb-2">
-                {INSTITUTION_NAME}
-              </p>
-              <h1 className="text-base sm:text-xl lg:text-4xl font-semibold leading-tight uppercase">
-                {PLATFORM_NAME}
-              </h1>
-            </div>
+      <main className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] min-h-0 overflow-hidden">
+        {/* Left panel - Branding */}
+        <div className="flex items-center justify-center lg:items-end lg:justify-start px-4 pt-4 pb-2 lg:p-14">
+          <div className="max-w-2xl text-center lg:text-left">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.28em] text-white/80 font-medium mb-1 sm:mb-2 drop-shadow">
+              {INSTITUTION_NAME}
+            </p>
+            <h1 className="text-base sm:text-xl lg:text-4xl font-bold leading-tight uppercase text-white drop-shadow-md">
+              {PLATFORM_NAME}
+            </h1>
           </div>
+        </div>
 
-          {/* Right panel */}
-          <div className="flex items-start lg:items-center justify-center p-4 sm:p-6 lg:p-12">
-            <div className="w-full max-w-md rounded-xl border border-white/20 bg-black/50 p-4 sm:p-6 lg:p-8 max-h-none overflow-visible sm:max-h-[92vh] sm:overflow-y-auto sm:backdrop-blur">
-              <div className="flex flex-col items-center text-center">
-                <img
-                  src="/cuk-favicon.png"
-                  alt="CUK Logo"
-                  className="mb-2 h-16 w-16 object-contain sm:h-20 sm:w-20 lg:h-32 lg:w-32"
+        {/* Right panel - White Auth Card */}
+        <div className="flex items-center justify-center p-3 sm:p-5 lg:p-8 min-h-0">
+          <div className="w-full max-w-[420px] rounded-2xl border border-slate-200/80 bg-white/95 text-slate-900 shadow-2xl backdrop-blur-md p-4 sm:p-6 lg:p-7 max-h-[calc(100vh-100px)] overflow-y-auto">
+            <div className="flex flex-col items-center text-center">
+              <img
+                src="/cuk-favicon.png"
+                alt="CUK Logo"
+                className="mb-1.5 h-12 w-12 sm:h-16 sm:w-16 object-contain"
+              />
+              <h2 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 uppercase tracking-tight leading-snug">
+                Secure Examination Paper
+                <br />
+                Management System
+              </h2>
+              <p className="mt-1 text-[10px] sm:text-[11px] text-slate-500 font-medium">
+                End-to-end encrypted • Activity logged • Role-based access
+              </p>
+            </div>
+
+            {isPasswordReset ? (
+              <div className="mt-3 sm:mt-4">
+                <PasswordResetForm
+                  onBackToSignIn={() => {
+                    isPasswordResetRef.current = false;
+                    setIsPasswordReset(false);
+                    window.history.replaceState(null, '', window.location.pathname);
+                  }}
                 />
-                <h2 className="mt-1 text-sm sm:text-base lg:text-2xl font-semibold uppercase">
-                  Secure Examination Paper
-                  <br />
-                  Management System
-                </h2>
-                <p className="mt-2 text-[10px] sm:text-xs text-white/80">
-                  End-to-end encrypted | Activity logged | Role-based access
-                </p>
               </div>
-
-              {isPasswordReset ? (
-                <div className="mt-4">
-                  <PasswordResetForm
-                    onBackToSignIn={() => {
-                      isPasswordResetRef.current = false;
-                      setIsPasswordReset(false);
-                      window.history.replaceState(null, '', window.location.pathname);
-                    }}
-                  />
+            ) : authError ? (
+              <div className="mt-4 space-y-3 sm:space-y-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-destructive/15 flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-6 h-6 text-destructive" />
                 </div>
-              ) : authError ? (
-                <div className="mt-4 space-y-4 text-center">
-                  <div className="w-14 h-14 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
-                    <AlertCircle className="w-7 h-7 text-destructive" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold">Link expired or invalid</h2>
-                    <p className="text-white/70 mt-1 text-xs">{authError}</p>
-                  </div>
-                  <Button
-                    className="w-full bg-white text-slate-900 hover:bg-white/90"
-                    onClick={() => {
-                      setAuthError(null);
-                      setShowForgotPassword(true);
-                      window.history.replaceState(null, '', window.location.pathname);
-                    }}
-                  >
-                    Request a new reset link
-                  </Button>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Link expired or invalid</h3>
+                  <p className="text-slate-500 mt-1 text-xs">{authError}</p>
+                </div>
+                <Button
+                  className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                  onClick={() => {
+                    setAuthError(null);
+                    setShowForgotPassword(true);
+                    window.history.replaceState(null, '', window.location.pathname);
+                  }}
+                >
+                  Request a new reset link
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError(null);
+                    window.history.replaceState(null, '', window.location.pathname);
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-900 underline underline-offset-2"
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 sm:mt-4 grid grid-cols-2 rounded-lg bg-slate-100 p-1 border border-slate-200">
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthError(null);
-                      window.history.replaceState(null, '', window.location.pathname);
-                    }}
-                    className="text-xs text-white/70 hover:text-white"
+                    onClick={() => setIsSignUp(false)}
+                    className={`rounded-md py-1.5 text-xs sm:text-sm font-semibold transition ${
+                      !isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    Back to sign in
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(true)}
+                    className={`rounded-md py-1.5 text-xs sm:text-sm font-semibold transition ${
+                      isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Sign Up
                   </button>
                 </div>
-              ) : (
-              <>
 
-              <div className="mt-4 grid grid-cols-2 rounded-lg border border-white/20 bg-slate-900/40 p-1">
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  className={`rounded-md py-2 text-sm font-semibold transition ${
-                    !isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
-                  }`}
+                <form
+                  onSubmit={handleSubmit}
+                  className="mt-3 space-y-2.5 sm:space-y-3 text-left"
                 >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(true)}
-                  className={`rounded-md py-2 text-sm font-semibold transition ${
-                    isSignUp ? 'bg-white text-slate-900' : 'text-white/80 hover:text-white'
-                  }`}
-                >
-                  Sign Up
-                </button>
-              </div>
-
-              <form
-                onSubmit={handleSubmit}
-                className="mt-3 sm:mt-4 space-y-3 sm:space-y-4"
-              >
-                {isSignUp && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={fullName}
-                      onChange={(event) => setFullName(event.target.value)}
-                      className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
-                      required
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                      Email
-                    </label>
-                  <input
-                    type="email"
-                      placeholder="Enter your email address"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 pr-10 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
-                      required
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {!isSignUp && (
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotPassword(true)}
-                        className="text-xs text-white/70 hover:text-white"
-                      >
-                        Forgot Password?
-                      </button>
+                  {isSignUp && (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={fullName}
+                        onChange={(event) => setFullName(event.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        required
+                      />
                     </div>
                   )}
-                </div>
 
-                {isSignUp && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                      Role
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                      Email
                     </label>
-                    <select
-                      value={selectedRole}
-                      onChange={(event) => setSelectedRole(event.target.value as AppRole | '')}
-                      className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white focus:border-white/60 focus:outline-none"
-                    >
-                      <option value="" disabled className="text-slate-900">
-                        Select role
-                      </option>
-                      {roleOptions.map((role) => (
-                        <option key={role.value} value={role.value} className="text-slate-900">
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {isSignUp && selectedRole && selectedRole !== 'exam_cell' && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                      Department
-                    </label>
-                    <select
-                      value={selectedDepartment}
-                      onChange={(event) => setSelectedDepartment(event.target.value)}
-                      className="h-9 sm:h-10 w-full rounded-md border border-white/30 bg-white/15 px-3 text-sm text-white focus:border-white/60 focus:outline-none"
+                    <input
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
                       required
-                    >
-                      <option value="" className="text-slate-900">
-                        Select department
-                      </option>
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={dept.id} className="text-slate-900">
-                          {dept.name} ({dept.code})
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
-                )}
 
-                <Button
-                  className="w-full bg-white text-slate-900 hover:bg-white/90 font-medium"
-                  size="lg"
-                  type="submit"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
-                </Button>
-              </form>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {!isSignUp && (
+                      <div className="text-right pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotPassword(true)}
+                          className="text-[11px] font-medium text-slate-600 hover:text-slate-950 underline underline-offset-2 transition"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {isSignUp && (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                        Role
+                      </label>
+                      <select
+                        value={selectedRole}
+                        onChange={(event) => setSelectedRole(event.target.value as AppRole | '')}
+                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                      >
+                        <option value="" disabled className="text-slate-900">
+                          Select role
+                        </option>
+                        {roleOptions.map((role) => (
+                          <option key={role.value} value={role.value} className="text-slate-900">
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {isSignUp && selectedRole && selectedRole !== 'exam_cell' && (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
+                        Department
+                      </label>
+                      <select
+                        value={selectedDepartment}
+                        onChange={(event) => setSelectedDepartment(event.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 transition"
+                        required
+                      >
+                        <option value="" className="text-slate-900">
+                          Select department
+                        </option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id} className="text-slate-900">
+                            {dept.name} ({dept.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full bg-slate-900 text-white hover:bg-slate-800 font-semibold shadow-sm h-9.5 text-xs sm:text-sm mt-1 transition"
+                    type="submit"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : isSignUp ? 'Create Account' : 'Sign In'}
+                  </Button>
+                </form>
               </>
-              )}
-            </div>
+            )}
           </div>
+        </div>
       </main>
-      
-      <footer className="relative z-10 w-full py-3 sm:py-3.5 text-xs text-white/70 border-t border-white/10 bg-black/40 backdrop-blur-md">
-        <div className="w-full px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] items-center gap-2">
+
+      {/* Footer - Extreme left copyright & Cookie Preferences centered under right card */}
+      <footer className="relative z-10 w-full py-2.5 sm:py-3 text-xs text-white/70 border-t border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] items-center gap-1.5 sm:gap-2">
           <div className="order-2 lg:order-1 flex items-center justify-center lg:justify-start">
-            <p className="text-[11px] sm:text-xs text-white/70">
+            <p className="text-[11px] sm:text-xs text-white/75 font-normal">
               © {new Date().getFullYear()} Central University of Kashmir. All rights reserved.
             </p>
           </div>
@@ -411,7 +406,7 @@ export default function Landing() {
             <button
               type="button"
               onClick={openCookiePreferences}
-              className="text-[11px] sm:text-xs text-white/75 hover:text-white underline underline-offset-4 transition-colors"
+              className="text-[11px] sm:text-xs text-white/80 hover:text-white underline underline-offset-4 transition-colors font-medium"
             >
               Cookie Preferences
             </button>
