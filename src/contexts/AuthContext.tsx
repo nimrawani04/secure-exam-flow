@@ -269,9 +269,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
         });
       } else {
-        if (!localData) {
-          setIsLoading(false);
+        // No real session: drop a stale cached login (keep offline demo sessions only).
+        const isDemo = localData?.session?.access_token?.startsWith('demo-access-token-');
+        if (localData && !isDemo) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          removeLocalSession();
         }
+        setIsLoading(false);
       }
     }).catch(() => {
       if (!localData) {

@@ -58,6 +58,7 @@ import {
   parsePastedText,
   getAllAvailableProgrammes,
   catalogKey,
+  getLocalCatalogs,
 } from '@/lib/subjectCatalogStorage';
 import { Link } from 'react-router-dom';
 
@@ -148,8 +149,9 @@ export default function HODSubjects() {
   useEffect(() => {
     loadCatalogs();
 
+    // Read the local cache only — refetching here would re-dispatch the event and loop forever.
     const handleUpdate = () => {
-      fetchSubjectCatalogs().then(setSavedCatalogs);
+      setSavedCatalogs(getLocalCatalogs());
     };
     window.addEventListener('cuk_subject_catalog_updated', handleUpdate);
     return () => window.removeEventListener('cuk_subject_catalog_updated', handleUpdate);

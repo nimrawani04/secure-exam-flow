@@ -32,6 +32,7 @@ import {
 } from '@/lib/itCatalog';
 import {
   getCoursesForSemester,
+  fetchSubjectCatalogs,
   getAllAvailableProgrammes,
   SEMESTER_OPTIONS as CATALOG_SEMESTER_OPTIONS,
 } from '@/lib/subjectCatalogStorage';
@@ -247,6 +248,8 @@ export default function ExaminerPanels() {
   useEffect(() => {
     const handleUpdate = () => setCatalogUpdateTrigger((v) => v + 1);
     window.addEventListener('cuk_subject_catalog_updated', handleUpdate);
+    // Pull saved catalogs from the server so other devices/roles see them.
+    fetchSubjectCatalogs().catch(() => {});
     return () => window.removeEventListener('cuk_subject_catalog_updated', handleUpdate);
   }, []);
 
@@ -1674,7 +1677,7 @@ export default function ExaminerPanels() {
                                 <div className="flex items-center justify-center gap-1">
                                   <GripVertical
                                     className="h-4 w-4 cursor-grab text-[#a0aec0] hover:text-[#18202e] dark:hover:text-[#e2eaf4] shrink-0"
-                                    title="Click & drag to swap teacher position"
+                                    aria-label="Click & drag to swap teacher position"
                                   />
                                   <span>{index + 1}</span>
                                 </div>

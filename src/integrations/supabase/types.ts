@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -460,10 +460,13 @@ export type Database = {
       }
       examiner_panels: {
         Row: {
+          batch: string | null
           course_code: string | null
+          course_nature: string | null
           course_title: string | null
           created_at: string
           created_by: string
+          credits: string | null
           dean_name: string | null
           department_id: string
           department_label: string | null
@@ -471,19 +474,24 @@ export type Database = {
           id: string
           notes: string | null
           programme: string | null
+          regular_backlog: string | null
           school: string | null
           semester: string | null
           sent_at: string | null
           session_label: string | null
           status: string
           subject_id: string | null
+          teacher_incharge_name: string | null
           updated_at: string
         }
         Insert: {
+          batch?: string | null
           course_code?: string | null
+          course_nature?: string | null
           course_title?: string | null
           created_at?: string
           created_by: string
+          credits?: string | null
           dean_name?: string | null
           department_id: string
           department_label?: string | null
@@ -491,19 +499,24 @@ export type Database = {
           id?: string
           notes?: string | null
           programme?: string | null
+          regular_backlog?: string | null
           school?: string | null
           semester?: string | null
           sent_at?: string | null
           session_label?: string | null
           status?: string
           subject_id?: string | null
+          teacher_incharge_name?: string | null
           updated_at?: string
         }
         Update: {
+          batch?: string | null
           course_code?: string | null
+          course_nature?: string | null
           course_title?: string | null
           created_at?: string
           created_by?: string
+          credits?: string | null
           dean_name?: string | null
           department_id?: string
           department_label?: string | null
@@ -511,12 +524,14 @@ export type Database = {
           id?: string
           notes?: string | null
           programme?: string | null
+          regular_backlog?: string | null
           school?: string | null
           semester?: string | null
           sent_at?: string | null
           session_label?: string | null
           status?: string
           subject_id?: string | null
+          teacher_incharge_name?: string | null
           updated_at?: string
         }
         Relationships: [
