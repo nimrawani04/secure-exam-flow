@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import XLSX from 'xlsx-js-style';
 import ExcelJS from 'exceljs';
 import type { ExaminerPanel, PanelMember, PanelHeaderInput } from '@/hooks/useExaminerPanels';
+import { emptyMember } from '@/hooks/useExaminerPanels';
 
 export const MEMBER_COLUMNS = [
   'Name',

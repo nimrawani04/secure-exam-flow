@@ -1677,7 +1677,7 @@ export default function ExaminerPanels() {
                                 <div className="flex items-center justify-center gap-1">
                                   <GripVertical
                                     className="h-4 w-4 cursor-grab text-[#a0aec0] hover:text-[#18202e] dark:hover:text-[#e2eaf4] shrink-0"
-                                    title="Click & drag to swap teacher position"
+                                    aria-label="Click & drag to swap teacher position"
                                   />
                                   <span>{index + 1}</span>
                                 </div>
