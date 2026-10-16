@@ -75,7 +75,7 @@ export async function fetchSubjectCatalogs(): Promise<SubjectCatalogEntry[]> {
   const localList = getLocalCatalogs();
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('department_subject_catalogs')
       .select('*')
       .order('updated_at', { ascending: false });
@@ -204,7 +204,7 @@ export async function saveSubjectCatalog(entry: {
       updated_at: now,
     };
 
-    await supabase.from('department_subject_catalogs').upsert(payload, {
+    await (supabase as any).from('department_subject_catalogs').upsert(payload, {
       onConflict: 'id',
     });
   } catch (err) {
@@ -223,7 +223,7 @@ export async function deleteSubjectCatalog(id: string): Promise<boolean> {
   saveLocalCatalogs(updated);
 
   try {
-    await supabase.from('department_subject_catalogs').delete().eq('id', id);
+    await (supabase as any).from('department_subject_catalogs').delete().eq('id', id);
   } catch (err) {
     console.warn('Could not delete from remote table:', err);
   }
