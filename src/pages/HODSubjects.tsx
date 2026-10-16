@@ -58,6 +58,7 @@ import {
   parsePastedText,
   getAllAvailableProgrammes,
   catalogKey,
+  getLocalCatalogs,
 } from '@/lib/subjectCatalogStorage';
 import { Link } from 'react-router-dom';
 

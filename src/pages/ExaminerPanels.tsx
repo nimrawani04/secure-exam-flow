@@ -32,6 +32,7 @@ import {
 } from '@/lib/itCatalog';
 import {
   getCoursesForSemester,
+  fetchSubjectCatalogs,
   getAllAvailableProgrammes,
   SEMESTER_OPTIONS as CATALOG_SEMESTER_OPTIONS,
 } from '@/lib/subjectCatalogStorage';
