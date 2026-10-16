@@ -247,6 +247,8 @@ export default function ExaminerPanels() {
   useEffect(() => {
     const handleUpdate = () => setCatalogUpdateTrigger((v) => v + 1);
     window.addEventListener('cuk_subject_catalog_updated', handleUpdate);
+    // Pull saved catalogs from the server so other devices/roles see them.
+    fetchSubjectCatalogs().catch(() => {});
     return () => window.removeEventListener('cuk_subject_catalog_updated', handleUpdate);
   }, []);
 
