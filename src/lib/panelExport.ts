@@ -1138,7 +1138,7 @@ function drawSinglePanelDocument(doc: jsPDF, panel: ExaminerPanel) {
 
   autoTable(doc, {
     startY: tableStartY,
-    head: TABLE_HEAD,
+    head: TABLE_HEAD as any,
     body,
     theme: 'grid',
     headStyles: {
